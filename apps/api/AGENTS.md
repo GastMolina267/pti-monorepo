@@ -54,6 +54,7 @@ modules/<dominio>/
 - **Latencia:** REST de turnos < 50 ms (hoy ~5 ms p50). En la Fase 2, nada bloqueante en el camino MQTT → WS.
 - **Errores:** excepciones de Nest con mensaje en español (`NotFoundException('Turno no encontrado')`, `ConflictException` para transiciones inválidas).
 - **Tests:** jest. Unitarios con mocks. El flujo completo va en `app.int.spec.ts` contra PostgreSQL real (CI con service container). ⚠️ Jest corre en CommonJS: **no uses dependencias solo-ESM** en código que se testea (ej. `@faker-js/faker` v10).
+- **Los tests no pueden depender del `.env`.** Nx carga el `.env` de la raíz en cada tarea local, pero en CI no existe. En los unitarios usá un `ConfigService` simulado (`{ provide: ConfigService, useValue: { get } }`), no `ConfigModule.forRoot({ load })`: la validación de `@nestjs/config` mira las variables de entorno y no los valores de `load`. Para reproducir la CI: `mv .env .env.bak && pnpm nx test api`.
 
 ## Comandos
 

@@ -96,6 +96,8 @@ const moduleRef = await Test.createTestingModule({
 
 Cubrí: camino feliz, validación (DTO inválido → 400) y casos de negocio (fila vacía, turno inexistente).
 
+⚠️ Los tests no pueden depender del `.env` (Nx lo carga en local; en CI no existe). Si el código usa `ConfigService`, simulalo: `{ provide: ConfigService, useValue: { get: (k: string) => valores[k] } }`.
+
 ## 7. Cierre
 
 - [ ] Swagger se ve bien en `http://localhost:3000/api/docs`
