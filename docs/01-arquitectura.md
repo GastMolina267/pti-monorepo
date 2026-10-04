@@ -109,15 +109,15 @@ Las reglas de dependencia las hace cumplir `@nx/enforce-module-boundaries` (`esl
 
 La tesis (§8.3) define **un solo backend NestJS** para maximizar rendimiento y mantenibilidad en el gateway. Los dominios son módulos internos (`apps/api/src/modules/*`). Si en el futuro se necesita, cada módulo se puede extraer a una lib `libs/api/<dominio>`.
 
-| Módulo                             | Fase | Responsabilidad                        |
-| ---------------------------------- | ---- | -------------------------------------- |
-| `health`                           | 0 ✅ | Estado del gateway y sus dependencias  |
-| `database`                         | 1    | Prisma + PostgreSQL                    |
-| `auth`                             | 1    | Login del personal (JWT), roles        |
-| `patients`, `tickets`, `rooms`     | 1    | Pacientes, turnos y fila, consultorios |
-| `realtime`                         | 2    | Gateway Socket.IO                      |
-| `telemetry`, `alerts`, `wearables` | 2    | Ingesta MQTT, clasificación, alertas   |
-| `sync`                             | 5    | Cola de réplica a la nube              |
+| Módulo                             | Fase | Responsabilidad                                                      |
+| ---------------------------------- | ---- | -------------------------------------------------------------------- |
+| `health`                           | 0 ✅ | Estado del gateway y sus dependencias                                |
+| `database`                         | 1 ✅ | TypeORM + PostgreSQL (`src/database`)                                |
+| `auth`                             | 1 ✅ | Login del personal (JWT), roles                                      |
+| `catalog`, `tickets`, `check-in`   | 1 ✅ | Servicios y consultorios; pacientes, turnos y fila; check-in público |
+| `realtime`                         | 2    | Gateway Socket.IO                                                    |
+| `telemetry`, `alerts`, `wearables` | 2    | Ingesta MQTT, clasificación, alertas                                 |
+| `sync`                             | 5    | Cola de réplica a la nube                                            |
 
 ## Despliegue (objetivo Fase 4)
 

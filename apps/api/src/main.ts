@@ -1,9 +1,10 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { API_PREFIX } from '@vitalia/contracts';
 import { AppModule } from './app/app.module';
+import { createValidationPipe } from './common/validation';
 import type { Env } from './config/env.schema';
 
 async function bootstrap() {
@@ -19,7 +20,7 @@ async function bootstrap() {
       .map((o) => o.trim()),
     credentials: true,
   });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(createValidationPipe());
 
   if (config.get('SWAGGER_ENABLED', { infer: true })) {
     const doc = new DocumentBuilder()

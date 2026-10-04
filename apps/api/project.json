@@ -64,6 +64,53 @@
       "options": {
         "passWithNoTests": true
       }
+    },
+    "db-migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts migration:run"
+      }
+    },
+    "db-revert": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts migration:revert"
+      }
+    },
+    "db-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts migration:generate apps/api/src/database/migrations/{args.name} --pretty"
+      }
+    },
+    "db-show": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts migration:show"
+      }
+    },
+    "db-drop": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts schema:drop"
+      }
+    },
+    "db-seed": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json apps/api/src/database/seeds/run-seed.ts"
+      }
+    },
+    "db-reset": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts schema:drop",
+          "tsx --tsconfig apps/api/tsconfig.app.json node_modules/typeorm/cli.js -d apps/api/src/database/data-source.ts migration:run",
+          "tsx --tsconfig apps/api/tsconfig.app.json apps/api/src/database/seeds/run-seed.ts"
+        ],
+        "parallel": false
+      }
     }
   }
 }

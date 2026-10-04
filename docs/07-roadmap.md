@@ -8,8 +8,8 @@
 | Fase | Objetivo                                  | Fechas    | Resp.  | Estado                  |
 | ---- | ----------------------------------------- | --------- | ------ | ----------------------- |
 | 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa             |
-| 1    | Núcleo de datos, turnos y auth            | 5–12 oct  | G      | ⏳ Siguiente            |
-| 2    | Telemetría MQTT, alertas y tiempo real    | 12–19 oct | G (+F) | Pendiente               |
+| 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa             |
+| 2    | Telemetría MQTT, alertas y tiempo real    | 5–19 oct  | G (+F) | ⏳ Siguiente            |
 | 3    | Backoffice y llamador TV funcionales      | 12–26 oct | T      | Pendiente (en paralelo) |
 | 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente               |
 | 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente               |
@@ -20,8 +20,8 @@ gantt
   dateFormat YYYY-MM-DD
   axisFormat %d/%m
   section Backend
-  F1 Datos y turnos        :f1, 2026-10-05, 8d
-  F2 Telemetría y RT       :f2, 2026-10-12, 8d
+  F1 Datos y turnos        :done, f1, 2026-10-03, 2d
+  F2 Telemetría y RT       :f2, 2026-10-05, 15d
   section Frontend
   F3 Backoffice y TV       :f3, 2026-10-12, 15d
   section Equipo
@@ -45,25 +45,28 @@ gantt
 - [x] Contexto IA: `AGENTS.md` raíz y por proyecto, punteros para cada herramienta, 8 skills del proyecto, skills y MCP de Nx
 - [x] Documentación base (`docs/`) y ADRs iniciales
 
-## Fase 1 · Núcleo de datos, turnos y auth (G)
+## Fase 1 · Núcleo de datos, turnos y auth (G) ✅
 
-**Objetivo:** que la API persista pacientes y turnos y exponga la fila, el check-in y el llamado, con login del personal.
+**Objetivo:** que la API persista pacientes y turnos, exponga la fila, el check-in y el llamado, y tenga login del personal.
 
-- [ ] Decidir el ORM (aceptar o reemplazar [ADR 0005](adr/0005-orm-prisma.md)) e instalarlo
-- [ ] Módulo `database` (servicio del ORM + check de PostgreSQL en `/api/health`)
-- [ ] Esquema inicial + migración: `Patient`, `Ticket`, `ConsultingRoom`, `StaffUser`, `Wearable`, `TelemetryReading`, `Alert`
-- [ ] Seed con datos simulados (Faker): consultorios, personal, pacientes, turnos
-- [ ] Contratos en `@vitalia/contracts`: tickets, check-in, auth, roles
-- [ ] Módulo `tickets`: fila (`GET /tickets`), estado, llamado (`POST /tickets/:id/call`), cambio de estado
-- [ ] Módulo `check-in` (público, con rate limit) para el portal cautivo y el kiosk
-- [ ] Módulo `auth`: login JWT del personal, roles (`ADMIN`, `NURSE`, `DOCTOR`, `RECEPTION`), guard
-- [ ] Skill `vitalia-database` (migraciones, seeds, patrones del ORM) + `pnpm ai:sync`
-- [ ] Tests de services y controllers. REST de turnos < 50 ms en local
+- [x] ORM decidido: **TypeORM 1.1** ([ADR 0009](adr/0009-orm-typeorm.md); Prisma rechazado, [ADR 0005](adr/0005-orm-prisma.md))
+- [x] Módulo `database` (TypeORM + PostgreSQL) y check de la base en `/api/health`
+- [x] Esquema inicial + migración: `staff_users`, `service_areas`, `consulting_rooms`, `patients`, `tickets`, `wearables`, `telemetry_readings`, `alerts` ([08-modelo-datos.md](08-modelo-datos.md))
+- [x] Seed determinístico e idempotente con datos simulados: servicios, consultorios, personal, wearables y 14 turnos del día
+- [x] Contratos en `@vitalia/contracts`: auth/roles, catálogo, turnos (estados, transiciones, orden de la fila, código), check-in
+- [x] Módulo `tickets`: fila ordenada, detalle, vista pública con posición y espera, llamado, cambio de estado, triaje manual
+- [x] Módulo `check-in` público, idempotente por DNI y con rate limit (10/min)
+- [x] Módulo `auth`: login JWT (8 h), roles (`ADMIN`, `NURSE`, `DOCTOR`, `RECEPTION`), guards globales (`@Public`, `@Roles`), login limitado a 5/min
+- [x] Módulo `catalog`: servicios (público) y consultorios
+- [x] Skill `vitalia-database` + `pnpm ai:sync`
+- [x] Tests: 22 en la API (unitarios + integración contra PostgreSQL en CI) y 11 en contracts
+- [x] REST de turnos < 50 ms: **p50 ≈ 5 ms, p95 ≈ 9 ms** en local
 
-**Terminado cuando:** desde Swagger se puede loguear, hacer check-in, ver la fila y llamar un turno, y todo queda persistido.
+**Terminado ✅:** desde Swagger se puede loguear, hacer check-in, ver la fila y llamar un turno, y todo queda persistido.
 
 ## Fase 2 · Telemetría MQTT, alertas y tiempo real (G + F)
 
+- [ ] Emitir eventos de dominio desde `tickets` (hoy hay un `// Fase 2` en `TicketsService.call`)
 - [ ] Módulo `realtime`: gateway Socket.IO con salas `staff` / `tv` / `patient:<id>` — [ADR 0007](adr/0007-tiempo-real-socket-io.md)
 - [ ] `ticket:called` y `queue:updated` emitidos desde `tickets`
 - [ ] Módulo `telemetry`: cliente MQTT, suscripción `hospital/+/wearable/+/data`, QoS 1

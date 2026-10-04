@@ -1,27 +1,47 @@
-import { ConfigModule } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import { validateEnv } from '../../config/env.schema';
+import { getDataSourceToken } from '@nestjs/typeorm';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
 
-describe('HealthController', () => {
-  let controller: HealthController;
+/**
+ * ConfigService simulado: los tests unitarios NO deben depender del .env
+ * (Nx lo inyecta en las tareas locales, pero en CI no existe).
+ */
+const config = { get: (key: string) => ({ APP_VERSION: '0.2.0', NODE_ENV: 'test' })[key] };
 
-  beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ ignoreEnvFile: true, validate: validateEnv })],
-      controllers: [HealthController],
-      providers: [HealthService],
-    }).compile();
-    controller = moduleRef.get(HealthController);
+async function setup(query: jest.Mock) {
+  const moduleRef = await Test.createTestingModule({
+    controllers: [HealthController],
+    providers: [
+      HealthService,
+      { provide: ConfigService, useValue: config },
+      { provide: getDataSourceToken(), useValue: { query } },
+    ],
+  }).compile();
+  return moduleRef.get(HealthController);
+}
+
+describe('HealthController', () => {
+  it('responde ok cuando la base responde', async () => {
+    const controller = await setup(jest.fn().mockResolvedValue([{ '?column?': 1 }]));
+    const res = await controller.get();
+    expect(res).toMatchObject({
+      status: 'ok',
+      service: 'vitalia-api',
+      version: '0.2.0',
+      environment: 'test',
+    });
+    expect(res.checks).toEqual([
+      { name: 'process', status: 'ok' },
+      { name: 'database', status: 'ok' },
+    ]);
   });
 
-  it('responde ok con el contrato HealthResponse', () => {
-    const res = controller.get();
-    expect(res.status).toBe('ok');
-    expect(res.service).toBe('vitalia-api');
-    expect(res.version).toBe('0.1.0');
-    expect(res.checks).toContainEqual({ name: 'process', status: 'ok' });
-    expect(() => new Date(res.timestamp).toISOString()).not.toThrow();
+  it('marca down si PostgreSQL no responde', async () => {
+    const controller = await setup(jest.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+    const res = await controller.get();
+    expect(res.status).toBe('down');
+    expect(res.checks[1]).toMatchObject({ name: 'database', status: 'down' });
   });
 });
