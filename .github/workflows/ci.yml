@@ -12,6 +12,26 @@ permissions:
 jobs:
   main:
     runs-on: ubuntu-latest
+
+    # PostgreSQL para el test de integración de la API (app.int.spec.ts)
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vitalia
+          POSTGRES_PASSWORD: vitalia
+          POSTGRES_DB: vitalia_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vitalia -d vitalia_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://vitalia:vitalia@localhost:5432/vitalia_test
+
     steps:
       - uses: actions/checkout@v5
         with:

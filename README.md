@@ -10,14 +10,14 @@
 
 Monorepo **Nx** con el backend del **Edge Gateway** y las interfaces del personal de salud. Todo corre localmente en el hospital (Fog Computing) y sigue operando **sin internet**.
 
-| Proyecto                                                 | Descripción                                                  | Stack                 |
-| -------------------------------------------------------- | ------------------------------------------------------------ | --------------------- |
-| [`apps/api`](apps/api)                                   | Backend único: turnos, telemetría MQTT, alertas, tiempo real | NestJS 11             |
-| [`apps/backoffice`](apps/backoffice)                     | Consola de triaje y monitoreo para el personal               | Angular 22 + Material |
-| [`apps/tv-display`](apps/tv-display)                     | Llamador de turnos para la sala de espera                    | Angular 22            |
-| [`libs/shared/contracts`](libs/shared/contracts)         | Contratos compartidos (REST, WS, MQTT, reglas clínicas)      | TypeScript            |
-| [`libs/shared/design-tokens`](libs/shared/design-tokens) | Identidad visual Vitalia                                     | SCSS + TS             |
-| [`libs/shared/ui`](libs/shared/ui)                       | Componentes Angular de marca                                 | Angular               |
+| Proyecto                                                 | Descripción                                                                         | Stack                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------- |
+| [`apps/api`](apps/api)                                   | Backend único: turnos, check-in, auth; luego telemetría MQTT, alertas y tiempo real | NestJS 11 + TypeORM   |
+| [`apps/backoffice`](apps/backoffice)                     | Consola de triaje y monitoreo para el personal                                      | Angular 22 + Material |
+| [`apps/tv-display`](apps/tv-display)                     | Llamador de turnos para la sala de espera                                           | Angular 22            |
+| [`libs/shared/contracts`](libs/shared/contracts)         | Contratos compartidos (REST, WS, MQTT, reglas clínicas)                             | TypeScript            |
+| [`libs/shared/design-tokens`](libs/shared/design-tokens) | Identidad visual Vitalia                                                            | SCSS + TS             |
+| [`libs/shared/ui`](libs/shared/ui)                       | Componentes Angular de marca                                                        | Angular               |
 
 Repos relacionados: portal cautivo (`pti-captive-portal`, React) y firmware del wearable (ESP32-C3).
 
@@ -27,6 +27,8 @@ Repos relacionados: portal cautivo (`pti-captive-portal`, React) y firmware del 
 pnpm install
 cp .env.example .env
 pnpm infra:up     # PostgreSQL 16 + Mosquitto 2 (Docker)
+pnpm db:migrate   # tablas (TypeORM)
+pnpm db:seed      # datos simulados · usuarios *@vitalia.local / Vitalia2026!
 pnpm dev          # API :3000 · Backoffice :4200 · TV :4300
 ```
 

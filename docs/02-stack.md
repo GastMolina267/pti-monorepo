@@ -17,18 +17,20 @@ Versiones fijadas al crear el monorepo (octubre 2026). Las de Angular y NestJS s
 
 ## Backend (`apps/api`)
 
-| Tecnología                                                                         | Versión   | Uso                                                         |
-| ---------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------- |
-| NestJS                                                                             | 11        | Framework (monolito modular)                                |
-| @nestjs/config + zod 4                                                             | 4.x / 4.6 | Config validada al arrancar                                 |
-| @nestjs/swagger                                                                    | 11        | OpenAPI en `/api/docs`                                      |
-| class-validator / class-transformer                                                | 0.15      | Validación de DTOs                                          |
-| webpack (vía `@nx/webpack`)                                                        | 5         | Build                                                       |
-| jest                                                                               | 30        | Tests                                                       |
-| **Fase 1:** Prisma (propuesto, [ADR 0005](adr/0005-orm-prisma.md)) + PostgreSQL 16 |           | Persistencia                                                |
-| **Fase 1:** @nestjs/jwt + passport                                                 |           | Auth del personal                                           |
-| **Fase 2:** @nestjs/websockets + socket.io                                         |           | Tiempo real ([ADR 0007](adr/0007-tiempo-real-socket-io.md)) |
-| **Fase 2:** mqtt.js                                                                |           | Cliente MQTT                                                |
+| Tecnología                                     | Versión      | Uso                                                              |
+| ---------------------------------------------- | ------------ | ---------------------------------------------------------------- |
+| NestJS                                         | 11           | Framework (monolito modular)                                     |
+| @nestjs/config + zod 4                         | 4.x / 4.6    | Config validada al arrancar                                      |
+| @nestjs/swagger                                | 11           | OpenAPI en `/api/docs`                                           |
+| class-validator / class-transformer            | 0.15         | Validación de DTOs                                               |
+| webpack (vía `@nx/webpack`)                    | 5            | Build                                                            |
+| jest                                           | 30           | Tests                                                            |
+| TypeORM + @nestjs/typeorm + pg (PostgreSQL 16) | 1.1 / 11 / 8 | Persistencia y migraciones ([ADR 0009](adr/0009-orm-typeorm.md)) |
+| @nestjs/jwt + bcryptjs                         | 11 / 3       | Login del personal (JWT) y hash de contraseñas                   |
+| @nestjs/throttler                              | 6            | Rate limit (login, check-in)                                     |
+| tsx                                            | 4            | CLI de migraciones y seed                                        |
+| **Fase 2:** @nestjs/websockets + socket.io     |              | Tiempo real ([ADR 0007](adr/0007-tiempo-real-socket-io.md))      |
+| **Fase 2:** mqtt.js                            |              | Cliente MQTT                                                     |
 
 ## Frontend (`apps/backoffice`, `apps/tv-display`, `libs/shared/ui`)
 

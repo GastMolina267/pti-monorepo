@@ -10,5 +10,6 @@
 | 05  | [Convenciones](05-convenciones.md)         | Código, Git, testing, seguridad                        |
 | 06  | [Identidad visual](06-identidad-visual.md) | Marca Vitalia                                          |
 | 07  | [Roadmap](07-roadmap.md)                   | Fases, tareas e hitos                                  |
+| 08  | [Modelo de datos](08-modelo-datos.md)      | Diagrama ER, reglas, migraciones y seed                |
 | —   | [ADRs](adr/README.md)                      | Decisiones de arquitectura                             |
 | —   | [Guía de desarrollo](guia-desarrollo.md)   | Setup en Windows, flujo de trabajo, IA                 |

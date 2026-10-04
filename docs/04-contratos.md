@@ -6,19 +6,61 @@ Fuente de verdad en código: [`libs/shared/contracts`](../libs/shared/contracts)
 
 Swagger interactivo: `http://localhost:3000/api/docs`.
 
-| Método | Ruta                        | Descripción                                          | Estado    |
-| ------ | --------------------------- | ---------------------------------------------------- | --------- |
-| GET    | `/api/health`               | Estado del gateway (`HealthResponse`)                | ✅ Fase 0 |
-| POST   | `/api/auth/login`           | Login del personal → JWT                             | Fase 1    |
-| POST   | `/api/check-in`             | Check-in desde el portal o kiosk → turno             | Fase 1    |
-| GET    | `/api/tickets?status=`      | Fila de espera                                       | Fase 1    |
-| GET    | `/api/tickets/:id`          | Estado de un turno (portal del paciente)             | Fase 1    |
-| POST   | `/api/tickets/:id/call`     | Llamar un turno a consultorio                        | Fase 1    |
-| PATCH  | `/api/tickets/:id`          | Cambiar el estado (en atención, finalizado, ausente) | Fase 1    |
-| GET    | `/api/wearables`            | Wearables y su última lectura                        | Fase 2    |
-| POST   | `/api/wearables/:id/assign` | Asignar un wearable a un turno                       | Fase 2    |
-| GET    | `/api/alerts?active=true`   | Alertas activas                                      | Fase 2    |
-| POST   | `/api/alerts/:id/ack`       | Reconocer una alerta                                 | Fase 2    |
+Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint salvo los marcados como **público**. Roles: `ADMIN`, `NURSE`, `DOCTOR`, `RECEPTION`.
+
+| Método | Ruta                                | Acceso                       | Descripción                                                                             | Estado |
+| ------ | ----------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------- | ------ |
+| GET    | `/api/health`                       | público                      | Estado del gateway y de PostgreSQL (`HealthResponse`)                                   | ✅     |
+| POST   | `/api/auth/login`                   | público (5/min por IP)       | Login del personal → `LoginResponse` (JWT de 8 h)                                       | ✅ F1  |
+| GET    | `/api/auth/me`                      | staff                        | Usuario autenticado (`StaffUser`)                                                       | ✅ F1  |
+| GET    | `/api/services`                     | público                      | Servicios de atención (`ServiceArea[]`) para elegir en el check-in                      | ✅ F1  |
+| GET    | `/api/consulting-rooms`             | staff                        | Consultorios activos (`ConsultingRoom[]`)                                               | ✅ F1  |
+| POST   | `/api/check-in`                     | público (10/min por IP)      | Check-in (`CheckInRequest`) → `PublicTicket`. Idempotente por DNI                       | ✅ F1  |
+| GET    | `/api/tickets?status=&serviceCode=` | staff                        | Fila del día (por defecto, turnos abiertos), ordenada por triaje y llegada (`Ticket[]`) | ✅ F1  |
+| GET    | `/api/tickets/:id`                  | staff                        | Detalle de un turno (`Ticket`)                                                          | ✅ F1  |
+| GET    | `/api/tickets/:id/public`           | público                      | Estado para el paciente (`PublicTicket`: posición y espera estimada)                    | ✅ F1  |
+| POST   | `/api/tickets/:id/call`             | `DOCTOR` · `NURSE` · `ADMIN` | Llamar a un consultorio (`CallTicketRequest`)                                           | ✅ F1  |
+| PATCH  | `/api/tickets/:id/status`           | staff                        | Cambiar el estado (`UpdateTicketStatusRequest`) según las transiciones permitidas       | ✅ F1  |
+| PATCH  | `/api/tickets/:id/triage`           | `NURSE` · `DOCTOR` · `ADMIN` | Triaje manual (`UpdateTriageRequest`)                                                   | ✅ F1  |
+| GET    | `/api/wearables`                    | staff                        | Wearables y su última lectura                                                           | Fase 2 |
+| POST   | `/api/wearables/:id/assign`         | staff                        | Asignar un wearable a un turno                                                          | Fase 2 |
+| GET    | `/api/alerts?active=true`           | staff                        | Alertas activas                                                                         | Fase 2 |
+| POST   | `/api/alerts/:id/ack`               | staff                        | Reconocer una alerta                                                                    | Fase 2 |
+
+### Ciclo de vida del turno
+
+```mermaid
+stateDiagram-v2
+  [*] --> WAITING: check-in
+  WAITING --> CALLED: llamar (POST /call)
+  WAITING --> CANCELLED
+  CALLED --> CALLED: volver a llamar
+  CALLED --> IN_PROGRESS
+  CALLED --> WAITING: devolver a la fila
+  CALLED --> NO_SHOW: ausente
+  NO_SHOW --> WAITING
+  IN_PROGRESS --> DONE
+  DONE --> [*]
+  CANCELLED --> [*]
+```
+
+Una transición inválida responde **409 Conflict**. La regla está en `TICKET_TRANSITIONS` / `canTransition()` de `@vitalia/contracts`.
+
+### Errores
+
+Formato estándar de NestJS: `{ "statusCode": 400, "message": "…" | ["…"], "error": "Bad Request" }`. Los mensajes de validación están en español para mostrarlos tal cual en el portal o el Backoffice. 401: falta el token o es inválido · 403: rol sin permiso · 404: no existe · 409: transición inválida · 429: demasiados intentos.
+
+### Ejemplos
+
+```http
+POST /api/check-in
+{ "firstName": "Lucía", "lastName": "Gómez", "documentNumber": "30123456",
+  "serviceCode": "CLINICA", "source": "CAPTIVE_PORTAL", "reason": "Fiebre" }
+
+201 → { "id": "…", "code": "A-009", "status": "WAITING", "serviceName": "Clínica Médica",
+        "consultingRoomName": null, "position": 4, "estimatedWaitMinutes": 48,
+        "checkedInAt": "2026-10-03T22:35:02.559Z", "calledAt": null }
+```
 
 ### `GET /api/health`
 
@@ -30,7 +72,10 @@ Swagger interactivo: `http://localhost:3000/api/docs`.
   "environment": "development",
   "uptimeSeconds": 42,
   "timestamp": "2026-10-03T22:00:00.000Z",
-  "checks": [{ "name": "process", "status": "ok" }]
+  "checks": [
+    { "name": "process", "status": "ok" },
+    { "name": "database", "status": "ok" }
+  ]
 }
 ```
 
@@ -98,4 +143,4 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 
 ## Portal cautivo ↔ API (Fase 4)
 
-El portal (`pti-captive-portal`) hoy espera `/auth/*`. En la Fase 4 se alinea con este contrato (check-in y estado del turno) y su `VITE_BASE_URL` apunta a la API del gateway.
+El portal (`pti-captive-portal`) hoy espera `/auth/*`. En la Fase 4 se alinea con este contrato: `GET /api/services`, `POST /api/check-in` y polling o socket de `GET /api/tickets/:id/public`. Su `VITE_BASE_URL` apunta a la API del gateway (CORS ya incluye `http://localhost:5173`).

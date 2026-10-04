@@ -15,7 +15,7 @@ Monorepo **Nx** del Proyecto Tecnológico Integrador (Ingeniería Informática, 
 
 | Proyecto        | Ruta                        | Tipo / tags                      | Stack                                                  | Puerto dev                         |
 | --------------- | --------------------------- | -------------------------------- | ------------------------------------------------------ | ---------------------------------- |
-| `api`           | `apps/api`                  | `scope:api`, `type:app`          | NestJS 11 (backend único, monolito modular)            | 3000 (`/api`, Swagger `/api/docs`) |
+| `api`           | `apps/api`                  | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT               | 3000 (`/api`, Swagger `/api/docs`) |
 | `backoffice`    | `apps/backoffice`           | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)      | 4200                               |
 | `tv-display`    | `apps/tv-display`           | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)           | 4300                               |
 | `contracts`     | `libs/shared/contracts`     | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas | —                                  |
@@ -31,6 +31,7 @@ Alias de import: `@vitalia/contracts`, `@vitalia/design-tokens`, `@vitalia/ui` (
 ```bash
 pnpm install              # Node >= 22.12, pnpm 10
 pnpm infra:up             # PostgreSQL 16 + Mosquitto 2 (Docker)
+pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:revert · db:seed · db:reset
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv
 pnpm nx test <proyecto>   # vitest (front/libs) · jest (api)
@@ -50,7 +51,7 @@ Siempre ejecutá tareas **vía Nx** (`pnpm nx ...`), nunca la herramienta subyac
 3. **Offline-first (RNF-O2).** Nada de CDNs ni servicios externos en tiempo de ejecución: fuentes auto-hospedadas (`@fontsource`), íconos `@lucide/angular`, sin Google Fonts ni Material Icons por URL. El gateway funciona 24 h sin WAN.
 4. **Identidad Vitalia.** Usá los tokens `--vt-*` y las utilidades `.vt-*` de `@vitalia/design-tokens`. No pongas hex sueltos en componentes. Guía: [`docs/06-identidad-visual.md`](docs/06-identidad-visual.md), skill `vitalia-design-system`.
 5. **Angular moderno.** Componentes standalone, `ChangeDetectionStrategy.OnPush`, zoneless, signals (`signal`, `computed`, `input()`), `inject()`, control flow (`@if`, `@for`) y `httpResource`. Archivos sin sufijo `.component` (convención Angular 22). Rutas lazy con `loadComponent`.
-6. **NestJS por dominio.** Un módulo por dominio en `apps/api/src/modules/<dominio>/`. DTOs con `class-validator` y `@nestjs/swagger`. La config se lee solo con `ConfigService<Env, true>`, nunca con `process.env` directo. Skill `vitalia-nest-module`.
+6. **NestJS por dominio.** Un módulo por dominio en `apps/api/src/modules/<dominio>/`. DTOs con `class-validator` y `@nestjs/swagger`. La config se lee solo con `ConfigService<Env, true>`, nunca con `process.env` directo. Todo endpoint es privado (JWT global) salvo `@Public()`. Los cambios de esquema van **siempre** por migración TypeORM. Skills `vitalia-nest-module` y `vitalia-database`.
 7. **Idioma.** Identificadores y código en **inglés**. Textos de UI, documentación, comentarios de dominio y commits en **español rioplatense** (voseo: "Conectate", "Seguí tu turno").
 8. **Datos sensibles.** Signos vitales y datos de pacientes son datos sensibles (Ley 25.326). En desarrollo se usan **solo datos simulados**. Nunca commitees `.env`, claves AES ni secretos.
 9. **Tests.** Toda lógica nueva lleva su test. Las reglas clínicas puras van en `contracts` con vitest. Antes de dar una tarea por terminada, `pnpm affected` tiene que pasar.
@@ -67,6 +68,7 @@ Están en `.agents/skills/` (fuente) y se copian a `.claude/skills`, `.cursor/sk
 | `vitalia-domain`          | Cualquier feature que toque turnos, triaje, signos vitales, alertas, red o wearables |
 | `vitalia-contracts`       | Agregar o cambiar tipos, eventos WS, tópicos MQTT o reglas compartidas               |
 | `vitalia-nest-module`     | Crear o extender un módulo/endpoint en la API                                        |
+| `vitalia-database`        | Entidades TypeORM, migraciones, seed y consultas a PostgreSQL                        |
 | `vitalia-angular-feature` | Crear pantallas o features en el Backoffice o la TV                                  |
 | `vitalia-design-system`   | Aplicar la identidad visual (colores, tipografía, componentes, estados clínicos)     |
 | `vitalia-realtime`        | Eventos en tiempo real con Socket.IO (API ↔ Backoffice/TV/portal)                    |
@@ -87,6 +89,7 @@ Además están las skills oficiales de Nx (`nx-workspace`, `nx-generate`, `nx-ru
 | [`docs/05-convenciones.md`](docs/05-convenciones.md)         | Código, estructura, Git, testing                             |
 | [`docs/06-identidad-visual.md`](docs/06-identidad-visual.md) | Marca Vitalia                                                |
 | [`docs/07-roadmap.md`](docs/07-roadmap.md)                   | Plan por fases e hitos                                       |
+| [`docs/08-modelo-datos.md`](docs/08-modelo-datos.md)         | Diagrama ER, reglas del modelo, migraciones y seed           |
 | [`docs/adr/`](docs/adr/)                                     | Registro de decisiones de arquitectura                       |
 | [`docs/guia-desarrollo.md`](docs/guia-desarrollo.md)         | Setup en Windows, flujo de trabajo con IA                    |
 

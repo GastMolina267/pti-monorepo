@@ -1,23 +1,21 @@
 # 0005. Prisma como ORM
 
-- Estado: **Propuesto** (se decide al iniciar la Fase 1)
-- Fecha: 2026-10-03
+- Estado: **Rechazado** — reemplazado por [0009](0009-orm-typeorm.md)
+- Fecha: 2026-10-03 (propuesto) · 2026-10-04 (rechazado)
 
 ## Contexto
 
-La API necesita persistir en PostgreSQL 16 (RF-O6), con migraciones, seeds de > 10.000 registros simulados y tipos fuertes que la IA pueda seguir sin errores.
+La API necesita persistir en PostgreSQL 16 (RF-O6), con migraciones y seeds, y tipos fuertes que la IA pueda seguir sin errores.
 
-## Propuesta
+## Propuesta original
 
 **Prisma** (`schema.prisma` declarativo, cliente tipado, `prisma migrate`), integrado en un módulo `database` de la API.
 
-## Alternativas
+## Por qué se rechazó
 
-- **TypeORM:** el clásico de Nest con decoradores. Más verboso y con tipado más débil en las queries.
-- **Drizzle:** liviano y SQL-first. Menos ejemplos con Nest.
-- **MikroORM:** unit of work. Más complejo para el alcance.
+Al iniciar la Fase 1 (Prisma 7.10):
 
-## Consecuencias si se acepta
+- Las migraciones necesitan un binario nativo (`schema-engine`) que se descarga desde `binaries.prisma.sh`. Esa descarga está bloqueada en entornos con red restringida (sesiones de IA en la nube, la VM de desarrollo), así que esos entornos no pueden migrar la base.
+- La etiqueta `latest` de npm apuntaba a una versión 8 RC con un modelo nuevo ("contract-first"), y la documentación oficial ya describía ese modelo. Eso agregaba inestabilidad.
 
-- (+) Esquema legible (sirve para la tesis), migraciones reproducibles y DX muy buena con IA.
-- (−) Un paso de generación del cliente (`prisma generate`) que hay que agregar al build y la CI.
+El equipo eligió TypeORM ([ADR 0009](0009-orm-typeorm.md)).

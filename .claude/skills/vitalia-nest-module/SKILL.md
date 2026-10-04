@@ -37,6 +37,8 @@ modules/tickets/
 
 ## 4. Plantillas
 
+> **Referencia real:** `apps/api/src/modules/tickets/` (entidades, DTOs, mapper, service con transacción, controller con roles) y `modules/check-in/` (endpoint público con rate limit). Las plantillas de abajo son ilustrativas.
+
 ```ts
 // dto/create-ticket.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
@@ -45,7 +47,8 @@ import { TICKET_PRIORITIES, type CreateTicketRequest, type TicketPriority } from
 
 export class CreateTicketDto implements CreateTicketRequest {
   @ApiProperty({ example: 'Clínica Médica' })
-  @IsString() @Length(2, 60)
+  @IsString({ message: 'La especialidad es obligatoria' })
+  @Length(2, 60, { message: 'La especialidad debe tener entre 2 y 60 caracteres' })
   specialty!: string;
 
   @ApiProperty({ enum: TICKET_PRIORITIES, required: false })
@@ -77,8 +80,10 @@ export class TicketsController {
 - Errores con excepciones de Nest (`NotFoundException('Turno no encontrado')`), mensajes en español.
 - Nombres de eventos y tópicos desde `@vitalia/contracts`, nunca strings sueltos.
 - Si emite tiempo real, inyectá el gateway (skill `vitalia-realtime`). Si consume MQTT, ver `vitalia-mqtt-telemetry`.
-- Persistencia: el ORM entra en la **Fase 1** (propuesta: Prisma, ver `docs/adr/0005-orm.md`). Hasta entonces, repositorios en memoria detrás de una interfaz.
-- Endpoints de staff protegidos con JWT (Fase 1). Los del portal o el kiosk son públicos pero con rate limit.
+- Persistencia: TypeORM. Entidades en `modules/<dominio>/entities/`, registradas en `database/entities.ts`, y cambios de esquema **siempre** con migración (skill `vitalia-database`). Usá `TypeOrmModule.forFeature([...])` en el módulo y `@InjectRepository` en el service.
+- Respuestas: mapeá entidad → contrato en `<dominio>.mapper.ts`. Nunca devuelvas entidades.
+- **Auth:** el `JwtAuthGuard` es global, así que todo endpoint exige JWT. Para abrir uno usá `@Public()` (solo portal, kiosk o health) y para restringir por rol `@Roles(...ROLES_CAN_CALL)`. El usuario se obtiene con `@CurrentUser() user: AuthUser`. Endpoints públicos sensibles con `@Throttle({ default: { limit, ttl } })`.
+- **Mensajes de validación en español** en cada decorador (`@Length(2, 80, { message: '…' })`): el portal y el Backoffice los muestran tal cual.
 
 ## 6. Tests (jest)
 

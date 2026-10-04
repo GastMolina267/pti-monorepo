@@ -23,7 +23,7 @@ La documentación es parte del entregable del PTI (memoria técnica) y **el cont
 ## Plantilla de ADR
 
 ```md
-# NNNN. Título en infinitivo (ej. "Usar Prisma como ORM")
+# NNNN. Título en infinitivo (ej. "Usar Socket.IO para tiempo real")
 
 - Estado: Propuesto | Aceptado | Reemplazado por NNNN
 - Fecha: AAAA-MM-DD
