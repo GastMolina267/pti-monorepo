@@ -1,0 +1,35 @@
+<header class="top">
+  <vt-logo [size]="52" subtitle="Sala de espera · Guardia" />
+  <div class="clock">
+    <strong>{{ time(now()) }}</strong>
+    <span>{{ date(now()) }}</span>
+  </div>
+</header>
+
+<main class="stage">
+  <section class="call">
+    <span class="vt-eyebrow">Llamando ahora</span>
+    <div class="code">{{ current().ticketCode }}</div>
+    <div class="room">{{ current().consultingRoom }}</div>
+    @if (current().professionalName) {
+      <div class="pro">{{ current().professionalName }}</div>
+    }
+  </section>
+
+  <aside class="history vt-glass">
+    <h2>Últimos llamados</h2>
+    <ul>
+      @for (h of history(); track h.code) {
+        <li>
+          <strong>{{ h.code }}</strong
+          ><span>{{ h.room }}</span>
+        </li>
+      }
+    </ul>
+  </aside>
+</main>
+
+<footer class="bottom">
+  <svg lucideWifi [size]="20"></svg>
+  Conectate al Wi-Fi <strong>Hospital_Pacientes_Guest</strong> y seguí tu turno desde el celular
+</footer>

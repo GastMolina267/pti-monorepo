@@ -1,0 +1,93 @@
+{
+  "name": "backoffice",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "vt",
+  "sourceRoot": "apps/backoffice/src",
+  "tags": ["scope:backoffice", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/backoffice",
+        "browser": "apps/backoffice/src/main.ts",
+        "tsConfig": "apps/backoffice/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/backoffice/public"
+          },
+          {
+            "glob": "**/*",
+            "input": "libs/shared/design-tokens/src/assets",
+            "output": "brand"
+          }
+        ],
+        "styles": [
+          "node_modules/@fontsource/plus-jakarta-sans/500.css",
+          "node_modules/@fontsource/plus-jakarta-sans/600.css",
+          "node_modules/@fontsource/plus-jakarta-sans/700.css",
+          "node_modules/@fontsource/plus-jakarta-sans/800.css",
+          "apps/backoffice/src/styles.scss"
+        ],
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/shared/design-tokens/src/styles"]
+        }
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "800kb",
+              "maximumError": "1.5mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "6kb",
+              "maximumError": "10kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "backoffice:build:production"
+        },
+        "development": {
+          "buildTarget": "backoffice:build:development"
+        }
+      },
+      "options": {
+        "port": 4200,
+        "proxyConfig": "apps/backoffice/proxy.conf.json"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "backoffice:build",
+        "staticFilePath": "dist/apps/backoffice/browser",
+        "spa": true
+      }
+    }
+  }
+}

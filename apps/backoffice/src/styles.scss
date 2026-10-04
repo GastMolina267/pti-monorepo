@@ -1,0 +1,4 @@
+// Identidad Vitalia (tokens + Angular Material + base). Ver libs/shared/design-tokens.
+@use 'vitalia' as vt;
+
+@include vt.all;

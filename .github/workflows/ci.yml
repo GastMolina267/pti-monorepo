@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Calcula base/head para `nx affected` (último commit verde de la rama base)
+      - uses: nrwl/nx-set-shas@v4
+
+      - run: pnpm nx format:check
+      - run: pnpm nx affected -t lint test build --parallel=3

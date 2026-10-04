@@ -1,0 +1,76 @@
+<section class="hero vt-reveal">
+  <span class="vt-eyebrow">Consola de triaje</span>
+  <h1>Monitoreo de la sala de espera <span class="vt-text-gradient">en tiempo real</span></h1>
+  <p>
+    Backoffice del personal de salud: fila priorizada, alertas biométricas y llamado de turnos sobre el Edge
+    Gateway local.
+  </p>
+
+  <div class="status" [class]="'status ' + apiState().cls">
+    <span class="dot"></span>
+    <span>{{ apiState().text }}</span>
+    <button type="button" class="reload" (click)="health.reload()" aria-label="Reintentar">
+      <svg lucideRefreshCw [size]="14" [strokeWidth]="2.4"></svg>
+    </button>
+  </div>
+</section>
+
+<section class="grid">
+  <article class="vt-glass panel queue vt-reveal">
+    <header>
+      <div>
+        <h2>Vista previa · Fila priorizada</h2>
+        <p class="muted">
+          Datos de ejemplo clasificados con <code>assessVitals()</code> de <code>@vitalia/contracts</code>.
+        </p>
+      </div>
+      <svg lucideActivity [size]="20" class="accent"></svg>
+    </header>
+    <ul>
+      @for (p of queue; track p.ticket) {
+        <li [class]="'row vt-level--' + p.assessment.level.toLowerCase()">
+          <span class="ticket">{{ p.ticket }}</span>
+          <span class="who">
+            <strong>{{ p.name }}</strong>
+            <small>{{
+              p.assessment.reasons.length ? p.assessment.reasons[0] : 'Signos dentro de rango'
+            }}</small>
+          </span>
+          <span class="vitals">
+            <svg lucideHeartPulse [size]="14"></svg> {{ p.reading.hr }} · SpO₂ {{ p.reading.spo2 }}% ·
+            {{ p.reading.temp }}°C
+          </span>
+          <span class="pill">{{ levelLabel[p.assessment.level] }}</span>
+        </li>
+      }
+    </ul>
+  </article>
+
+  <div class="modules">
+    @for (m of modules; track m.title) {
+      <article class="vt-glass module vt-reveal">
+        <span [class]="'vt-tile vt-tile--' + m.tone + ' tile'">
+          @switch (m.icon) {
+            @case ('users') {
+              <svg lucideUsers [size]="18"></svg>
+            }
+            @case ('bell') {
+              <svg lucideBellRing [size]="18"></svg>
+            }
+            @case ('megaphone') {
+              <svg lucideMegaphone [size]="18"></svg>
+            }
+            @case ('watch') {
+              <svg lucideWatch [size]="18"></svg>
+            }
+          }
+        </span>
+        <div>
+          <h3>{{ m.title }}</h3>
+          <p class="muted">{{ m.desc }}</p>
+        </div>
+        <span class="phase">{{ m.phase }}</span>
+      </article>
+    }
+  </div>
+</section>

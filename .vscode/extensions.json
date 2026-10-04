@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "nrwl.angular-console",
+    "angular.ng-template",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "vitest.explorer",
+    "firsttris.vscode-jest-runner",
+    "ms-azuretools.vscode-docker",
+    "editorconfig.editorconfig"
+  ]
+}

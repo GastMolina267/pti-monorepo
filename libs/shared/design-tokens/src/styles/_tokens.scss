@@ -1,0 +1,86 @@
+// Vitalia — tokens de diseño (CSS custom properties). Fuente: portal cautivo src/index.css.
+// Modo oscuro con [data-theme="dark"] en <html> o .dark-mode en <body>.
+
+@mixin light {
+  --vt-primary: #0d9488;
+  --vt-primary-light: #14b8a6;
+  --vt-primary-deep: #0f766e;
+  --vt-secondary: #0284c7;
+  --vt-secondary-light: #38bdf8;
+  --vt-secondary-deep: #0369a1;
+  --vt-success: #10b981;
+  --vt-success-deep: #059669;
+  --vt-live: #34d399;
+  --vt-warning: #f59e0b;
+  --vt-warning-deep: #d97706;
+  --vt-danger: #f43f5e;
+  --vt-danger-deep: #be123c;
+
+  --vt-gradient-brand: linear-gradient(135deg, #0d9488, #0284c7);
+  --vt-gradient-button: linear-gradient(180deg, #0d9488, #0f766e);
+
+  --vt-bg: #f8fafc;
+  --vt-bg-2: #f1f5f9;
+  --vt-paper: #ffffff;
+  --vt-surface: rgba(255, 255, 255, 0.65);
+  --vt-surface-2: rgba(13, 148, 136, 0.05);
+  --vt-stroke: rgba(13, 148, 136, 0.12);
+  --vt-stroke-2: rgba(13, 148, 136, 0.18);
+  --vt-divider: rgba(15, 23, 42, 0.08);
+  --vt-ink: #0f172a;
+  --vt-muted: #475569;
+  --vt-muted-2: #64748b;
+
+  --vt-app-bg:
+    radial-gradient(680px 420px at 80% -8%, rgba(13, 148, 136, 0.09), transparent 60%),
+    radial-gradient(560px 360px at -10% 22%, rgba(2, 132, 199, 0.06), transparent 60%),
+    radial-gradient(700px 500px at 50% 108%, rgba(16, 185, 129, 0.06), transparent 60%),
+    linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+
+  --vt-r-lg: 26px;
+  --vt-r-md: 18px;
+  --vt-r-sm: 13px;
+  --vt-r-card: 20px;
+  --vt-r-button: 14px;
+
+  --vt-shadow-cta: 0 12px 30px -8px rgba(13, 148, 136, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  --vt-shadow-chip: 0 8px 24px -12px rgba(13, 148, 136, 0.5);
+  --vt-shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --vt-shadow-float: 0 18px 40px -14px rgba(0, 0, 0, 0.7);
+
+  --vt-font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --vt-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: light;
+}
+
+@mixin dark {
+  --vt-bg: #06111d;
+  --vt-bg-2: #0b1a2c;
+  --vt-paper: #0b1a2c;
+  --vt-surface: rgba(255, 255, 255, 0.05);
+  --vt-surface-2: rgba(13, 148, 136, 0.08);
+  --vt-stroke: rgba(20, 184, 166, 0.16);
+  --vt-stroke-2: rgba(20, 184, 166, 0.24);
+  --vt-divider: rgba(255, 255, 255, 0.09);
+  --vt-ink: #f1f5fb;
+  --vt-muted: #94a3b8;
+  --vt-muted-2: #64748b;
+
+  --vt-app-bg:
+    radial-gradient(680px 420px at 80% -8%, rgba(13, 148, 136, 0.22), transparent 60%),
+    radial-gradient(560px 360px at -10% 22%, rgba(2, 132, 199, 0.14), transparent 60%),
+    radial-gradient(700px 500px at 50% 108%, rgba(16, 185, 129, 0.12), transparent 60%),
+    linear-gradient(180deg, #06111d 0%, #0b1a2c 100%);
+  color-scheme: dark;
+}
+
+@mixin root {
+  :root {
+    @include light;
+  }
+
+  :root[data-theme='dark'],
+  body.dark-mode {
+    @include dark;
+  }
+}

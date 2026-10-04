@@ -1,0 +1,46 @@
+# Vitalia — infraestructura local del Edge Gateway (Fog Node).
+# Uso:  pnpm infra:up   |   pnpm infra:down   |   pnpm infra:logs
+# La API y los frontends corren con Nx en desarrollo (pnpm dev). En la Fase 4 se
+# agregan los servicios api y nginx para el despliegue completo en el gateway.
+name: vitalia
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vitalia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vitalia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vitalia}
+      POSTGRES_DB: ${POSTGRES_DB:-vitalia}
+      TZ: America/Argentina/Cordoba
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-vitalia} -d ${POSTGRES_DB:-vitalia}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: vitalia-mosquitto
+    restart: unless-stopped
+    ports:
+      - '${MQTT_PORT:-1883}:1883'
+    volumes:
+      - ./infra/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    healthcheck:
+      test: ['CMD-SHELL', 'mosquitto_sub -h localhost -t "$$SYS/broker/uptime" -C 1 -W 3 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  mosquitto-data:
+  mosquitto-log:

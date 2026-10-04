@@ -1,0 +1,14 @@
+// Punto de entrada: @use 'vitalia' as vt;  y luego  @include vt.all;
+@forward 'tokens';
+@forward 'base';
+@forward 'material';
+
+@use 'tokens';
+@use 'base';
+@use 'material';
+
+@mixin all {
+  @include tokens.root;
+  @include material.theme;
+  @include base.base;
+}

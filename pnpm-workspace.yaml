@@ -1,0 +1,13 @@
+# Configuración de pnpm 10 (workspace de un solo package.json; Nx gestiona apps y libs).
+# pnpm 10 bloquea por defecto los scripts de instalación de las dependencias:
+# acá se aprueban solo los que el toolchain necesita (binarios nativos).
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - esbuild
+  - nx
+  - unrs-resolver
+
+# Scripts que se ignoran a propósito (telemetría de terceros)
+ignoredBuiltDependencies:
+  - '@scarf/scarf'

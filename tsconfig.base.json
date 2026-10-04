@@ -1,0 +1,23 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "paths": {
+      "@vitalia/contracts": ["./libs/shared/contracts/src/index.ts"],
+      "@vitalia/design-tokens": ["./libs/shared/design-tokens/src/index.ts"],
+      "@vitalia/ui": ["./libs/shared/ui/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

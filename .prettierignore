@@ -1,0 +1,17 @@
+# Add files here to ignore them from prettier formatting
+/dist
+/coverage
+/.nx/cache
+/.nx/workspace-data
+.angular
+
+.nx/self-healingpnpm-lock.yaml
+.agents
+.claude
+.cursor
+.github/skills
+.github/agents
+.github/prompts
+.codex
+.gemini
+.opencode

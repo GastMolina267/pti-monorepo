@@ -1,0 +1,77 @@
+// Tema de Angular Material (M3) alineado a la identidad Vitalia.
+@use '@angular/material' as mat;
+
+@mixin theme {
+  html {
+    @include mat.theme(
+      (
+        color: (
+          primary: mat.$cyan-palette,
+          tertiary: mat.$azure-palette,
+          theme-type: light,
+        ),
+        typography: (
+          plain-family: var(--vt-font),
+          brand-family: var(--vt-font),
+          bold-weight: 800,
+          medium-weight: 600,
+          regular-weight: 500,
+        ),
+        density: 0,
+      )
+    );
+
+    // Ajuste fino a los hex exactos de la marca.
+    @include mat.theme-overrides(
+      (
+        primary: #0d9488,
+        on-primary: #ffffff,
+        primary-container: #ccfbf1,
+        on-primary-container: #0f766e,
+        tertiary: #0284c7,
+        error: #f43f5e,
+        surface: #f8fafc,
+        on-surface: #0f172a,
+        on-surface-variant: #475569,
+        outline-variant: rgba(13, 148, 136, 0.18),
+        corner-full: 999px,
+        corner-large: 20px,
+        corner-medium: 14px,
+      )
+    );
+  }
+
+  html[data-theme='dark'] {
+    @include mat.theme(
+      (
+        color: (
+          primary: mat.$cyan-palette,
+          tertiary: mat.$azure-palette,
+          theme-type: dark,
+        ),
+      )
+    );
+
+    @include mat.theme-overrides(
+      (
+        primary: #14b8a6,
+        on-primary: #06111d,
+        primary-container: #0f766e,
+        on-primary-container: #ccfbf1,
+        tertiary: #38bdf8,
+        error: #f43f5e,
+        surface: #06111d,
+        surface-container: #0b1a2c,
+        on-surface: #f1f5fb,
+        on-surface-variant: #94a3b8,
+        outline-variant: rgba(20, 184, 166, 0.24),
+      )
+    );
+  }
+
+  // Botones sin mayúsculas y con peso 700 (identidad).
+  .mat-mdc-button-base {
+    font-weight: 700;
+    letter-spacing: normal;
+  }
+}
