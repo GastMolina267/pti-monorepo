@@ -13,15 +13,15 @@ Monorepo **Nx** del Proyecto Tecnológico Integrador (Ingeniería Informática, 
 
 ## Mapa del monorepo
 
-| Proyecto                | Ruta                         | Tipo / tags                      | Stack                                                        | Puerto dev                         |
-| ----------------------- | ---------------------------- | -------------------------------- | ------------------------------------------------------------ | ---------------------------------- |
-| `api`                   | `apps/api`                   | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT                     | 3000 (`/api`, Swagger `/api/docs`) |
-| `backoffice`            | `apps/backoffice`            | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)            | 4200                               |
-| `tv-display`            | `apps/tv-display`            | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)                 | 4300                               |
-| `wearable-firmware-poc` | `apps/wearable-firmware-poc` | `scope:wearable`, `type:app`     | C++17 · PlatformIO + Arduino en ESP32-C3 (MQTT, AES-256-GCM) | — (USB, monitor serie 115200)      |
-| `contracts`             | `libs/shared/contracts`      | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas       | —                                  |
-| `design-tokens`         | `libs/shared/design-tokens`  | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material                  | —                                  |
-| `ui`                    | `libs/shared/ui`             | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)                 | —                                  |
+| Proyecto                | Ruta                         | Tipo / tags                      | Stack                                                                                     | Puerto dev                         |
+| ----------------------- | ---------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------- |
+| `api`                   | `apps/api`                   | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT                                                  | 3000 (`/api`, Swagger `/api/docs`) |
+| `backoffice`            | `apps/backoffice`            | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)                                         | 4200                               |
+| `tv-display`            | `apps/tv-display`            | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)                                              | 4300                               |
+| `wearable-firmware-poc` | `apps/wearable-firmware-poc` | `scope:wearable`, `type:app`     | C++17 · PlatformIO + Arduino en ESP32-C3 (POC: HTTP local · MQTT + AES-256-GCM en Fase 2) | — (USB, monitor serie 115200)      |
+| `contracts`             | `libs/shared/contracts`      | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas                                    | —                                  |
+| `design-tokens`         | `libs/shared/design-tokens`  | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material                                               | —                                  |
+| `ui`                    | `libs/shared/ui`             | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)                                              | —                                  |
 
 Fuera de este repo: **portal cautivo** (`pti-captive-portal`, React + Vite, UAM/CHAP con el router RUT956), que consume los contratos documentados en [`docs/04-contratos.md`](docs/04-contratos.md). El firmware del wearable está en `apps/wearable-firmware-poc` ([ADR 0010](docs/adr/0010-firmware-del-wearable-en-el-monorepo.md)). Implementa el contrato MQTT de `@vitalia/contracts` en C++ y no importa TypeScript.
 

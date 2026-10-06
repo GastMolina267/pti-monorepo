@@ -71,6 +71,7 @@ gantt
 - [ ] Firmware: MQTT con PubSubClient contra Mosquitto (Hito 6b), QoS 1 y `setBufferSize(512)` (F)
 - [ ] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` con los mismos vectores de prueba que la API (Hito 7) (F)
 - [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
+- [ ] Firmware: `contracts.h` generado desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
 - [ ] Emitir eventos de dominio desde `tickets` (hoy hay un `// Fase 2` en `TicketsService.call`)
 - [ ] Módulo `realtime`: gateway Socket.IO con salas `staff` / `tv` / `patient:<id>` — [ADR 0007](adr/0007-tiempo-real-socket-io.md)

@@ -23,7 +23,7 @@ Al estar separado, el firmware definía su propio contrato MQTT. Usaba AES-256-C
 ## Alternativas consideradas
 
 - **Seguir en un repo aparte**, como el portal cautivo ([ADR 0004](0004-portal-cautivo-fuera-del-monorepo.md)). El firmware recién empieza a integrarse y es el consumidor más sensible del contrato MQTT. Separado, el contrato se duplica a mano y ya había divergido.
-- **Copiar los archivos sin historial:** se perdían los sketches de cada hito, que se consultan con `git show <commit>:src/main.cpp` (ver `ESTADO.md`).
+- **Copiar los archivos sin historial:** se perdían los sketches de cada hito, que se consultan con `git show <commit>:apps/wearable-firmware-poc/src/main.cpp` (ver `ESTADO.md`).
 - **Targets `build`/`test` estándar:** obligaban a todo el equipo y al job principal de CI a tener PlatformIO.
 
 ## Consecuencias

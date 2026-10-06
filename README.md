@@ -10,15 +10,15 @@
 
 Monorepo **Nx** con el backend del **Edge Gateway** y las interfaces del personal de salud. Todo corre localmente en el hospital (Fog Computing) y sigue operando **sin internet**.
 
-| Proyecto                                                   | Descripción                                                                         | Stack                         |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------- |
-| [`apps/api`](apps/api)                                     | Backend único: turnos, check-in, auth; luego telemetría MQTT, alertas y tiempo real | NestJS 11 + TypeORM           |
-| [`apps/backoffice`](apps/backoffice)                       | Consola de triaje y monitoreo para el personal                                      | Angular 22 + Material         |
-| [`apps/tv-display`](apps/tv-display)                       | Llamador de turnos para la sala de espera                                           | Angular 22                    |
-| [`apps/wearable-firmware-poc`](apps/wearable-firmware-poc) | Firmware de la pulsera IoMT: sensores, detección de caídas, telemetría MQTT cifrada | C++17 · PlatformIO (ESP32-C3) |
-| [`libs/shared/contracts`](libs/shared/contracts)           | Contratos compartidos (REST, WS, MQTT, reglas clínicas)                             | TypeScript                    |
-| [`libs/shared/design-tokens`](libs/shared/design-tokens)   | Identidad visual Vitalia                                                            | SCSS + TS                     |
-| [`libs/shared/ui`](libs/shared/ui)                         | Componentes Angular de marca                                                        | Angular                       |
+| Proyecto                                                   | Descripción                                                                                             | Stack                         |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| [`apps/api`](apps/api)                                     | Backend único: turnos, check-in, auth; luego telemetría MQTT, alertas y tiempo real                     | NestJS 11 + TypeORM           |
+| [`apps/backoffice`](apps/backoffice)                       | Consola de triaje y monitoreo para el personal                                                          | Angular 22 + Material         |
+| [`apps/tv-display`](apps/tv-display)                       | Llamador de turnos para la sala de espera                                                               | Angular 22                    |
+| [`apps/wearable-firmware-poc`](apps/wearable-firmware-poc) | Firmware de la pulsera IoMT: sensores y detección de caídas. POC con HTTP local; MQTT cifrado en Fase 2 | C++17 · PlatformIO (ESP32-C3) |
+| [`libs/shared/contracts`](libs/shared/contracts)           | Contratos compartidos (REST, WS, MQTT, reglas clínicas)                                                 | TypeScript                    |
+| [`libs/shared/design-tokens`](libs/shared/design-tokens)   | Identidad visual Vitalia                                                                                | SCSS + TS                     |
+| [`libs/shared/ui`](libs/shared/ui)                         | Componentes Angular de marca                                                                            | Angular                       |
 
 Repo relacionado: portal cautivo (`pti-captive-portal`, React).
 
