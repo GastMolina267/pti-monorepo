@@ -1,26 +1,26 @@
 # Estado del proyecto — Firmware wearable IoMT (POC PTI)
 
-> Handoff para continuar en otra máquina. Fecha: 2026-09-01.
-> La guía de desarrollo completa está en `CLAUDE.md` (copia sincronizada de la de `Desktop/PTI`).
+> Handoff para continuar en otra máquina. Fecha: 2026-09-01. Migrado al monorepo Vitalia el 2026-10-06 ([ADR 0010](../../docs/adr/0010-firmware-del-wearable-en-el-monorepo.md)).
+> La guía de desarrollo completa está en [`AGENTS.md`](AGENTS.md) (`CLAUDE.md` apunta ahí).
 
 ---
 
 ## Dónde estamos
 
-Validación de hardware por hitos (ver `CLAUDE.md` sección 9). Se avanza en orden, sin
+Validación de hardware por hitos (ver `AGENTS.md` sección 9). Se avanza en orden, sin
 pasar al siguiente hasta que el anterior pasa.
 
-| Hito | Estado | Notas |
-| :--- | :--- | :--- |
-| 1. Escáner I²C | ✅ **PASA** | Las 4 direcciones detectadas: `0x3C` OLED, `0x57` MAX30102, `0x5A` MLX90614, `0x68` MPU6050 |
-| 2. OLED SSD1306 | ✅ **PASA** | Texto estático OK. Ver gotcha del reloj abajo. |
-| 3. MPU6050 | ✅ **PASA** | ~1.05 g en reposo (dentro de tolerancia, offset de fábrica). REST/MOV OK. |
-| 4. MLX90614 | ⚠️ **PARCIAL — recalibración fina pendiente** | El sensor funciona tras recuperar la EEPROM. Falta la curva de compensación fina, que requiere la carcasa/correa (ver abajo). |
-| 5. MAX30102 (BPM/SpO2) | ⛔ **NO EMPEZADO** | Próximo paso. |
-| 6a. Wi-Fi (asociación) | ✅ **PASA** | Asocia, obtiene IP, RSSI excelente. Quirk: el 1er `WiFi.begin()` post-boot falla, el 2do conecta (retry automático). Client ID MQTT = `wb-24d7cc` (derivado de la MAC `44:BD:8D:24:D7:CC`). |
-| 6b. MQTT | ⛔ pendiente | Depende de tener Mosquitto corriendo en el Edge Gateway. `MQTT_BROKER` en `secrets.h` hay que ponerlo con la IP real del gateway. |
-| 7. Cifrado AES-256 | ⛔ pendiente | |
-| 8. Detección de caídas | ⛔ pendiente | |
+| Hito                   | Estado                                        | Notas                                                                                                                                                                                       |
+| :--------------------- | :-------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Escáner I²C         | ✅ **PASA**                                   | Las 4 direcciones detectadas: `0x3C` OLED, `0x57` MAX30102, `0x5A` MLX90614, `0x68` MPU6050                                                                                                 |
+| 2. OLED SSD1306        | ✅ **PASA**                                   | Texto estático OK. Ver gotcha del reloj abajo.                                                                                                                                              |
+| 3. MPU6050             | ✅ **PASA**                                   | ~1.05 g en reposo (dentro de tolerancia, offset de fábrica). REST/MOV OK.                                                                                                                   |
+| 4. MLX90614            | ⚠️ **PARCIAL — recalibración fina pendiente** | El sensor funciona tras recuperar la EEPROM. Falta la curva de compensación fina, que requiere la carcasa/correa (ver abajo).                                                               |
+| 5. MAX30102 (BPM/SpO2) | ⛔ **NO EMPEZADO**                            | Próximo paso.                                                                                                                                                                               |
+| 6a. Wi-Fi (asociación) | ✅ **PASA**                                   | Asocia, obtiene IP, RSSI excelente. Quirk: el 1er `WiFi.begin()` post-boot falla, el 2do conecta (retry automático). Client ID MQTT = `wb-24d7cc` (derivado de la MAC `44:BD:8D:24:D7:CC`). |
+| 6b. MQTT               | ⛔ pendiente                                  | Depende de tener Mosquitto corriendo en el Edge Gateway. `MQTT_BROKER` en `secrets.h` hay que ponerlo con la IP real del gateway.                                                           |
+| 7. Cifrado AES-256     | ⛔ pendiente                                  |                                                                                                                                                                                             |
+| 8. Detección de caídas | ⛔ pendiente                                  |                                                                                                                                                                                             |
 
 ---
 
@@ -42,11 +42,11 @@ está en las funciones `rawWrite16` / `eepromWriteCell` / `writeConfig1Flow`.
 
 ### Verificación post-fix
 
-| Objetivo | Real | MLX | Error | Comentario |
-| :--- | :--- | :--- | :--- | :--- |
-| Aire | = Ta | = Ta | ~0 | OK |
-| Agua tibia | 35.7 | ~40.5 | +4.8 | **Artefacto: condensación del vapor sobre el lente. Descartar.** |
-| Muñeca (seco, asentado) | 36.3–36.8 (sublingual) | 35.3–36.2 | −0.5 a −1.4 | Lectura buena; delta piel→central razonable |
+| Objetivo                | Real                   | MLX       | Error       | Comentario                                                       |
+| :---------------------- | :--------------------- | :-------- | :---------- | :--------------------------------------------------------------- |
+| Aire                    | = Ta                   | = Ta      | ~0          | OK                                                               |
+| Agua tibia              | 35.7                   | ~40.5     | +4.8        | **Artefacto: condensación del vapor sobre el lente. Descartar.** |
+| Muñeca (seco, asentado) | 36.3–36.8 (sublingual) | 35.3–36.2 | −0.5 a −1.4 | Lectura buena; delta piel→central razonable                      |
 
 Repetibilidad de 3 mediciones seguidas de la misma muñeca: MLX entre **35.3 y 37.5**
 (~1–2 °C de dispersión). La prueba más limpia y asentada dio piel ≈ central − 1.2 °C
@@ -78,26 +78,30 @@ a ambiente ~23 °C.
 2. **Hito 5 — MAX30102 (BPM / SpO2).** El más delicado de calibrar. Empezar con
    lectura de BPM estable con el dedo apoyado y SpO2 contra un oxímetro comercial.
    Librería: `sparkfun/SparkFun MAX3010x`. Dirección `0x57`. Ojo con la alimentación:
-   el módulo violeta necesita **5 V en VIN** (ver `CLAUDE.md` 2.2).
-3. **Hito 6b — MQTT.** El sketch de Wi-Fi (`src/main.cpp` actual) ya deja la base:
+   el módulo violeta necesita **5 V en VIN** (ver `AGENTS.md` 2.2).
+3. **Alinear el firmware al contrato del monorepo** (`TelemetryReading` + AES-256-GCM,
+   ver `AGENTS.md` §6). La demo actual todavía usa el formato del POC (`device_id`, `bpm`,
+   `temp_c`, `event`, sin `seq`, `ts` en segundos) y el contrato viejo hablaba de AES-CBC
+   y de un tópico `/alert`. Ninguna de las dos cosas existe en la plataforma.
+4. **Hito 6b — MQTT.** El sketch de Wi-Fi (`src/main.cpp` actual) ya deja la base:
    asociación + Client ID. Falta: PubSubClient contra Mosquitto, `client.setBufferSize(512)`
-   (gotcha CLAUDE.md 3), publicar JSON en claro al tópico `hospital/{sala}/wearable/{id}/data`
-   y verificar con `mosquitto_sub`. Necesita el gateway corriendo.
-4. Hitos 7–8 después.
+   (gotcha AGENTS.md 3), publicar `TelemetryReading` en claro al tópico `hospital/<sala>/wearable/<id>/data`
+   y verificar con `mosquitto_sub`. Para probar sin el gateway: `pnpm infra:up` levanta Mosquitto en la notebook.
+5. Hitos 7–8 después (Hito 7 = GCM, ADR 0006).
 
 Cuando el firmware pase de POCs a estructura real: wrappers de sensores con interfaz
 común (`begin()`/`read()`/`isHealthy()`), constantes a `config.h`, módulos
-`fall_detection/` `crypto/` `net/` `ui/` en `lib/` (ver `CLAUDE.md` 5 y 8).
+`fall_detection/` `crypto/` `net/` `ui/` en `lib/` (ver `AGENTS.md` 5 y 8).
 
 ---
 
-## Gotchas descubiertos esta sesión (ya en CLAUDE.md sección 3)
+## Gotchas descubiertos esta sesión (ya en AGENTS.md sección 3)
 
 - **Adafruit_SSD1306 sube el bus a 400 kHz** durante cada `display.display()` y lo baja
   después. En bus compartido con el MLX90614 (SMBus, máx 100 kHz) + 4 dispositivos
   hand-wired eso corrompe la transferencia (píxeles al azar). Fijar el constructor:
   `Adafruit_SSD1306 display(W, H, &Wire, RST, 100000, 100000);`
-- **MLX90614 Config1 corrupta** — síntoma, causa y fix descritos arriba y en CLAUDE.md.
+- **MLX90614 Config1 corrupta** — síntoma, causa y fix descritos arriba y en AGENTS.md.
 - **MLX90614 siempre a 3.3 V, nunca 5 V.**
 - **`pio` no está en el PATH** de la terminal en la máquina original; se usaba
   `& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"`. En la notebook puede variar.
@@ -105,6 +109,9 @@ común (`begin()`/`read()`/`isHealthy()`), constantes a `config.h`, módulos
 ---
 
 ## Cómo compilar / subir
+
+Desde la raíz del monorepo: `pnpm fw:build`, `pnpm fw:upload` y `pnpm fw:monitor` (ver `AGENTS.md` §4).
+Dentro de `apps/wearable-firmware-poc`, con PlatformIO directo:
 
 ```bash
 pio run                       # compilar
@@ -117,20 +124,21 @@ Si el puerto está ocupado: cerrar el monitor serie antes de subir. Si la placa 
 aparece: mantener BOOT presionado mientras se conecta el USB.
 
 **El sketch actual en `src/main.cpp` es la DEMO integrada** (acelerómetro + temperatura
-+ OLED + Wi-Fi + servidor HTTP), para mostrar al profesor. No incluye MAX30102 (Hito 5)
-ni MQTT (Hito 6b).
 
-- OLED muestra IP, temperatura estimada y aceleración + evento.
-- Servidor HTTP en el puerto 80:
+- OLED + Wi-Fi + servidor HTTP), para mostrar al profesor. No incluye MAX30102 (Hito 5)
+  ni MQTT (Hito 6b).
+
+* OLED muestra IP, temperatura estimada y aceleración + evento.
+* Servidor HTTP en el puerto 80:
   - `http://<IP>/` → página web con telemetría en vivo (fetch cada 1 s, sin recursos
     externos, funciona sin internet).
-  - `http://<IP>/data` → JSON con el formato del contrato MQTT (CLAUDE.md 6);
+  - `http://<IP>/data` → JSON con el formato **viejo** del POC (todavía no es `TelemetryReading`, ver "Próximo trabajo" 3);
     `bpm`/`spo2` van `null` hasta el Hito 5.
   - `http://wearable-pti.local/` → lo mismo vía mDNS.
-- Detección de caída (preview): `|a| > 2.8 g` → `event = "fall"` latcheado 5 s.
-- Fiebre: `temp_central_est > 38.0 °C` (offset provisional +1.2, ver arriba).
-- En la universidad: cambiar SSID/PASS en `src/secrets.h`.
-- **Requisito de red:** notebook y dispositivo en el mismo SSID **sin client isolation**.
+* Detección de caída (preview): `|a| > 2.8 g` → `event = "fall"` latcheado 5 s.
+* Fiebre: `temp_central_est > 38.0 °C` (offset provisional +1.2, ver arriba).
+* En la universidad: cambiar SSID/PASS en `src/secrets.h`.
+* **Requisito de red:** notebook y dispositivo en el mismo SSID **sin client isolation**.
   Hotspots de celular y redes guest suelen bloquear el tráfico device-to-device →
   usar router de laboratorio propio o hotspot con aislamiento de clientes desactivado.
 
