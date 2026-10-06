@@ -41,4 +41,4 @@ description: Agregar o modificar contratos compartidos en libs/shared/contracts 
 
 ## Cambios que rompen
 
-Renombrar o quitar campos, cambiar unidades o el formato de un tópico rompe a otros consumidores: el **portal cautivo** (repo aparte) y el **firmware** del wearable. Avisá en el PR, actualizá la doc y, si es MQTT, coordiná con hardware (Facundo).
+Renombrar o quitar campos, cambiar unidades o el formato de un tópico rompe a otros consumidores: el **portal cautivo** (repo aparte) y el **firmware** del wearable (`apps/wearable-firmware-poc`, C++: no importa los tipos, los replica a mano). Avisá en el PR, actualizá la doc y, si es MQTT, actualizá también el §6 de `apps/wearable-firmware-poc/AGENTS.md` y coordiná con hardware (Facundo). La CI recompila el firmware cuando cambia `contracts`.
