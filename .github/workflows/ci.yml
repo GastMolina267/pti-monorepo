@@ -52,3 +52,44 @@ jobs:
 
       - run: pnpm nx format:check
       - run: pnpm nx affected -t lint test build --parallel=3
+
+  # Firmware del wearable (PlatformIO). Corre solo si cambió el firmware o los
+  # contratos que implementa; si no, termina en segundos (ADR 0010).
+  firmware:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/wearable-firmware-poc
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            firmware:
+              - 'apps/wearable-firmware-poc/**'
+              - 'libs/shared/contracts/**'
+              - '.github/workflows/ci.yml'
+
+      - if: steps.changes.outputs.firmware == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - if: steps.changes.outputs.firmware == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ runner.os }}-${{ hashFiles('apps/wearable-firmware-poc/platformio.ini') }}
+
+      - if: steps.changes.outputs.firmware == 'true'
+        run: pip install platformio
+
+      # secrets.h no se versiona: en CI se compila con la plantilla
+      - if: steps.changes.outputs.firmware == 'true'
+        run: cp src/secrets.h.example src/secrets.h
+
+      - if: steps.changes.outputs.firmware == 'true'
+        run: pio run
