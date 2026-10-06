@@ -35,17 +35,18 @@
 - **Ramas (Gitflow):** `main` (entregas estables), `develop` (integración), `feature/<fase>-<descripción>` (ej. `feature/f1-tickets-module`), `fix/<descripción>`.
 - **Commits (Conventional Commits, validados por commitlint):** `<tipo>(<scope>): <descripción en español>`.
   - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `build`, `perf`, `style`.
-  - Scopes: `api`, `backoffice`, `tv-display`, `contracts`, `design-tokens`, `ui`, `infra`, `docs`, `ai`, `ci`, `deps`, `repo`.
+  - Scopes: `api`, `backoffice`, `tv-display`, `wearable-firmware-poc`, `contracts`, `design-tokens`, `ui`, `infra`, `docs`, `ai`, `ci`, `deps`, `repo`.
   - Ej.: `feat(api): agregar módulo de turnos con llamado a consultorio`.
 - **PRs** hacia `develop`, con la CI en verde (`nx affected -t lint test build`) y la doc actualizada.
 
 ## Testing
 
-| Proyecto                         | Runner           | Qué testear                                                                |
-| -------------------------------- | ---------------- | -------------------------------------------------------------------------- |
-| `contracts`                      | vitest           | Toda función pura (reglas clínicas, helpers)                               |
-| `api`                            | jest             | Services (lógica), controllers (contrato HTTP), validación de DTOs, config |
-| `backoffice`, `tv-display`, `ui` | vitest + TestBed | Estados de render, `computed`, interacción                                 |
+| Proyecto                         | Runner                | Qué testear                                                                                      |
+| -------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `contracts`                      | vitest                | Toda función pura (reglas clínicas, helpers)                                                     |
+| `api`                            | jest                  | Services (lógica), controllers (contrato HTTP), validación de DTOs, config                       |
+| `backoffice`, `tv-display`, `ui` | vitest + TestBed      | Estados de render, `computed`, interacción                                                       |
+| `wearable-firmware-poc`          | `pio test` (a futuro) | Algoritmos puros (caídas, compensación de temperatura, armado del sobre); hoy la CI solo compila |
 
 Antes de cerrar una tarea: `pnpm affected` en verde.
 

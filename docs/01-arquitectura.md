@@ -97,6 +97,7 @@ flowchart TB
   ui["libs/shared/ui<br/>type:ui"] --> tokens
   tokens["libs/shared/design-tokens<br/>type:ui"]
   contracts["libs/shared/contracts<br/>type:contracts"]
+  firmware["apps/wearable-firmware-poc<br/>scope:wearable · C++"] -. "implementa (implícita)" .-> contracts
 ```
 
 Las reglas de dependencia las hace cumplir `@nx/enforce-module-boundaries` (`eslint.config.mjs`):
@@ -104,6 +105,8 @@ Las reglas de dependencia las hace cumplir `@nx/enforce-module-boundaries` (`esl
 - Cada `scope:<app>` solo depende de sí mismo y de `scope:shared`.
 - La API **no** puede importar `type:ui`.
 - `type:contracts` no depende de nada más (TS puro).
+
+El firmware (`apps/wearable-firmware-poc`) es C++ y no importa TypeScript. Implementa a mano el contrato MQTT de `contracts`. La dependencia se declara como `implicitDependencies` para que un cambio de contrato lo marque como afectado y la CI lo recompile (job `firmware`). Ver [ADR 0010](adr/0010-firmware-del-wearable-en-el-monorepo.md).
 
 ### Backend único (monolito modular)
 

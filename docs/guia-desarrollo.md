@@ -40,6 +40,25 @@ $env:TEST_DATABASE_URL="postgresql://vitalia:vitalia@localhost:5432/vitalia_test
 
 Sin `TEST_DATABASE_URL`, ese test se saltea. En CI corre siempre contra un PostgreSQL de servicio.
 
+## Firmware del wearable (`apps/wearable-firmware-poc`)
+
+Solo hace falta si trabajás con el firmware. El resto del monorepo (`pnpm affected`, `pnpm check`) no necesita PlatformIO.
+
+1. Instalá **PlatformIO**: la extensión `platformio.platformio-ide` de VS Code, o PlatformIO Core con `pip install platformio`.
+2. Si usás la extensión, `pio` no queda en el PATH. Agregá `%USERPROFILE%\.platformio\penv\Scripts` a las variables de entorno del usuario y reabrí la terminal.
+3. Copiá las credenciales: `copy apps\wearable-firmware-poc\src\secrets.h.example apps\wearable-firmware-poc\src\secrets.h`, y completá el SSID de 2.4 GHz y la IP del broker. `secrets.h` **no se versiona**.
+4. Desde la raíz:
+
+```powershell
+pnpm fw:build      # compilar
+pnpm fw:upload     # flashear por USB-C (cerrá el monitor serie antes)
+pnpm fw:monitor    # monitor serie a 115200
+```
+
+- La extensión de VS Code espera el `platformio.ini` en la raíz de la carpeta abierta. Para usar sus botones e IntelliSense, abrí `apps/wearable-firmware-poc` en una ventana aparte (`code apps/wearable-firmware-poc`).
+- Para probar MQTT sin el gateway: `pnpm infra:up` levanta Mosquitto en tu notebook (puerto 1883). Poné la IP de la notebook en `MQTT_BROKER`.
+- Pinout, gotchas de hardware y el contrato MQTT: [`apps/wearable-firmware-poc/AGENTS.md`](../apps/wearable-firmware-poc/AGENTS.md). Estado de los hitos de hardware: [`ESTADO.md`](../apps/wearable-firmware-poc/ESTADO.md).
+
 ## Flujo de trabajo
 
 1. Tomá una tarea de [07-roadmap.md](07-roadmap.md).

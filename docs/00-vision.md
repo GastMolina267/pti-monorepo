@@ -23,7 +23,7 @@ Diseñar e implementar un ecosistema que optimice la atención hospitalaria comb
 | Edge Gateway local autónomo (Wi-Fi + broker MQTT)        | `infra/`, `docker-compose.yml`, router RUT956 |
 | Interfaz multiplataforma de turnos para el paciente      | Portal cautivo (repo aparte) y app/PWA        |
 | Consola web unificada (Backoffice) para el equipo médico | `apps/backoffice`, `apps/tv-display`          |
-| Wearable ESP32-C3 (MAX30102, MLX90614, MPU6050, OLED)    | Firmware (repo de hardware)                   |
+| Wearable ESP32-C3 (MAX30102, MLX90614, MPU6050, OLED)    | `apps/wearable-firmware-poc`                  |
 | Persistencia local + cifrado AES-256                     | `apps/api` (PostgreSQL, módulo de telemetría) |
 
 ## Alcance

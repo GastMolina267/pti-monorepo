@@ -13,16 +13,17 @@ Monorepo **Nx** del Proyecto Tecnológico Integrador (Ingeniería Informática, 
 
 ## Mapa del monorepo
 
-| Proyecto        | Ruta                        | Tipo / tags                      | Stack                                                  | Puerto dev                         |
-| --------------- | --------------------------- | -------------------------------- | ------------------------------------------------------ | ---------------------------------- |
-| `api`           | `apps/api`                  | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT               | 3000 (`/api`, Swagger `/api/docs`) |
-| `backoffice`    | `apps/backoffice`           | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)      | 4200                               |
-| `tv-display`    | `apps/tv-display`           | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)           | 4300                               |
-| `contracts`     | `libs/shared/contracts`     | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas | —                                  |
-| `design-tokens` | `libs/shared/design-tokens` | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material            | —                                  |
-| `ui`            | `libs/shared/ui`            | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)           | —                                  |
+| Proyecto                | Ruta                         | Tipo / tags                      | Stack                                                        | Puerto dev                         |
+| ----------------------- | ---------------------------- | -------------------------------- | ------------------------------------------------------------ | ---------------------------------- |
+| `api`                   | `apps/api`                   | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT                     | 3000 (`/api`, Swagger `/api/docs`) |
+| `backoffice`            | `apps/backoffice`            | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)            | 4200                               |
+| `tv-display`            | `apps/tv-display`            | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)                 | 4300                               |
+| `wearable-firmware-poc` | `apps/wearable-firmware-poc` | `scope:wearable`, `type:app`     | C++17 · PlatformIO + Arduino en ESP32-C3 (MQTT, AES-256-GCM) | — (USB, monitor serie 115200)      |
+| `contracts`             | `libs/shared/contracts`      | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas       | —                                  |
+| `design-tokens`         | `libs/shared/design-tokens`  | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material                  | —                                  |
+| `ui`                    | `libs/shared/ui`             | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)                 | —                                  |
 
-Fuera de este repo: **portal cautivo** (`pti-captive-portal`, React + Vite, UAM/CHAP con el router RUT956) y **firmware del wearable** (ESP32-C3, C/C++). Ambos consumen los contratos documentados en [`docs/04-contratos.md`](docs/04-contratos.md).
+Fuera de este repo: **portal cautivo** (`pti-captive-portal`, React + Vite, UAM/CHAP con el router RUT956), que consume los contratos documentados en [`docs/04-contratos.md`](docs/04-contratos.md). El firmware del wearable está en `apps/wearable-firmware-poc` ([ADR 0010](docs/adr/0010-firmware-del-wearable-en-el-monorepo.md)). Implementa el contrato MQTT de `@vitalia/contracts` en C++ y no importa TypeScript.
 
 Alias de import: `@vitalia/contracts`, `@vitalia/design-tokens`, `@vitalia/ui` (en `tsconfig.base.json`).
 
@@ -34,6 +35,7 @@ pnpm infra:up             # PostgreSQL 16 + Mosquitto 2 (Docker)
 pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:revert · db:seed · db:reset
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv
+pnpm fw:build | fw:upload | fw:monitor   # firmware del wearable (requiere PlatformIO en el PATH)
 pnpm nx test <proyecto>   # vitest (front/libs) · jest (api)
 pnpm nx lint <proyecto>
 pnpm affected             # lint + test + build de lo afectado (usar antes de terminar)
@@ -99,7 +101,7 @@ Además están las skills oficiales de Nx (`nx-workspace`, `nx-generate`, `nx-ru
 | --------------------- | ------------------------------------------------------------------------------------------- |
 | Gastón Molina         | Backend Fog: NestJS, PostgreSQL, Mosquitto (`apps/api`, `libs/shared/contracts`)            |
 | Tomás Molina          | Interfaces: Backoffice, TV y app/portal del paciente (`apps/backoffice`, `apps/tv-display`) |
-| Facundo Gomez Geneiro | Hardware, firmware IoMT y red (router RUT956, wearable ESP32-C3)                            |
+| Facundo Gomez Geneiro | Hardware, firmware IoMT y red (router RUT956, `apps/wearable-firmware-poc`)                 |
 
 Tutor: Oscar Luis Gencarelli. Hitos: **Hito 3 (octubre 2026)**, ecosistema integrado de punta a punta. **Hito 4 (noviembre 2026)**, validación y defensa.
 

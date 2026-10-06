@@ -10,16 +10,17 @@
 
 Monorepo **Nx** con el backend del **Edge Gateway** y las interfaces del personal de salud. Todo corre localmente en el hospital (Fog Computing) y sigue operando **sin internet**.
 
-| Proyecto                                                 | Descripción                                                                         | Stack                 |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------- |
-| [`apps/api`](apps/api)                                   | Backend único: turnos, check-in, auth; luego telemetría MQTT, alertas y tiempo real | NestJS 11 + TypeORM   |
-| [`apps/backoffice`](apps/backoffice)                     | Consola de triaje y monitoreo para el personal                                      | Angular 22 + Material |
-| [`apps/tv-display`](apps/tv-display)                     | Llamador de turnos para la sala de espera                                           | Angular 22            |
-| [`libs/shared/contracts`](libs/shared/contracts)         | Contratos compartidos (REST, WS, MQTT, reglas clínicas)                             | TypeScript            |
-| [`libs/shared/design-tokens`](libs/shared/design-tokens) | Identidad visual Vitalia                                                            | SCSS + TS             |
-| [`libs/shared/ui`](libs/shared/ui)                       | Componentes Angular de marca                                                        | Angular               |
+| Proyecto                                                   | Descripción                                                                         | Stack                         |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------- |
+| [`apps/api`](apps/api)                                     | Backend único: turnos, check-in, auth; luego telemetría MQTT, alertas y tiempo real | NestJS 11 + TypeORM           |
+| [`apps/backoffice`](apps/backoffice)                       | Consola de triaje y monitoreo para el personal                                      | Angular 22 + Material         |
+| [`apps/tv-display`](apps/tv-display)                       | Llamador de turnos para la sala de espera                                           | Angular 22                    |
+| [`apps/wearable-firmware-poc`](apps/wearable-firmware-poc) | Firmware de la pulsera IoMT: sensores, detección de caídas, telemetría MQTT cifrada | C++17 · PlatformIO (ESP32-C3) |
+| [`libs/shared/contracts`](libs/shared/contracts)           | Contratos compartidos (REST, WS, MQTT, reglas clínicas)                             | TypeScript                    |
+| [`libs/shared/design-tokens`](libs/shared/design-tokens)   | Identidad visual Vitalia                                                            | SCSS + TS                     |
+| [`libs/shared/ui`](libs/shared/ui)                         | Componentes Angular de marca                                                        | Angular                       |
 
-Repos relacionados: portal cautivo (`pti-captive-portal`, React) y firmware del wearable (ESP32-C3).
+Repo relacionado: portal cautivo (`pti-captive-portal`, React).
 
 ## Inicio rápido
 
@@ -39,6 +40,7 @@ Swagger: <http://localhost:3000/api/docs> · Setup completo en Windows: [docs/gu
 | Script                                               | Acción                             |
 | ---------------------------------------------------- | ---------------------------------- |
 | `pnpm dev` / `dev:api` / `dev:backoffice` / `dev:tv` | Servidores de desarrollo           |
+| `pnpm fw:build` / `fw:upload` / `fw:monitor`         | Firmware del wearable (PlatformIO) |
 | `pnpm affected`                                      | Lint + test + build de lo afectado |
 | `pnpm check`                                         | Todo el workspace + format check   |
 | `pnpm infra:up` / `infra:down` / `infra:logs`        | Infraestructura Docker             |
