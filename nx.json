@@ -62,13 +62,25 @@
         "typecheckTargetName": "typecheck",
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
-      }
+      },
+      "exclude": [
+        "apps/backoffice/vite.config.mts",
+        "apps/tv-display/vite.config.mts",
+        "libs/shared/ui/vite.config.mts"
+      ]
     },
     {
       "plugin": "@nx/vitest",
       "options": {
         "testTargetName": "test"
-      }
+      },
+      "exclude": [
+        "apps/backoffice/vite.config.mts",
+        "apps/tv-display/vite.config.mts",
+        "libs/shared/contracts/vitest.config.mts",
+        "libs/shared/ui/vite.config.mts",
+        "vitest.config.mts"
+      ]
     },
     {
       "plugin": "@nx/webpack/plugin",
