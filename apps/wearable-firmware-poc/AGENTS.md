@@ -72,7 +72,7 @@ El MLX90614 es un dispositivo SMBus y no es confiable por encima de 100 kHz. El 
 
 ```ini
 [env:esp32-c3-supermini]
-platform = espressif32
+platform = espressif32@7.1.0  ; Arduino Core ESP32 2.0.17
 board = esp32-c3-devkitm-1
 framework = arduino
 monitor_speed = 115200
@@ -86,16 +86,19 @@ build_flags =
 
 build_unflags = -std=gnu++11
 
-; Versiones fijadas: estas librerías rompen compatibilidad seguido.
+; Versiones exactas (sin ^): estas librerías rompen compatibilidad seguido y la CI
+; tiene que compilar siempre lo mismo. Para actualizar, cambiar la versión acá a mano.
+; BusIO es dependencia transitiva de las Adafruit, pero se fija igual.
 lib_deps =
-    sparkfun/SparkFun MAX3010x Pulse and Proximity Sensor Library@^1.1.2
-    adafruit/Adafruit MLX90614 Library@^2.1.5
-    adafruit/Adafruit MPU6050@^2.2.6
-    adafruit/Adafruit Unified Sensor@^1.1.14
-    adafruit/Adafruit SSD1306@^2.5.9
-    adafruit/Adafruit GFX Library@^1.11.9
-    knolleary/PubSubClient@^2.8
-    bblanchon/ArduinoJson@^7.0.4
+    sparkfun/SparkFun MAX3010x Pulse and Proximity Sensor Library@1.1.2
+    adafruit/Adafruit MLX90614 Library@2.1.6
+    adafruit/Adafruit MPU6050@2.2.9
+    adafruit/Adafruit Unified Sensor@1.1.15
+    adafruit/Adafruit SSD1306@2.5.17
+    adafruit/Adafruit GFX Library@1.12.6
+    adafruit/Adafruit BusIO@1.17.4
+    knolleary/PubSubClient@2.8
+    bblanchon/ArduinoJson@7.4.3
 ```
 
 ### Gotchas del entorno
@@ -148,7 +151,9 @@ pio device list
 
 ---
 
-## 5. Estructura del Proyecto
+## 5. Estructura del Proyecto (objetivo)
+
+> **Estructura objetivo, todavía no existe.** Hoy todo el firmware está en `src/main.cpp` (con sus constantes), más `src/secrets.h`. `config.h` y los módulos de `lib/` se crean cuando el firmware pase de POC a estructura real (ver `ESTADO.md`).
 
 ```
 /src
@@ -239,12 +244,13 @@ Definidos en `config.h`, no dispersos por el código:
 | Intervalo de publicación de telemetría | 5 s       | Ajustable según autonomía               |
 | SpO2 crítico                           | < 90 %    | Marco teórico                           |
 | Rango normal BPM                       | 60–100    | Marco teórico                           |
-| Temperatura de fiebre                  | > 37.5 °C | Marco teórico                           |
+| Temperatura de fiebre (alerta)         | > 37.5 °C | `CLINICAL_THRESHOLDS`, la decide la API |
+| Indicador local de fiebre (OLED/LED)   | > 38.0 °C | Provisional, ver nota de calibración    |
 | Latencia máxima de alerta              | 2.0 s     | RNF-O1                                  |
 
 La temperatura del MLX90614 es **superficial de muñeca**, no central. Antes de comparar contra el umbral de fiebre hay que aplicar la curva de compensación. No publicar el valor crudo como si fuera temperatura clínica.
 
-> **Estado de la calibración de temperatura (pendiente):** con el sensor sostenido a mano, la geometría (gap, ángulo, sellado de la cavidad de aire) varía entre mediciones y mete **~1–2 °C de dispersión** que tapa cualquier curva de compensación. La curva `central ≈ f(piel, Ta)` **solo tiene sentido una vez que exista la correa/carcasa que fije la geometría**; calibrar antes es caracterizar el ruido del pulso. Medición representativa asentada (prueba limpia): piel ≈ central − 1.2 °C a ambiente ~23 °C → usar `SKIN_TO_CORE_OFFSET_C = 1.2` **provisional**. En el firmware, tratar la temperatura como **indicador grueso**: banda "normal" amplia y disparar alerta de fiebre recién en **> 38.0 °C** estimados, no 37.5, para no acumular falsos positivos por ruido de medición. El sensor cerrado contra la muñeca puede además autocalentarse con uso sostenido (se observó `Ta` +3.6 °C en 3 min continuos): la carcasa debe disipar o el firmware compensar `Ta` según tiempo encendido.
+> **Estado de la calibración de temperatura (pendiente):** con el sensor sostenido a mano, la geometría (gap, ángulo, sellado de la cavidad de aire) varía entre mediciones y mete **~1–2 °C de dispersión** que tapa cualquier curva de compensación. La curva `central ≈ f(piel, Ta)` **solo tiene sentido una vez que exista la correa/carcasa que fije la geometría**; calibrar antes es caracterizar el ruido del pulso. Medición representativa asentada (prueba limpia): piel ≈ central − 1.2 °C a ambiente ~23 °C → usar `SKIN_TO_CORE_OFFSET_C = 1.2` **provisional**. En el firmware, tratar la temperatura como **indicador grueso**: banda "normal" amplia y marcar fiebre en el OLED/LED recién en **> 38.0 °C** estimados, para no acumular falsos positivos por ruido de medición. Ese 38.0 es **solo el indicador local**: la alerta de fiebre la decide la API con `assessVitals()` y el umbral del contrato (`CLINICAL_THRESHOLDS.temperature.feverAbove`, 37.5 °C). El sensor cerrado contra la muñeca puede además autocalentarse con uso sostenido (se observó `Ta` +3.6 °C en 3 min continuos): la carcasa debe disipar o el firmware compensar `Ta` según tiempo encendido.
 
 ---
 
