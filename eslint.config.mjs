@@ -21,6 +21,7 @@ export default [
             { sourceTag: 'scope:api', onlyDependOnLibsWithTags: ['scope:api', 'scope:shared'] },
             { sourceTag: 'scope:backoffice', onlyDependOnLibsWithTags: ['scope:backoffice', 'scope:shared'] },
             { sourceTag: 'scope:tv', onlyDependOnLibsWithTags: ['scope:tv', 'scope:shared'] },
+            { sourceTag: 'scope:wearable', onlyDependOnLibsWithTags: ['scope:wearable', 'scope:shared'] },
             // El backend nunca importa librerías de UI
             { sourceTag: 'scope:api', notDependOnLibsWithTags: ['type:ui'] },
             // Tipo: los contratos son puros; la UI puede usar contratos
