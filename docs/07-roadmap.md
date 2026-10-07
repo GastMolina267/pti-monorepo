@@ -69,7 +69,10 @@ gantt
 - [x] Firmware del wearable migrado al monorepo con su historial: `apps/wearable-firmware-poc`, targets `pio-*`, job `firmware` en CI ([ADR 0010](adr/0010-firmware-del-wearable-en-el-monorepo.md)) (F)
 - [ ] Firmware: publicar `TelemetryReading` (con `seq` y `ts` en ms), reemplazando el payload del POC (`device_id`, `bpm`, `temp_c`, `event`) (F)
 - [ ] Firmware: MQTT con PubSubClient contra Mosquitto (Hito 6b), QoS 1 y `setBufferSize(512)` (F)
-- [ ] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` con los mismos vectores de prueba que la API (Hito 7) (F)
+- [x] Código de wearable `wb-<NN>-<mac>` en contracts, seed y firmware ([ADR 0011](adr/0011-identificador-del-wearable.md)) (F)
+- [x] Vectores AES-256-GCM compartidos: `GCM_TEST_VECTORS` en contracts → `gcm_vectors.h` del firmware (`pnpm fw:vectors`, check en CI) (F)
+- [ ] Firmware: hora por NTP (`configTime` con `NTP_SERVER`); en desarrollo, NTP público (red única con internet) (F)
+- [ ] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
 - [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
 - [ ] Firmware: `contracts.h` generado desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
@@ -77,7 +80,7 @@ gantt
 - [ ] Módulo `realtime`: gateway Socket.IO con salas `staff` / `tv` / `patient:<id>` — [ADR 0007](adr/0007-tiempo-real-socket-io.md)
 - [ ] `ticket:called` y `queue:updated` emitidos desde `tickets`
 - [ ] Módulo `telemetry`: cliente MQTT, suscripción `hospital/+/wearable/+/data`, QoS 1
-- [ ] Descifrado AES-256-GCM + tests con vectores — [ADR 0006](adr/0006-cifrado-aes-256-gcm.md) (F: mismo esquema en el firmware)
+- [ ] Descifrado AES-256-GCM + tests con `GCM_TEST_VECTORS` de contracts — [ADR 0006](adr/0006-cifrado-aes-256-gcm.md) (F: mismos vectores en el firmware)
 - [ ] Validación (zod), deduplicación por `seq`, `assessVitals()`, persistencia sin bloquear la emisión
 - [ ] Módulo `alerts`: creación ante `CRITICAL`, `alert:emergency`, reconocimiento (`ack`)
 - [ ] Módulo `wearables`: alta, asignación a un turno, última lectura, comando al OLED (`.../cmd`)
@@ -107,8 +110,8 @@ gantt
 - [ ] Portal cautivo → check-in y estado del turno contra la API (repo `pti-captive-portal`, `VITE_BASE_URL` al gateway)
 - [ ] Wearable real publicando cifrado en Mosquitto (F) y recibiendo el turno en el OLED
 - [ ] Dockerfile multi-stage de la API + Nginx (Backoffice, TV, portal, proxy `/api` y `/socket.io`) en `docker-compose`
-- [ ] Mosquitto con usuario/contraseña y ACL por wearable
-- [ ] RUT956: VLANs 10/20/30/40 apuntando al gateway; portal cautivo con walled garden (F)
+- [ ] Mosquitto con usuario/contraseña y ACL por wearable: usuario = código `wb-<NN>-<mac>`, contraseña con `mosquitto_passwd` cargada **a mano** en el `secrets.h` de cada pulsera; ACL `pattern write hospital/+/wearable/%u/data` y `pattern read hospital/+/wearable/%u/cmd`
+- [ ] RUT956: VLANs 10/20/30/40 apuntando al gateway; portal cautivo con walled garden; **servidor NTP local** para la VLAN 10 (sin internet) y `NTP_SERVER` del firmware apuntando a él (F)
 - [ ] Guion de demo E2E documentado
 
 **Terminado (Hito 3) cuando:** el llamado emitido desde el Backoffice se ve al instante en la TV, en el portal del paciente y en el OLED del wearable.

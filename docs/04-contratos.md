@@ -101,6 +101,15 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 | `hospital/<sala>/wearable/<id>/cmd`  | gateway → wearable    | Comando (ej. mostrar turno en el OLED) |
 | `hospital/+/wearable/+/data`         | suscripción de la API | —                                      |
 
+### Identificador del wearable
+
+`<id>` = `wearableId` = `wearables.code` = **`wb-<NN>-<mac>`**, por ejemplo `wb-07-24d7cc` ([ADR 0011](adr/0011-identificador-del-wearable.md)).
+
+- `NN`: número físico de la pulsera, de 01 a 99. En el firmware es `WEARABLE_NUMBER`, en `secrets.h`.
+- `mac`: últimos 3 bytes de la MAC Wi-Fi, en hex minúscula.
+- En código: `WEARABLE_CODE_PATTERN`, `formatWearableCode()` y `parseWearableCode()` de `@vitalia/contracts`.
+- Fase 4: el código también es el usuario de Mosquitto. Su contraseña se carga a mano en el firmware.
+
 ### Sobre cifrado (`EncryptedEnvelope`)
 
 ```json
@@ -109,12 +118,28 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 
 - Algoritmo **AES-256-GCM**. Clave de 32 bytes compartida (`TELEMETRY_AES_KEY`, 64 hex). IV aleatorio por mensaje ([ADR 0006](adr/0006-cifrado-aes-256-gcm.md)).
 - Si el tag no valida, el mensaje se descarta.
+- **Sin AAD**: el campo `v` viaja en claro y no forma parte de la autenticación.
+
+#### Vectores de prueba compartidos
+
+`GCM_TEST_VECTORS` de `@vitalia/contracts` (`telemetry/gcm-test-vectors.ts`) es la fuente única de vectores AES-256-GCM:
+
+| Vector                    | Qué prueba                                                         |
+| ------------------------- | ------------------------------------------------------------------ |
+| `nist_tc15`               | Vector oficial del NIST (AES-256, IV de 96 bits, sin AAD)          |
+| `vitalia_reading`         | Un `TelemetryReading` de `wb-01-24d7cc`, también en forma de sobre |
+| `vitalia_reading_bad_tag` | Tag alterado: el descifrado **tiene que fallar**                   |
+
+- El spec de contracts los verifica con `node:crypto`.
+- La API los usa en los tests de descifrado del módulo `telemetry`.
+- El firmware los recibe en `apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h`, generado con `pnpm fw:vectors`. La CI corre `pnpm fw:vectors --check` para que no quede desactualizado.
+- La clave de los vectores (`00…1f`) es solo para tests: nunca usarla como `TELEMETRY_AES_KEY`.
 
 ### Lectura en claro (`TelemetryReading`)
 
 ```json
 {
-  "wearableId": "w-07",
+  "wearableId": "wb-07-24d7cc",
   "seq": 1532,
   "ts": 1791065563577,
   "hr": 78,
@@ -128,7 +153,7 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 | Campo      | Unidad   | Notas                                                         |
 | ---------- | -------- | ------------------------------------------------------------- |
 | `seq`      | —        | Contador monotónico; la API deduplica por `(wearableId, seq)` |
-| `ts`       | ms epoch | Hora del wearable                                             |
+| `ts`       | ms epoch | Hora del wearable (NTP; ver nota de red en 01-arquitectura)   |
 | `hr`       | BPM      |                                                               |
 | `spo2`     | %        |                                                               |
 | `temp`     | °C       | Ya compensada a temperatura clínica                           |

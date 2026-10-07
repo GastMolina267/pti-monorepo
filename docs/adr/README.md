@@ -14,3 +14,4 @@ Formato y proceso: skill `vitalia-docs`. Un ADR aceptado no se edita: se reempla
 | [0008](0008-contexto-ia-agents-md-y-skills.md)       | AGENTS.md como fuente única + skills            | Aceptado           |
 | [0009](0009-orm-typeorm.md)                          | TypeORM como ORM                                | Aceptado           |
 | [0010](0010-firmware-del-wearable-en-el-monorepo.md) | Firmware del wearable en el monorepo            | Aceptado           |
+| [0011](0011-identificador-del-wearable.md)           | Identificador del wearable `wb-<NN>-<mac>`      | Aceptado           |

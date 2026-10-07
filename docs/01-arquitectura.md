@@ -51,6 +51,8 @@ flowchart LR
 | 30 · Staff     | `Hospital_Staff`                            | API + Backoffice     | HTTPS, WSS      | LAN estándar               |
 | 40 · Kiosks/TV | Ethernet                                    | API (Fog)            | HTTP, WS        | Física                     |
 
+> **Entorno de desarrollo (temporal):** por ahora todo corre en **una sola red con internet**, sin VLANs. Por eso el wearable sincroniza la hora (`ts` de la telemetría) contra un **NTP público** (`pool.ntp.org`). En producción la VLAN 10 no tiene internet: el RUT956 o el gateway tienen que servir **NTP local** y el firmware apuntar a él (`NTP_SERVER` en `secrets.h`). Pendiente en la Fase 4 del [roadmap](07-roadmap.md).
+
 ## Flujos críticos
 
 ### Telemetría y alerta (objetivo < 500 ms)
@@ -62,7 +64,7 @@ sequenceDiagram
   participant A as API (telemetry)
   participant S as Socket.IO (staff)
   participant D as PostgreSQL
-  W->>M: PUBLISH hospital/sala1/wearable/w-07/data (QoS1, sobre cifrado)
+  W->>M: PUBLISH hospital/sala1/wearable/wb-07-24d7cc/data (QoS1, sobre cifrado)
   M->>A: mensaje
   A->>A: descifrar AES-GCM · validar · dedupe(seq) · assessVitals()
   A-->>S: telemetry:reading
