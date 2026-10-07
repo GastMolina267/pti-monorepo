@@ -10,6 +10,7 @@ export default {
         'api',
         'backoffice',
         'tv-display',
+        'wearable-firmware-poc',
         'contracts',
         'design-tokens',
         'ui',

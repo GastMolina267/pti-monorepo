@@ -1,0 +1,44 @@
+{
+  "name": "wearable-firmware-poc",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/wearable-firmware-poc/src",
+  "projectType": "application",
+  "tags": ["scope:wearable", "type:app"],
+  "implicitDependencies": ["contracts"],
+  "// targets": "PlatformIO (pio) tiene que estar en el PATH. Sin caché: secrets.h no se versiona y Nx no lo puede hashear.",
+  "targets": {
+    "pio-build": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/wearable-firmware-poc",
+        "command": "pio run"
+      }
+    },
+    "pio-upload": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/wearable-firmware-poc",
+        "command": "pio run -t upload"
+      }
+    },
+    "pio-monitor": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "options": {
+        "cwd": "apps/wearable-firmware-poc",
+        "command": "pio device monitor"
+      }
+    },
+    "pio-clean": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/wearable-firmware-poc",
+        "command": "pio run -t clean"
+      }
+    }
+  }
+}

@@ -53,10 +53,23 @@ Versiones fijadas al crear el monorepo (octubre 2026). Las de Angular y NestJS s
 | **Fase 4:** Nginx | `nginx:alpine`                         | 80/443 |
 | **Fase 4:** API   | imagen propia (Dockerfile multi-stage) | 3000   |
 
+## Firmware del wearable (`apps/wearable-firmware-poc`)
+
+| Tecnología                  | Versión                                         | Uso                                                       |
+| --------------------------- | ----------------------------------------------- | --------------------------------------------------------- |
+| ESP32-C3 SuperMini          | RISC-V 160 MHz, 4 MB flash                      | Microcontrolador (Wi-Fi 2.4 GHz, AES por hardware)        |
+| PlatformIO                  | `espressif32@7.1.0`, board `esp32-c3-devkitm-1` | Build, upload y monitor serie (`pnpm fw:*`)               |
+| Arduino Core ESP32          | 2.0.17 (`framework-arduinoespressif32` 3.20017) | Framework (FreeRTOS debajo), C++17                        |
+| mbedTLS                     | incluido en el core                             | AES-256-GCM ([ADR 0006](adr/0006-cifrado-aes-256-gcm.md)) |
+| PubSubClient                | 2.8                                             | Cliente MQTT                                              |
+| ArduinoJson                 | 7.4.3                                           | Serialización de `TelemetryReading`                       |
+| SparkFun MAX3010x           | 1.1.2                                           | Pulso y SpO₂ (MAX30102)                                   |
+| Adafruit MLX90614 / MPU6050 | 2.1.6 / 2.2.9                                   | Temperatura IR / acelerómetro                             |
+| Adafruit SSD1306 + GFX      | 2.5.17 / 1.12.6                                 | OLED 128×32                                               |
+
 ## Fuera del monorepo
 
-| Componente                            | Stack                                                                       |
-| ------------------------------------- | --------------------------------------------------------------------------- |
-| Portal cautivo (`pti-captive-portal`) | React 18 + Vite + MUI, UAM/CHAP con el RUT956                               |
-| Firmware del wearable                 | C/C++ en ESP32-C3 (Arduino/ESP-IDF), mbedTLS AES-GCM, PubSubClient/ESP-MQTT |
-| Red                                   | Teltonika RUT956 (RutOS): VLANs, portal cautivo, failover 4G                |
+| Componente                            | Stack                                                        |
+| ------------------------------------- | ------------------------------------------------------------ |
+| Portal cautivo (`pti-captive-portal`) | React 18 + Vite + MUI, UAM/CHAP con el RUT956                |
+| Red                                   | Teltonika RUT956 (RutOS): VLANs, portal cautivo, failover 4G |

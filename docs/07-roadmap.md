@@ -66,6 +66,13 @@ gantt
 
 ## Fase 2 · Telemetría MQTT, alertas y tiempo real (G + F)
 
+- [x] Firmware del wearable migrado al monorepo con su historial: `apps/wearable-firmware-poc`, targets `pio-*`, job `firmware` en CI ([ADR 0010](adr/0010-firmware-del-wearable-en-el-monorepo.md)) (F)
+- [ ] Firmware: publicar `TelemetryReading` (con `seq` y `ts` en ms), reemplazando el payload del POC (`device_id`, `bpm`, `temp_c`, `event`) (F)
+- [ ] Firmware: MQTT con PubSubClient contra Mosquitto (Hito 6b), QoS 1 y `setBufferSize(512)` (F)
+- [ ] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` con los mismos vectores de prueba que la API (Hito 7) (F)
+- [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
+- [ ] Firmware: `contracts.h` generado desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
+
 - [ ] Emitir eventos de dominio desde `tickets` (hoy hay un `// Fase 2` en `TicketsService.call`)
 - [ ] Módulo `realtime`: gateway Socket.IO con salas `staff` / `tv` / `patient:<id>` — [ADR 0007](adr/0007-tiempo-real-socket-io.md)
 - [ ] `ticket:called` y `queue:updated` emitidos desde `tickets`
