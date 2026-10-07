@@ -83,7 +83,10 @@ struct Telemetry {
 Telemetry tel;
 
 bool mpuOk = false, mlxOk = false, oledOk = false;
-String deviceId = "wb-000000";
+
+static_assert(WEARABLE_NUMBER >= 1 && WEARABLE_NUMBER <= 99,
+              "WEARABLE_NUMBER (secrets.h) tiene que estar entre 1 y 99 (ADR 0011)");
+String deviceId = "wb-00-000000";
 
 // ---------------- Sensores ----------------
 static void sampleImu() {
@@ -256,11 +259,11 @@ void setup() {
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   }
 
-  // Device ID estable = "wb-" + ultimos 3 bytes de la MAC.
+  // Device ID estable = "wb-" + numero fisico (secrets.h) + ultimos 3 bytes de la MAC (ADR 0011).
   uint8_t mac[6];
   WiFi.macAddress(mac);
   char buf[16];
-  snprintf(buf, sizeof(buf), "wb-%02x%02x%02x", mac[3], mac[4], mac[5]);
+  snprintf(buf, sizeof(buf), "wb-%02u-%02x%02x%02x", (unsigned)WEARABLE_NUMBER, mac[3], mac[4], mac[5]);
   deviceId = buf;
   Serial.printf(" device_id: %s\n", deviceId.c_str());
 
