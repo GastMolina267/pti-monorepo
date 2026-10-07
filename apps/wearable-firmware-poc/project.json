@@ -32,6 +32,14 @@
         "command": "pio device monitor"
       }
     },
+    "pio-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/wearable-firmware-poc",
+        "command": "pio test -e native"
+      }
+    },
     "pio-clean": {
       "executor": "nx:run-commands",
       "cache": false,
