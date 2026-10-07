@@ -11,11 +11,13 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 - Comandos al wearable (OLED): `MQTT_TOPICS.wearableCommand(room, id)` → `.../cmd`.
 - QoS: `MQTT_QOS = 1`.
 - Payload publicado: `EncryptedEnvelope { v: 1, iv, ct, tag }` (base64). Descifrado: `TelemetryReading { wearableId, seq, ts, hr?, spo2?, temp?, accPeakG?, fall? }`.
+- Identificador `<id>` = `wearableId` = `wearables.code` = `wb-<NN>-<mac>` (ej. `wb-07-24d7cc`, ADR 0011). Validalo con `WEARABLE_CODE_PATTERN` / `parseWearableCode()` de contracts y descartá los mensajes cuyo código no exista en `wearables`.
 
 ## Cifrado (RNF-O3)
 
 - **AES-256-GCM** (cifra y autentica). Clave de 32 bytes compartida en `TELEMETRY_AES_KEY` (hex de 64 caracteres). IV aleatorio de 12 bytes por mensaje y tag de 16 bytes.
 - En el ESP32-C3 se usa `mbedtls_gcm_*` con el acelerador AES por hardware.
+- **Vectores de prueba compartidos:** `GCM_TEST_VECTORS` de contracts (NIST TC15, una lectura Vitalia con sobre y un tag alterado). Los tests de descifrado de la API **tienen que** usarlos. El firmware los recibe como `test/fixtures/gcm_vectors.h` (`pnpm fw:vectors`; la CI chequea que esté al día). Si agregás un vector, regenerá el header.
 - Node:
   ```ts
   import { createDecipheriv } from 'node:crypto';
@@ -49,5 +51,5 @@ Script Node que emula **50 pulseras publicando cada 3 s** (§11.1.4) con valores
 
 - Los umbrales salen de `CLINICAL_THRESHOLDS` y la clasificación de `assessVitals()`. **No dupliques reglas.**
 - La red IoMT (VLAN 10) solo llega a Mosquitto :1883. El wearable nunca habla HTTP con la API.
-- Fase 4: usuario y contraseña por wearable + ACL en Mosquitto (`infra/mosquitto/`).
+- Fase 4: usuario = código del wearable y contraseña con `mosquitto_passwd` (se carga a mano en el `secrets.h` de cada pulsera) + ACL con `%u` en Mosquitto (`infra/mosquitto/`).
 - Tests: `decryptEnvelope` con vectores conocidos (cifrar y descifrar), descarte por tag inválido y deduplicación por `seq`.
