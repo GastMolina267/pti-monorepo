@@ -95,3 +95,7 @@ jobs:
 
       - if: steps.changes.outputs.firmware == 'true'
         run: pio run
+
+      # Tests de lib/telemetry y lib/fall_detection en el runner (sin placa)
+      - if: steps.changes.outputs.firmware == 'true'
+        run: pio test -e native
