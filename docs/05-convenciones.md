@@ -41,12 +41,12 @@
 
 ## Testing
 
-| Proyecto                         | Runner                | Qué testear                                                                                      |
-| -------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| `contracts`                      | vitest                | Toda función pura (reglas clínicas, helpers)                                                     |
-| `api`                            | jest                  | Services (lógica), controllers (contrato HTTP), validación de DTOs, config                       |
-| `backoffice`, `tv-display`, `ui` | vitest + TestBed      | Estados de render, `computed`, interacción                                                       |
-| `wearable-firmware-poc`          | `pio test` (a futuro) | Algoritmos puros (caídas, compensación de temperatura, armado del sobre); hoy la CI solo compila |
+| Proyecto                         | Runner                                       | Qué testear                                                                                                       |
+| -------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `contracts`                      | vitest                                       | Toda función pura (reglas clínicas, helpers)                                                                      |
+| `api`                            | jest                                         | Services (lógica), controllers (contrato HTTP), validación de DTOs, config                                        |
+| `backoffice`, `tv-display`, `ui` | vitest + TestBed                             | Estados de render, `computed`, interacción                                                                        |
+| `wearable-firmware-poc`          | Unity (`pio test -e native`, `pnpm fw:test`) | Libs puras de `lib/` (lectura del contrato, `seq`, caídas) en la PC y en CI; lo de hardware se prueba en la placa |
 
 Antes de cerrar una tarea: `pnpm affected` en verde.
 

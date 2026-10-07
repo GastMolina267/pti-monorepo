@@ -120,10 +120,14 @@ Desde la raíz del monorepo, vía Nx (regla del [AGENTS.md raíz](../../AGENTS.m
 pnpm fw:build      # = pnpm nx run wearable-firmware-poc:pio-build  (pio run)
 pnpm fw:upload     # = ...:pio-upload                               (pio run -t upload)
 pnpm fw:monitor    # = ...:pio-monitor                              (pio device monitor)
+pnpm fw:test       # = ...:pio-test   tests native, sin placa       (pio test -e native)
+pnpm fw:codegen    # regenera include/vitalia_contracts.h y test/fixtures/gcm_vectors.h
 pnpm nx run wearable-firmware-poc:pio-clean
 ```
 
-Los targets se llaman `pio-*` a propósito: así `pnpm affected` / `pnpm check` no exigen PlatformIO a quien no trabaja con el firmware. No usan caché de Nx porque `src/secrets.h` no se versiona y Nx no lo puede hashear. En CI, el job `firmware` compila con `pio run` cuando cambia este proyecto o `contracts`.
+Los targets se llaman `pio-*` a propósito: así `pnpm affected` / `pnpm check` no exigen PlatformIO a quien no trabaja con el firmware. No usan caché de Nx porque `src/secrets.h` no se versiona y Nx no lo puede hashear. En CI, el job `firmware` corre `pio run` y `pio test -e native` cuando cambia este proyecto o `contracts`. El job `main` corre `pnpm fw:codegen --check`.
+
+`pnpm fw:test` necesita `gcc`/`g++` en el PATH. En Windows sirve MSYS2 (`C:\msys64\ucrt64\bin`) o MinGW.
 
 `pio` tiene que estar en el PATH. Si se instaló con la extensión de VS Code, agregar `%USERPROFILE%\.platformio\penv\Scripts`.
 
@@ -151,25 +155,32 @@ pio device list
 
 ---
 
-## 5. Estructura del Proyecto (objetivo)
-
-> **Estructura objetivo, todavía no existe.** Hoy todo el firmware está en `src/main.cpp` (con sus constantes), más `src/secrets.h`. `config.h` y los módulos de `lib/` se crean cuando el firmware pase de POC a estructura real (ver `ESTADO.md`).
+## 5. Estructura del Proyecto
 
 ```
+/include
+  vitalia_contracts.h   // GENERADO (pnpm fw:codegen): tópicos, QoS, cifrado, seq, rango del ID, umbrales
 /src
-  main.cpp              // setup() + loop(), orquestación
-  config.h              // pines, umbrales, constantes (sin secretos)
-  secrets.h             // credenciales Wi-Fi, broker, clave AES — NO versionar
+  main.cpp              // setup() + loop(): solo orquestación
+  config.h              // pines, direcciones I²C, tiempos (sin secretos ni nada del contrato)
+  http_demo.{h,cpp}     // demo HTTP: /, /data (TelemetryReading), /status (diagnóstico)
+  secrets.h             // por pulsera: número, Wi-Fi, NTP, MQTT, clave AES — NO versionar
 /lib
-  sensors/              // wrappers de MAX30102, MLX90614, MPU6050
-  fall_detection/       // algoritmo de umbral
-  crypto/               // AES-256-GCM sobre mbedTLS (sobre { v, iv, ct, tag })
-  net/                  // Wi-Fi + MQTT
-  ui/                   // OLED, LED, buzzer
-/test                   // tests unitarios (pio test)
+  telemetry/            // PURA: Reading + JSON del contrato, composeSeq, wb-NN-mac, PeakTracker
+  fall_detection/       // PURA: ImpactDetector (impacto > 2,8 g; Hito 8: inmovilidad)
+  sensors/              // Imu (MPU6050), SkinTemp (MLX90614); a futuro MAX30102
+  net/                  // Wi-Fi con reintento, NTP, código del dispositivo, contador de arranques (NVS)
+  ui/                   // Oled, StatusLed (a futuro buzzer)
+  crypto/               // (Hito 7) AES-256-GCM sobre mbedTLS → sobre { v, iv, ct, tag }
+/test
+  native/test_*/        // tests Unity de las libs PURAS en la PC (pnpm fw:test, CI)
+  fixtures/gcm_vectors.h  // GENERADO: vectores GCM compartidos con la API
 ```
 
-`secrets.h` va en `.gitignore`. Se versiona `secrets.h.example` con las claves vacías.
+- Las libs **puras** no incluyen `Arduino.h`: compilan en el env `native` y se testean sin placa. La lógica nueva que se pueda separar del hardware va ahí y lleva su test.
+- Las libs de **hardware** (`sensors`, `net`, `ui`) siguen la interfaz `begin()` / `read()` / `isHealthy()` y se ignoran en `native` (`lib_ignore`).
+- `include/` está en el path de todas las libs (`-I include` en `platformio.ini`).
+- `secrets.h` va en `.gitignore`. Se versiona `secrets.h.example` con las claves vacías.
 
 ---
 
@@ -205,7 +216,7 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 
 | Campo      | Unidad   | Notas                                                                                    |
 | ---------- | -------- | ---------------------------------------------------------------------------------------- |
-| `seq`      | —        | Contador monotónico. La API deduplica por `(wearableId, seq)` (QoS 1 puede repetir)      |
+| `seq`      | —        | `arranque << 24 \| contador` (`composeSeq`): crece también después de reiniciar          |
 | `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo |
 | `hr`       | BPM      | Opcional: se omite hasta que el MAX30102 dé una lectura válida (no mandar `null` ni `0`) |
 | `spo2`     | %        | Ídem                                                                                     |
@@ -213,7 +224,11 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 | `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                             |
 | `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                  |
 
-> **NTP:** en desarrollo todo corre en **una sola red con internet**, así que alcanza con un NTP público (`pool.ntp.org`). En producción la VLAN 10 no tiene internet: el RUT956 o el gateway tienen que servir NTP local (pendiente, roadmap Fase 4). No publicar lecturas hasta tener hora válida. Si se publicaran, `ts` llegaría como 1970.
+> **`seq`:** la API deduplica por `(wearableId, seq)` (QoS 1 puede repetir mensajes). Si el contador arrancara en 0 en cada boot, las lecturas nuevas se descartarían como duplicadas. Por eso el firmware guarda un **contador de arranques en NVS** (`net::nextBootCount()`, una escritura por boot) y arma `seq = arranque << 24 | contador`. Después de reiniciar, `seq` salta al bloque siguiente. `splitSeq()` de contracts lo descompone para diagnosticar.
+>
+> **NTP:** en desarrollo todo corre en **una sola red con internet**, así que alcanza con un NTP público (`pool.ntp.org`). En producción la VLAN 10 no tiene internet: el RUT956 o el gateway tienen que servir NTP local (pendiente, roadmap Fase 4). **No se arman lecturas hasta tener hora válida** (`net::timeValid()`); si no, `ts` llegaría como 1970.
+
+**Hoy (antes del Hito 6b)** la lectura se arma cada 3 s y se expone por HTTP en `http://<IP>/data`, exactamente como se va a publicar (503 mientras no haya hora NTP). `http://<IP>/status` da el diagnóstico (sensores, NTP, arranque, RSSI) y no es parte del contrato.
 
 El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes-256-gcm.md)) y se publica como sobre `EncryptedEnvelope`:
 
@@ -224,7 +239,7 @@ El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes
 - IV **aleatorio de 12 bytes por mensaje** (`esp_fill_random`). Nunca reutilizar un IV con la misma clave.
 - Clave de 32 bytes = `TELEMETRY_AES_KEY` del `.env` del gateway (64 hex), copiada a `secrets.h`. **Nunca** se escribe literal en el código de aplicación ni en logs.
 - Si el tag no valida, el gateway descarta el mensaje.
-- **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:vectors` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
+- **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:codegen` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
 
 Comando recibido por `.../cmd` (propuesta Fase 2):
 
@@ -238,17 +253,17 @@ Comando recibido por `.../cmd` (propuesta Fase 2):
 
 ## 7. Umbrales y Parámetros del Algoritmo
 
-Los **umbrales clínicos** de la plataforma están en [`libs/shared/contracts/src/lib/clinical/thresholds.ts`](../../libs/shared/contracts/src/lib/clinical/thresholds.ts) (`CLINICAL_THRESHOLDS`), y la clasificación oficial la hace la API con `assessVitals()`. El firmware los replica en `config.h` solo para lo que decide en el dispositivo: detectar caídas, mostrar estados en el OLED y el LED. Si cambian en contracts, se actualiza `config.h`.
+Los **umbrales clínicos** de la plataforma están en [`libs/shared/contracts/src/lib/clinical/thresholds.ts`](../../libs/shared/contracts/src/lib/clinical/thresholds.ts) (`CLINICAL_THRESHOLDS`), y la clasificación oficial la hace la API con `assessVitals()`. El firmware los recibe en **`include/vitalia_contracts.h`**, generado con `pnpm fw:codegen` (`vitalia::FALL_IMPACT_G`, `vitalia::TEMPERATURE_FEVER_ABOVE`, …), y los usa solo para lo que decide en el dispositivo: detectar caídas y mostrar estados en el OLED y el LED. **No se copian a mano.** Si cambian en contracts, la CI pide regenerar el header.
 
-Definidos en `config.h`, no dispersos por el código:
+Lo propio del dispositivo (pines, tiempos, offset de temperatura, indicador local de fiebre) va en `src/config.h`, no disperso por el código:
 
 | Parámetro                              | Valor     | Origen                                  |
 | :------------------------------------- | :-------- | :-------------------------------------- |
-| Umbral de impacto (caída)              | **2.8 g** | Informe, sección de flujo de telemetría |
+| Umbral de impacto (caída)              | **2.8 g** | `vitalia::FALL_IMPACT_G` (contracts)    |
 | Umbral de caída libre previa           | ~0.4 g    | Marco teórico                           |
 | Ventana de inmovilidad post-impacto    | 2000 ms   | A calibrar en ensayos                   |
 | Frecuencia de muestreo IMU             | 50 Hz     | —                                       |
-| Intervalo de publicación de telemetría | 5 s       | Ajustable según autonomía               |
+| Intervalo de publicación de telemetría | 3 s       | docs/03-dominio y prueba de carga F5    |
 | SpO2 crítico                           | < 90 %    | Marco teórico                           |
 | Rango normal BPM                       | 60–100    | Marco teórico                           |
 | Temperatura de fiebre (alerta)         | > 37.5 °C | `CLINICAL_THRESHOLDS`, la decide la API |
@@ -274,7 +289,8 @@ La temperatura del MLX90614 es **superficial de muñeca**, no central. Antes de 
 
 **Sí hacer:**
 
-- Toda constante numérica va en `config.h`.
+- Toda constante numérica va en `config.h`, salvo las del contrato, que vienen de `vitalia_contracts.h` (generado).
+- La lógica que no toca hardware va en una lib pura con su test native (`pnpm fw:test`).
 - Cada sensor detrás de un wrapper con la misma interfaz (`begin()`, `read()`, `isHealthy()`), para poder mockearlo en tests.
 - El firmware debe seguir operando y almacenando en buffer si el broker está caído: la resiliencia offline es requisito, no un extra.
 
