@@ -79,19 +79,17 @@ a ambiente ~23 °C.
    lectura de BPM estable con el dedo apoyado y SpO2 contra un oxímetro comercial.
    Librería: `sparkfun/SparkFun MAX3010x`. Dirección `0x57`. Ojo con la alimentación:
    el módulo violeta necesita **5 V en VIN** (ver `AGENTS.md` 2.2).
-3. **Alinear el firmware al contrato del monorepo** (`TelemetryReading` + AES-256-GCM,
-   ver `AGENTS.md` §6). La demo actual todavía usa el formato del POC (`device_id`, `bpm`,
-   `temp_c`, `event`, sin `seq`, `ts` en segundos) y el contrato viejo hablaba de AES-CBC
-   y de un tópico `/alert`. Ninguna de las dos cosas existe en la plataforma.
-4. **Hito 6b — MQTT.** El sketch de Wi-Fi (`src/main.cpp` actual) ya deja la base:
-   asociación + Client ID. Falta: PubSubClient contra Mosquitto, `client.setBufferSize(512)`
+3. ✅ **Firmware reestructurado y alineado al contrato** (2026-10-07): `lib/` (telemetry,
+   fall_detection, sensors, net, ui), `config.h`, `vitalia_contracts.h` generado, NTP, `seq`
+   por arranque y tests native (`pnpm fw:test`). La demo ya sirve `TelemetryReading` en `/data`.
+   **Pendiente de probar en la placa** (ver "Cómo compilar / subir").
+4. **Hito 6b — MQTT.** `main.cpp` ya arma la `TelemetryReading` cada 3 s (`lastReadingJson`):
+   falta publicarla. Módulo MQTT en `lib/net` con PubSubClient contra Mosquitto, `client.setBufferSize(512)`
    (gotcha AGENTS.md 3), publicar `TelemetryReading` en claro al tópico `hospital/<sala>/wearable/<id>/data`
    y verificar con `mosquitto_sub`. Para probar sin el gateway: `pnpm infra:up` levanta Mosquitto en la notebook.
 5. Hitos 7–8 después (Hito 7 = GCM, ADR 0006).
 
-Cuando el firmware pase de POCs a estructura real: wrappers de sensores con interfaz
-común (`begin()`/`read()`/`isHealthy()`), constantes a `config.h`, módulos
-`fall_detection/` `crypto/` `net/` `ui/` en `lib/` (ver `AGENTS.md` 5 y 8).
+Estructura actual del firmware: `AGENTS.md` §5.
 
 ---
 
@@ -123,19 +121,23 @@ pio device monitor            # solo monitor
 Si el puerto está ocupado: cerrar el monitor serie antes de subir. Si la placa no
 aparece: mantener BOOT presionado mientras se conecta el USB.
 
-**El sketch actual en `src/main.cpp` es la DEMO integrada** (acelerómetro, temperatura,
-OLED, Wi-Fi y servidor HTTP), para mostrar al profesor. No incluye MAX30102 (Hito 5)
-ni MQTT (Hito 6b).
+**El firmware actual** arma una `TelemetryReading` del contrato cada 3 s y la expone por HTTP
+(acelerómetro, temperatura, OLED, Wi-Fi, NTP). No incluye MAX30102 (Hito 5) ni MQTT (Hito 6b).
 
-- OLED muestra IP, temperatura estimada y aceleración + evento.
+Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, después
+`WiFi OK` y `NTP OK`. Recién con NTP aparecen lecturas.
+
+- OLED: IP (o `WiFi...`), temperatura estimada (o `NTP...` hasta sincronizar) y aceleración + evento.
 - Servidor HTTP en el puerto 80:
   - `http://<IP>/` → página web con telemetría en vivo (fetch cada 1 s, sin recursos
     externos, funciona sin internet).
-  - `http://<IP>/data` → JSON con el formato **viejo** del POC (todavía no es `TelemetryReading`, ver "Próximo trabajo" 3);
-    `bpm`/`spo2` van `null` hasta el Hito 5.
+  - `http://<IP>/data` → la última `TelemetryReading`, tal cual se va a publicar por MQTT
+    (503 hasta tener hora NTP). Sin `hr`/`spo2` hasta el Hito 5. `seq` crece cada 3 s y salta
+    de bloque en cada reinicio.
+  - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, temperatura de piel.
   - `http://wearable-pti.local/` → lo mismo vía mDNS.
-- Detección de caída (preview): `|a| > 2.8 g` → `event = "fall"` latcheado 5 s.
-- Fiebre: `temp_central_est > 38.0 °C` (offset provisional +1.2, ver arriba).
+- Detección de caída (preview, Hito 8 pendiente): `|a| > 2.8 g` → `fall: true` en la próxima lectura; el OLED y la página muestran CAÍDA durante 5 s.
+- Fiebre (solo indicador del OLED): temperatura central estimada > 38.0 °C (offset provisional +1.2, ver arriba). La alerta la decide la API.
 - En la universidad: cambiar SSID/PASS en `src/secrets.h`.
 - **Requisito de red:** notebook y dispositivo en el mismo SSID **sin client isolation**.
   Hotspots de celular y redes guest suelen bloquear el tráfico device-to-device →
