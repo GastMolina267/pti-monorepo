@@ -62,7 +62,7 @@ erDiagram
   }
   wearables {
     uuid id PK
-    varchar code UK "w-07 (tópico MQTT)"
+    varchar code UK "wb-07-24d7cc (tópico MQTT, ADR 0011)"
     wearable_status status
     uuid ticket_id FK,UK
     timestamptz last_seen_at
@@ -127,10 +127,10 @@ pnpm db:reset                        # drop + migrate + seed (solo desarrollo)
 
 ## Datos del seed (desarrollo)
 
-| Tipo                            | Datos                                                                            |
-| ------------------------------- | -------------------------------------------------------------------------------- |
-| Servicios                       | `CLINICA` (A) · `GUARDIA` (B) · `PEDIATRIA` (C)                                  |
-| Consultorios                    | C1–C4 y G1 (Box de Guardia)                                                      |
-| Usuarios (clave `Vitalia2026!`) | `admin@`, `enfermeria@`, `medico@`, `pediatria@`, `recepcion@` + `vitalia.local` |
-| Wearables                       | w-01 … w-08 (cuatro asignados a pacientes en espera)                             |
-| Turnos del día                  | 14 en distintos estados y niveles de triaje                                      |
+| Tipo                            | Datos                                                                                                               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Servicios                       | `CLINICA` (A) · `GUARDIA` (B) · `PEDIATRIA` (C)                                                                     |
+| Consultorios                    | C1–C4 y G1 (Box de Guardia)                                                                                         |
+| Usuarios (clave `Vitalia2026!`) | `admin@`, `enfermeria@`, `medico@`, `pediatria@`, `recepcion@` + `vitalia.local`                                    |
+| Wearables                       | `wb-01-24d7cc` (pulsera real) y `wb-02-5e0002` … `wb-08-5e0008` (simuladas); cuatro asignadas a pacientes en espera |
+| Turnos del día                  | 14 en distintos estados y niveles de triaje                                                                         |

@@ -35,6 +35,7 @@ export interface EncryptedEnvelope {
 
 /** Lectura biométrica en claro (luego de descifrar). */
 export interface TelemetryReading {
+  /** Código del wearable, `wb-<NN>-<mac>` (ver {@link formatWearableCode}). */
   wearableId: string;
   /** Contador monotónico para detectar pérdidas/duplicados (QoS 1). */
   seq: number;

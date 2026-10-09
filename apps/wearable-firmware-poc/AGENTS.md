@@ -182,13 +182,17 @@ pio device list
 - **Tópico de comandos (suscripción):** `hospital/<sala>/wearable/<id>/cmd` (`MQTT_TOPICS.wearableCommand`)
 - **No hay tópico de alertas.** Una caída viaja como `fall: true` dentro de `data`. La API la clasifica con `assessVitals()` y emite `alert:emergency`.
 - **QoS 1**, sin `retain`.
-- **`<id>` / Client ID:** derivado de la MAC, estable entre reinicios (hoy `wb-24d7cc`). Es el mismo valor que `wearableId`.
+- **`<id>` / Client ID / `wearableId`:** `wb-<NN>-<mac>` ([ADR 0011](../../docs/adr/0011-identificador-del-wearable.md), `formatWearableCode` en contracts).
+  - `NN` = número físico de la pulsera, `WEARABLE_NUMBER` en `secrets.h` (1–99, con `static_assert`).
+  - `mac` = últimos 3 bytes de la MAC Wi-Fi en hex minúscula. Sirve para cruzar con la tabla DHCP o ARP del router cuando hay problemas de red.
+  - Ejemplo: la pulsera física actual es `wb-01-24d7cc`. Tiene que existir en `wearables.code` del gateway (el seed ya la trae).
+- **Credenciales MQTT:** `MQTT_USER` / `MQTT_PASS` en `secrets.h`. Vacíos = anónimo, como el Mosquitto de desarrollo. En la Fase 4 se cargan **a mano** por pulsera: usuario = código del wearable, contraseña generada con `mosquitto_passwd` en el gateway. El ACL limita cada usuario a sus propios tópicos (`%u`).
 
 Lectura en claro (`TelemetryReading`), antes de cifrar:
 
 ```json
 {
-  "wearableId": "wb-24d7cc",
+  "wearableId": "wb-01-24d7cc",
   "seq": 1532,
   "ts": 1791065563577,
   "hr": 78,
@@ -202,12 +206,14 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 | Campo      | Unidad   | Notas                                                                                    |
 | ---------- | -------- | ---------------------------------------------------------------------------------------- |
 | `seq`      | —        | Contador monotónico. La API deduplica por `(wearableId, seq)` (QoS 1 puede repetir)      |
-| `ts`       | ms epoch | Hora del wearable (requiere NTP o sincronizar contra el gateway)                         |
+| `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo |
 | `hr`       | BPM      | Opcional: se omite hasta que el MAX30102 dé una lectura válida (no mandar `null` ni `0`) |
 | `spo2`     | %        | Ídem                                                                                     |
 | `temp`     | °C       | **Ya compensada** a temperatura clínica estimada (§7), nunca la cruda de piel            |
 | `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                             |
 | `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                  |
+
+> **NTP:** en desarrollo todo corre en **una sola red con internet**, así que alcanza con un NTP público (`pool.ntp.org`). En producción la VLAN 10 no tiene internet: el RUT956 o el gateway tienen que servir NTP local (pendiente, roadmap Fase 4). No publicar lecturas hasta tener hora válida. Si se publicaran, `ts` llegaría como 1970.
 
 El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes-256-gcm.md)) y se publica como sobre `EncryptedEnvelope`:
 
@@ -218,6 +224,7 @@ El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes
 - IV **aleatorio de 12 bytes por mensaje** (`esp_fill_random`). Nunca reutilizar un IV con la misma clave.
 - Clave de 32 bytes = `TELEMETRY_AES_KEY` del `.env` del gateway (64 hex), copiada a `secrets.h`. **Nunca** se escribe literal en el código de aplicación ni en logs.
 - Si el tag no valida, el gateway descarta el mensaje.
+- **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:vectors` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
 
 Comando recibido por `.../cmd` (propuesta Fase 2):
 

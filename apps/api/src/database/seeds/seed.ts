@@ -1,6 +1,11 @@
-import { formatTicketCode, type TicketStatus, type TriageLevel } from '@vitalia/contracts';
+import {
+  formatTicketCode,
+  formatWearableCode,
+  type TicketStatus,
+  type TriageLevel,
+} from '@vitalia/contracts';
 import { hash } from 'bcryptjs';
-import type { DataSource } from 'typeorm';
+import { Like, type DataSource } from 'typeorm';
 import { toDayKey } from '../../common/time/day-key';
 import { StaffUserEntity } from '../../modules/auth/entities/staff-user.entity';
 import { ConsultingRoomEntity } from '../../modules/catalog/entities/consulting-room.entity';
@@ -94,6 +99,18 @@ const STAFF = [
   { email: 'recepcion@vitalia.local', fullName: 'Carla Medina', role: 'RECEPTION' as const },
 ];
 
+/**
+ * Pulseras `wb-<NN>-<mac>` (ADR 0011). La 01 es la pulsera física del equipo
+ * (MAC …24:D7:CC); el resto son simuladas, con sufijos de MAC inventados.
+ */
+const WEARABLES = [
+  { code: formatWearableCode(1, '24d7cc'), label: 'Pulsera 1 (real)' },
+  ...Array.from({ length: 7 }, (_, i) => ({
+    code: formatWearableCode(i + 2, `5e00${String(i + 2).padStart(2, '0')}`),
+    label: `Pulsera ${i + 2} (simulada)`,
+  })),
+];
+
 /** Turnos de ejemplo del día: [servicio, estado, triaje, minutos desde el check-in]. */
 const DEMO_TICKETS: [string, TicketStatus, TriageLevel, number][] = [
   ['CLINICA', 'DONE', 'STABLE', 140],
@@ -141,13 +158,10 @@ export async function seed(
   );
 
   const wearableRepo = ds.getRepository(WearableEntity);
-  await wearableRepo.upsert(
-    Array.from({ length: 8 }, (_, i) => {
-      const code = `w-${String(i + 1).padStart(2, '0')}`;
-      return { code, label: `Pulsera ${i + 1}` };
-    }),
-    ['code'],
-  );
+  // Limpia los códigos del formato viejo (w-01…w-08) de las bases de desarrollo.
+  // Todavía no hay lecturas ni alertas que los referencien. Quitar después de la Fase 2.
+  await wearableRepo.delete({ code: Like('w-%') });
+  await wearableRepo.upsert(WEARABLES, ['code']);
 
   const ticketRepo = ds.getRepository(TicketEntity);
   let created = 0;
@@ -213,7 +227,7 @@ export async function seed(
     services: SERVICES.length,
     rooms: ROOMS.length,
     staff: STAFF.length,
-    wearables: 8,
+    wearables: WEARABLES.length,
     tickets: created,
   };
 }

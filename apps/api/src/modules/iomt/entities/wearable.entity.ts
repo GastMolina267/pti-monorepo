@@ -10,7 +10,7 @@ export class WearableEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  /** Identificador publicado por el firmware en el tópico MQTT (ej. w-07). */
+  /** Identificador publicado por el firmware en el tópico MQTT: `wb-<NN>-<mac>` (ej. wb-07-24d7cc, ADR 0011). */
   @Column({ type: 'varchar', length: 40, unique: true })
   code!: string;
 
