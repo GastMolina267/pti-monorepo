@@ -83,11 +83,12 @@ a ambiente ~23 °C.
    fall_detection, sensors, net, ui), `config.h`, `vitalia_contracts.h` generado, NTP, `seq`
    por arranque y tests native (`pnpm fw:test`). La demo ya sirve `TelemetryReading` en `/data`.
    **Pendiente de probar en la placa** (ver "Cómo compilar / subir").
-4. **Hito 6b — MQTT.** `main.cpp` ya arma la `TelemetryReading` cada 3 s (`lastReadingJson`):
-   falta publicarla. Módulo MQTT en `lib/net` con PubSubClient contra Mosquitto, `client.setBufferSize(512)`
-   (gotcha AGENTS.md 3), publicar `TelemetryReading` en claro al tópico `hospital/<sala>/wearable/<id>/data`
-   y verificar con `mosquitto_sub`. Para probar sin el gateway: `pnpm infra:up` levanta Mosquitto en la notebook.
-5. Hitos 7–8 después (Hito 7 = GCM, ADR 0006).
+4. ✅ **Hitos 6b y 7 implementados** (2026-10-12): cada 3 s la `TelemetryReading` se cifra con
+   AES-256-GCM y se publica con QoS 1 por ESP-MQTT (ADR 0012). **Pendiente de probar en la placa:**
+   1. Misma clave en `TELEMETRY_AES_KEY` (`.env`) y `TELEMETRY_AES_KEY_HEX` (`secrets.h`); `MQTT_BROKER` = IP de la notebook.
+   2. `pnpm infra:up` (Mosquitto local) y `pnpm nx run wearable-firmware-poc:pio-test-device` (vectores GCM en la placa).
+   3. `pnpm fw:upload` y `pnpm fw:mqtt-check`: cada lectura tiene que salir ✔.
+5. **Hito 8 — caídas:** sumar caída libre previa e inmovilidad a `lib/fall_detection` y calibrar.
 
 Estructura actual del firmware: `AGENTS.md` §5.
 
