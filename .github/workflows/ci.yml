@@ -96,6 +96,10 @@ jobs:
       - if: steps.changes.outputs.firmware == 'true'
         run: pio run
 
-      # Tests de lib/telemetry y lib/fall_detection en el runner (sin placa)
+      # Tests de las libs puras (telemetry, fall_detection, envelope) en el runner
       - if: steps.changes.outputs.firmware == 'true'
         run: pio test -e native
+
+      # Tests de la placa (lib/crypto con los vectores GCM): sin placa solo se compilan
+      - if: steps.changes.outputs.firmware == 'true'
+        run: pio test -e esp32-c3-supermini --without-uploading --without-testing
