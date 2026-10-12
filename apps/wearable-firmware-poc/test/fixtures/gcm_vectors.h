@@ -85,6 +85,7 @@ static const uint8_t vitalia_reading_tag[16] = {
   0xfc, 0xe5, 0xad, 0xbe, 0x47, 0xe0, 0x5f, 0x2a, 0x7e, 0x70, 0x74, 0xb1,
   0xea, 0xee, 0x7a, 0x16,
 };
+static const char vitalia_reading_envelope_json[] = "{\"v\":1,\"iv\":\"AAECAwQFBgcICQoL\",\"ct\":\"PCChfqSXo3nhJN7vk9NaGuH7twXdSWsYDwSGpzFLc9dwMpTNg+Nm61aeTtqxthgO22xWvm/hlPYd/1g7ItTNwtJPthXh8xxYJHiIGorifsoCuf9MQE9xCZ6ezqkZm/6v8cl31pZt6nz/cFKQchNAE8kCHw==\",\"tag\":\"/OWtvkfgXyp+cHSx6u56Fg==\"}";
 
 // vitalia_reading_bad_tag: Igual que vitalia_reading con el último byte del tag alterado: el gateway lo descarta
 static const uint8_t vitalia_reading_bad_tag_key[32] = {
