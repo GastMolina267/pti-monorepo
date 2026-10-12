@@ -33,3 +33,5 @@ constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una ca�
 
 // --- Red ---
 constexpr const char* MDNS_HOST = "wearable-pti";
+// Tope del outbox de MQTT (broker caído): ~30 sobres. Más allá, la lectura se descarta.
+constexpr int MQTT_OUTBOX_MAX_BYTES = 12 * 1024;

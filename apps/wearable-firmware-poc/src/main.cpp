@@ -1,10 +1,10 @@
 /**
  * Firmware del wearable IoMT de Vitalia (ESP32-C3 SuperMini).
  *
- * Orquestación: muestrea sensores, arma una TelemetryReading del contrato cada 3 s y la
- * expone por HTTP (/data) hasta que exista MQTT (Hito 6b), que va a publicar lo mismo.
- * La lógica está en lib/ (AGENTS.md §5): telemetry y fall_detection son puras y se
- * testean sin placa (pnpm fw:test).
+ * Orquestación: muestrea sensores y cada 3 s arma una TelemetryReading del contrato, la
+ * cifra con AES-256-GCM y la publica por MQTT con QoS 1 (Hitos 6b y 7). También la expone
+ * por HTTP (/data) para la demo. La lógica está en lib/ (AGENTS.md §5): telemetry,
+ * fall_detection y envelope son puras y se testean sin placa (pnpm fw:test).
  *
  * Nada de delay() bloqueante en loop() (AGENTS.md §8). Bus I²C a 100 kHz siempre.
  */
@@ -18,10 +18,13 @@
 
 #include "clock.h"
 #include "config.h"
+#include "envelope.h"
+#include "gcm.h"
 #include "http_demo.h"
 #include "identity.h"
 #include "impact_detector.h"
 #include "imu.h"
+#include "mqtt_link.h"
 #include "oled.h"
 #include "peak_tracker.h"
 #include "reading.h"
@@ -38,6 +41,13 @@
 static_assert(WEARABLE_NUMBER >= vitalia::WEARABLE_NUMBER_MIN &&
                   WEARABLE_NUMBER <= vitalia::WEARABLE_NUMBER_MAX,
               "WEARABLE_NUMBER (secrets.h) tiene que estar entre 1 y 99 (ADR 0011)");
+#ifndef TELEMETRY_AES_KEY_HEX
+#error "Falta TELEMETRY_AES_KEY_HEX en secrets.h (ver secrets.h.example, ADR 0006)"
+#endif
+// Solo desarrollo: además del sobre cifrado, publica la lectura en claro en <tópico>/plain.
+#ifndef MQTT_DEBUG_PLAINTEXT
+#define MQTT_DEBUG_PLAINTEXT 0
+#endif
 
 // ---------------- Módulos ----------------
 sensors::Imu imu;
@@ -47,6 +57,7 @@ ui::Oled oled(Wire, I2C_CLOCK_HZ);
 ui::StatusLed led(PIN_LED);
 telemetry::PeakTracker accPeak;
 fall_detection::ImpactDetector impact;
+net::MqttLink mqtt;
 
 // ---------------- Estado ----------------
 char deviceId[telemetry::WEARABLE_ID_LEN] = "wb-00-000000";
@@ -54,6 +65,34 @@ uint32_t bootCount = 0;
 uint32_t readingCounter = 0;  // se reinicia en cada arranque; seq = boot << 24 | contador
 char lastReadingJson[256] = {0};
 bool hasReading = false;
+
+uint8_t aesKey[vitalia::CIPHER_KEY_BYTES];
+bool aesKeyOk = false;  // sin clave válida no se publica nada (nunca en claro por accidente)
+char dataTopic[80] = {0};
+char plainTopic[88] = {0};
+uint32_t publishedCount = 0;   // lecturas encoladas en MQTT desde el arranque
+uint32_t droppedCount = 0;     // lecturas que no se pudieron encolar
+
+// ---------------- MQTT ----------------
+static void publishReading(size_t len) {
+  if (!aesKeyOk) return;  // ya se avisó por serie en setup()
+  // Outbox lleno (broker caído): no seguir acumulando en RAM.
+  if (mqtt.outboxBytes() > MQTT_OUTBOX_MAX_BYTES) {
+    droppedCount++;
+    return;
+  }
+  char sealed[512];
+  size_t n = crypto::seal(aesKey, lastReadingJson, len, sealed, sizeof(sealed));
+  if (n == 0 || !mqtt.publish(dataTopic, sealed, vitalia::MQTT_QOS)) {
+    droppedCount++;
+    Serial.println(F("ERROR: no se pudo cifrar o encolar la lectura"));
+    return;
+  }
+  publishedCount++;
+#if MQTT_DEBUG_PLAINTEXT
+  mqtt.publish(plainTopic, lastReadingJson, 0);
+#endif
+}
 
 // ---------------- Lectura del contrato ----------------
 static void buildReading() {
@@ -72,7 +111,11 @@ static void buildReading() {
 
   size_t n = telemetry::serializeReading(r, lastReadingJson, sizeof(lastReadingJson));
   hasReading = n > 0;
-  if (!hasReading) Serial.println(F("ERROR: la lectura no entra en el buffer"));
+  if (!hasReading) {
+    Serial.println(F("ERROR: la lectura no entra en el buffer"));
+    return;
+  }
+  publishReading(n);
 }
 
 // ---------------- HTTP (demo) ----------------
@@ -100,6 +143,15 @@ static bool provideStatus(String& out) {
     doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
   }
   doc["impact_recent"] = impact.recentImpact(now, FALL_DISPLAY_MS);
+  JsonObject m = doc["mqtt"].to<JsonObject>();
+  m["topic"] = dataTopic;
+  m["connected"] = mqtt.connected();
+  m["aes_key"] = aesKeyOk;
+  m["published"] = publishedCount;
+  m["acked"] = mqtt.acked();
+  m["dropped"] = droppedCount;
+  m["outbox_bytes"] = mqtt.outboxBytes();
+  m["debug_plaintext"] = MQTT_DEBUG_PLAINTEXT != 0;
   serializeJson(doc, out);
   return true;
 }
@@ -150,6 +202,17 @@ void setup() {
   net::deviceCode(deviceId, sizeof(deviceId), WEARABLE_NUMBER);  // rango validado por static_assert
   Serial.printf(" wearableId: %s  arranque: %lu\n", deviceId, static_cast<unsigned long>(bootCount));
 
+  // --- MQTT + cifrado ---
+  aesKeyOk = envelope::hexToBytes(TELEMETRY_AES_KEY_HEX, aesKey, sizeof(aesKey));
+  if (!aesKeyOk) {
+    Serial.println(F(" ERROR: TELEMETRY_AES_KEY_HEX inválida (64 hex). No se publica por MQTT."));
+  }
+  snprintf(dataTopic, sizeof(dataTopic), vitalia::MQTT_TOPIC_DATA_FMT, MQTT_SALA, deviceId);
+  snprintf(plainTopic, sizeof(plainTopic), "%s/plain", dataTopic);
+  mqtt.begin(MQTT_BROKER, MQTT_PORT, deviceId, MQTT_USER, MQTT_PASS);
+  Serial.printf(" MQTT: mqtt://%s:%d  tópico %s%s\n", MQTT_BROKER, MQTT_PORT, dataTopic,
+                MQTT_DEBUG_PLAINTEXT ? "  (+ /plain EN CLARO, solo desarrollo)" : "");
+
   wifi.begin(WIFI_SSID, WIFI_PASS);
   http_demo::begin(provideData, provideStatus);
   Serial.println(F(" HTTP en el puerto 80 (/, /data, /status)"));
@@ -166,6 +229,7 @@ void loop() {
       Serial.printf("WiFi OK  IP: %s  RSSI: %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
       Serial.printf("  -> http://%s/   |   http://%s.local/\n", WiFi.localIP().toString().c_str(), MDNS_HOST);
       net::startNtp(NTP_SERVER);
+      mqtt.start();  // una sola vez; después ESP-MQTT reconecta solo
       if (!mdnsUp && MDNS.begin(MDNS_HOST)) {
         MDNS.addService("http", "tcp", 80);
         mdnsUp = true;
