@@ -87,7 +87,8 @@ jobs:
           key: platformio-${{ runner.os }}-${{ hashFiles('apps/wearable-firmware-poc/platformio.ini') }}
 
       - if: steps.changes.outputs.firmware == 'true'
-        run: pip install platformio
+        # Misma versión que en las máquinas del equipo: la CI tiene que compilar y testear igual.
+        run: pip install platformio==6.1.19
 
       # secrets.h no se versiona: en CI se compila con la plantilla
       - if: steps.changes.outputs.firmware == 'true'
