@@ -15,6 +15,7 @@
     "skipDefaultLibCheck": true,
     "paths": {
       "@vitalia/contracts": ["./libs/shared/contracts/src/index.ts"],
+      "@vitalia/contracts/testing": ["./libs/shared/contracts/src/testing.ts"],
       "@vitalia/design-tokens": ["./libs/shared/design-tokens/src/index.ts"],
       "@vitalia/ui": ["./libs/shared/ui/src/index.ts"]
     }

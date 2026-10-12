@@ -4,6 +4,7 @@ import type { EncryptedEnvelope } from './mqtt';
  * Vectores de prueba AES-256-GCM compartidos entre la API y el firmware (ADR 0006).
  * IV de 12 bytes, tag de 16 bytes y **sin AAD**, igual que el sobre `EncryptedEnvelope`.
  *
+ * - Se importan desde `@vitalia/contracts/testing` (no están en el barrel principal).
  * - La API los usa en los tests de descifrado del módulo `telemetry`.
  * - El firmware los recibe como `apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h`,
  *   generado con `pnpm fw:codegen` (no editar el header a mano).
