@@ -5,7 +5,7 @@ import {
   type TriageLevel,
 } from '@vitalia/contracts';
 import { hash } from 'bcryptjs';
-import { Like, type DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { toDayKey } from '../../common/time/day-key';
 import { StaffUserEntity } from '../../modules/auth/entities/staff-user.entity';
 import { ConsultingRoomEntity } from '../../modules/catalog/entities/consulting-room.entity';
@@ -158,9 +158,16 @@ export async function seed(
   );
 
   const wearableRepo = ds.getRepository(WearableEntity);
-  // Limpia los códigos del formato viejo (w-01…w-08) de las bases de desarrollo.
-  // Todavía no hay lecturas ni alertas que los referencien. Quitar después de la Fase 2.
-  await wearableRepo.delete({ code: Like('w-%') });
+  // Migra los códigos del formato viejo (w-01…w-08) de las bases de desarrollo
+  // RENOMBRANDO, no borrando: se conservan el id, el estado, el turno asignado y
+  // cualquier FK (telemetry_readings, alerts). Quitar después de la Fase 2.
+  for (const [i, w] of WEARABLES.entries()) {
+    const legacy = await wearableRepo.findOneBy({ code: `w-${String(i + 1).padStart(2, '0')}` });
+    if (!legacy) continue;
+    // Si el código nuevo ya existe (seed de otra rama), el viejo sobra.
+    if (await wearableRepo.existsBy({ code: w.code })) await wearableRepo.delete(legacy.id);
+    else await wearableRepo.update(legacy.id, { code: w.code, label: w.label });
+  }
   await wearableRepo.upsert(WEARABLES, ['code']);
 
   const ticketRepo = ds.getRepository(TicketEntity);

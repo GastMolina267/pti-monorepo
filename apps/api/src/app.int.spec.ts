@@ -184,4 +184,29 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
       .expect(200);
     expect(res.body.triageLevel).toBe('CRITICAL');
   });
+
+  // Revisión del PR #3: una base con el seed viejo (w-NN) y turnos del día no puede
+  // quedarse sin pulseras asignadas al correr el seed nuevo.
+  it('el seed migra los códigos viejos w-NN sin perder la asignación', async () => {
+    const ds = new DataSource(buildDataSourceOptions(TEST_DB as string));
+    await ds.initialize();
+    try {
+      type Row = { code: string; ticket_id: string | null };
+      const assignedBefore: Row[] = await ds.query(
+        'SELECT code, ticket_id FROM wearables WHERE ticket_id IS NOT NULL ORDER BY code',
+      );
+      expect(assignedBefore).toHaveLength(4);
+
+      // wb-01-24d7cc → w-01: el estado de una base que ya tenía el seed de antes.
+      await ds.query(`UPDATE wearables SET code = 'w-' || substring(code from 4 for 2)`);
+      await seed(ds);
+
+      const after: Row[] = await ds.query('SELECT code, ticket_id FROM wearables ORDER BY code');
+      expect(after).toHaveLength(8);
+      expect(after.every((r) => /^wb-\d{2}-[0-9a-f]{6}$/.test(r.code))).toBe(true);
+      expect(after.filter((r) => r.ticket_id !== null)).toEqual(assignedBefore);
+    } finally {
+      await ds.destroy();
+    }
+  });
 });
