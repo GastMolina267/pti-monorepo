@@ -30,6 +30,9 @@ Formato **`wb-<NN>-<mac>`**, por ejemplo `wb-07-24d7cc`:
 ## Consecuencias
 
 - (+) Un mismo código sirve para la operación (número) y para el diagnóstico de red (MAC).
-- (+) Si dos placas comparten número por error, se distinguen por el sufijo y la base rechaza el duplicado de `code`.
+- (+) Si dos placas comparten número por error, el sufijo de MAC permite distinguirlas en los logs y en la red.
+- (−) **Que el número sea único no lo garantiza el código:** `wb-07-24d7cc` y `wb-07-a1b2c3` son códigos distintos y la base acepta los dos, así que el personal vería dos pulseras "07". Lo valida el módulo `wearables` al dar de alta una pulsera (Fase 2).
 - (−) Al cambiar la placa de una pulsera, cambia el código: hay que actualizar `wearables.code` y el usuario de Mosquitto.
-- (−) El seed borra los códigos viejos `w-NN` de las bases de desarrollo (limpieza temporal, se quita después de la Fase 2).
+- (−) El seed renombra los códigos viejos `w-NN` de las bases de desarrollo, conservando la asignación y las FK (migración temporal, se quita después de la Fase 2).
+
+> **Corrección (2026-10-12, revisión del PR #3):** la primera versión decía que la base rechazaba dos pulseras con el mismo número y que el seed borraba los códigos viejos. Ninguna de las dos cosas era cierta o correcta; se corrigieron las consecuencias de arriba. La decisión no cambia.

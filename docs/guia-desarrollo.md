@@ -62,12 +62,12 @@ pnpm fw:monitor    # monitor serie a 115200
 ## Flujo de trabajo
 
 1. Tomá una tarea de [07-roadmap.md](07-roadmap.md).
-2. Creá la rama: `git checkout -b feature/f1-tickets-module develop`.
+2. Creá la rama desde `main` actualizado: `git checkout -b feature/f1-tickets-module origin/main`.
 3. Si involucra un contrato, empezá por `libs/shared/contracts`.
 4. Implementá con los generadores de Nx (o Nx Console en VS Code).
 5. `pnpm affected` (lint + test + build de lo afectado).
 6. Actualizá `docs/` y marcá la tarea en el roadmap.
-7. Commit con Conventional Commits (`feat(api): …`) y PR a `develop`.
+7. Commit con Conventional Commits (`feat(api): …`) y PR a `main` (ver [convenciones de Git](05-convenciones.md#git)).
 
 ## Trabajar con IA
 
