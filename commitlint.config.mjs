@@ -11,6 +11,7 @@ export default {
         'backoffice',
         'tv-display',
         'wearable-firmware-poc',
+        'wearable-simulator',
         'contracts',
         'design-tokens',
         'ui',

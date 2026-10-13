@@ -20,6 +20,7 @@
     "fw:codegen": "tsx tools/scripts/gen-firmware-headers.ts",
     "fw:test": "nx run wearable-firmware-poc:pio-test",
     "fw:mqtt-check": "tsx tools/scripts/mqtt-check.ts",
+    "sim:wearables": "tsx --tsconfig tools/wearable-simulator/tsconfig.app.json tools/wearable-simulator/src/main.ts",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
