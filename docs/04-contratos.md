@@ -132,7 +132,7 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 
 - El spec de contracts los verifica con `node:crypto`.
 - La API los usa en los tests de descifrado del módulo `telemetry`.
-- El firmware los recibe en `apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h`, generado con `pnpm fw:vectors`. La CI corre `pnpm fw:vectors --check` para que no quede desactualizado.
+- El firmware los recibe en `apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h`, generado con `pnpm fw:codegen`. La CI corre `pnpm fw:codegen --check` para que no quede desactualizado.
 - La clave de los vectores (`00…1f`) es solo para tests: nunca usarla como `TELEMETRY_AES_KEY`.
 
 ### Lectura en claro (`TelemetryReading`)
@@ -150,15 +150,28 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 }
 ```
 
-| Campo      | Unidad   | Notas                                                         |
-| ---------- | -------- | ------------------------------------------------------------- |
-| `seq`      | —        | Contador monotónico; la API deduplica por `(wearableId, seq)` |
-| `ts`       | ms epoch | Hora del wearable (NTP; ver nota de red en 01-arquitectura)   |
-| `hr`       | BPM      |                                                               |
-| `spo2`     | %        |                                                               |
-| `temp`     | °C       | Ya compensada a temperatura clínica                           |
-| `accPeakG` | g        | Pico del intervalo                                            |
-| `fall`     | bool     | `true` si el firmware detectó una caída                       |
+| Campo      | Unidad   | Notas                                                                                     |
+| ---------- | -------- | ----------------------------------------------------------------------------------------- |
+| `seq`      | —        | Monotónico, también entre reinicios (ver abajo); la API deduplica por `(wearableId, seq)` |
+| `ts`       | ms epoch | Hora del wearable (NTP; ver nota de red en 01-arquitectura)                               |
+| `hr`       | BPM      |                                                                                           |
+| `spo2`     | %        |                                                                                           |
+| `temp`     | °C       | Ya compensada a temperatura clínica                                                       |
+| `accPeakG` | g        | Pico del intervalo                                                                        |
+| `fall`     | bool     | `true` si el firmware detectó una caída                                                   |
+
+#### `seq` entre reinicios
+
+`seq = arranque × 2^24 + contador` (`composeSeq()` / `splitSeq()` de `@vitalia/contracts`, `SEQ_BOOT_SHIFT = 24`).
+
+- El wearable guarda un contador de **arranques** en su flash (NVS): una escritura por boot.
+- El **contador** de mensajes vuelve a 0 en cada arranque. Así, después de reiniciar, `seq` salta al bloque siguiente y sigue creciendo. Si arrancara de 0, la deduplicación descartaría las lecturas nuevas.
+- La API puede usar `splitSeq(seq).boot` para detectar reinicios. Un salto de `counter` dentro del mismo `boot` indica mensajes perdidos.
+- El simulador de wearables tiene que armar `seq` igual.
+
+#### Constantes para el firmware
+
+Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSION`, `TELEMETRY_CIPHER`, `SEQ_BOOT_SHIFT`, el rango del número de wearable y `CLINICAL_THRESHOLDS`) se genera en `apps/wearable-firmware-poc/include/vitalia_contracts.h` con `pnpm fw:codegen`. La CI verifica que esté al día.
 
 ### Comando al wearable (propuesta, Fase 2)
 

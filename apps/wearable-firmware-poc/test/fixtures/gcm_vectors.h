@@ -1,4 +1,4 @@
-// GENERADO con `pnpm fw:vectors` desde
+// GENERADO con `pnpm fw:codegen` desde
 // libs/shared/contracts/src/lib/telemetry/gcm-test-vectors.ts — NO EDITAR A MANO.
 // AES-256-GCM: clave de 32 bytes, IV de 12, tag de 16, sin AAD (ADR 0006).
 #pragma once

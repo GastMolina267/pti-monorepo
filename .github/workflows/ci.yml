@@ -51,8 +51,8 @@ jobs:
       - uses: nrwl/nx-set-shas@v4
 
       - run: pnpm nx format:check
-      # Header de vectores GCM del firmware sincronizado con @vitalia/contracts
-      - run: pnpm fw:vectors --check
+      # Headers del firmware (contratos + vectores GCM) sincronizados con @vitalia/contracts
+      - run: pnpm fw:codegen --check
       - run: pnpm nx affected -t lint test build --parallel=3
 
   # Firmware del wearable (PlatformIO). Corre solo si cambió el firmware o los
@@ -95,3 +95,7 @@ jobs:
 
       - if: steps.changes.outputs.firmware == 'true'
         run: pio run
+
+      # Tests de lib/telemetry y lib/fall_detection en el runner (sin placa)
+      - if: steps.changes.outputs.firmware == 'true'
+        run: pio test -e native

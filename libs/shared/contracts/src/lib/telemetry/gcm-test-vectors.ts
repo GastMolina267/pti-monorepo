@@ -6,7 +6,7 @@ import type { EncryptedEnvelope } from './mqtt';
  *
  * - La API los usa en los tests de descifrado del módulo `telemetry`.
  * - El firmware los recibe como `apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h`,
- *   generado con `pnpm fw:vectors` (no editar el header a mano).
+ *   generado con `pnpm fw:codegen` (no editar el header a mano).
  *
  * Solo datos: este archivo no importa crypto, así la lib sigue siendo apta para el navegador.
  * La verificación con `node:crypto` está en `gcm-test-vectors.spec.ts`.

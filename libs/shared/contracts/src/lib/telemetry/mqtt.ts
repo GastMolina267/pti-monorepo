@@ -18,13 +18,24 @@ export const MQTT_TOPICS = {
 /** QoS 1: entrega garantizada al menos una vez (RNF / §5.1.3). */
 export const MQTT_QOS = 1 as const;
 
+/** Versión actual del formato de {@link EncryptedEnvelope}. */
+export const ENVELOPE_VERSION = 1 as const;
+
+/** Parámetros del cifrado de la telemetría: AES-256-GCM sin AAD (ADR 0006). */
+export const TELEMETRY_CIPHER = {
+  algorithm: 'aes-256-gcm',
+  keyBytes: 32,
+  ivBytes: 12,
+  tagBytes: 16,
+} as const;
+
 /**
  * Sobre cifrado publicado por el wearable. El campo `ct` es el JSON de
  * {@link TelemetryReading} cifrado con AES-256 (ver docs/04-contratos.md).
  */
 export interface EncryptedEnvelope {
   /** Versión del formato del sobre. */
-  v: 1;
+  v: typeof ENVELOPE_VERSION;
   /** Vector de inicialización, base64. */
   iv: string;
   /** Texto cifrado, base64. */
@@ -37,7 +48,11 @@ export interface EncryptedEnvelope {
 export interface TelemetryReading {
   /** Código del wearable, `wb-<NN>-<mac>` (ver {@link formatWearableCode}). */
   wearableId: string;
-  /** Contador monotónico para detectar pérdidas/duplicados (QoS 1). */
+  /**
+   * Contador monotónico para detectar pérdidas/duplicados (QoS 1). Sigue creciendo
+   * entre reinicios: el firmware lo arma como `(arranque << 24) | contador`, así que
+   * después de reiniciar salta al bloque siguiente (ver {@link composeSeq}).
+   */
   seq: number;
   /** Epoch en milisegundos medido en el wearable. */
   ts: number;
