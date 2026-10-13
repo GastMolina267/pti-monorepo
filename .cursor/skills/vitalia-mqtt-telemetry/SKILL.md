@@ -13,12 +13,13 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 - Payload publicado: `EncryptedEnvelope { v: 1, iv, ct, tag }` (base64). Descifrado: `TelemetryReading { wearableId, seq, ts, hr?, spo2?, temp?, accPeakG?, fall? }`.
 - `seq = arranque × 2^24 + contador` (`composeSeq`/`splitSeq`): salta de bloque cuando el wearable reinicia. Deduplicá por `(wearableId, seq)` y usá `splitSeq` para distinguir un reinicio de una pérdida. El simulador arma `seq` igual.
 - Identificador `<id>` = `wearableId` = `wearables.code` = `wb-<NN>-<mac>` (ej. `wb-07-24d7cc`, ADR 0011). Validalo con `WEARABLE_CODE_PATTERN` / `parseWearableCode()` de contracts y descartá los mensajes cuyo código no exista en `wearables`.
+- **Seguridad:** después de descifrar, exigí que `reading.wearableId` sea igual al `<id>` del tópico y descartá el mensaje si no. No hay AAD y la clave es compartida: sin este chequeo, un sobre válido de una pulsera se puede reinyectar en el tópico de otra.
 
 ## Cifrado (RNF-O3)
 
 - **AES-256-GCM** (cifra y autentica). Clave de 32 bytes compartida en `TELEMETRY_AES_KEY` (hex de 64 caracteres). IV aleatorio de 12 bytes por mensaje y tag de 16 bytes.
 - En el ESP32-C3 se usa `mbedtls_gcm_*` con el acelerador AES por hardware.
-- **Vectores de prueba compartidos:** `GCM_TEST_VECTORS` de contracts (NIST TC15, una lectura Vitalia con sobre y un tag alterado). Los tests de descifrado de la API **tienen que** usarlos. El firmware los recibe como `test/fixtures/gcm_vectors.h` (`pnpm fw:codegen`; la CI chequea que esté al día). Si agregás un vector, regenerá el header.
+- **Vectores de prueba compartidos:** `GCM_TEST_VECTORS` de `@vitalia/contracts/testing` (NIST TC15, una lectura Vitalia con sobre y un tag alterado). Los tests de descifrado de la API **tienen que** usarlos. El firmware los recibe como `test/fixtures/gcm_vectors.h` (`pnpm fw:codegen`; la CI chequea que esté al día). Si agregás un vector, regenerá el header.
 - Node:
   ```ts
   import { createDecipheriv } from 'node:crypto';

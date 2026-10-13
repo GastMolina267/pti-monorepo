@@ -59,7 +59,7 @@ Siempre ejecutá tareas **vía Nx** (`pnpm nx ...`), nunca la herramienta subyac
 9. **Tests.** Toda lógica nueva lleva su test. Las reglas clínicas puras van en `contracts` con vitest. Antes de dar una tarea por terminada, `pnpm affected` tiene que pasar.
 10. **Documentá.** Si cambia la arquitectura, un contrato, una decisión técnica o el avance del roadmap, actualizá `docs/` (y escribí un ADR en `docs/adr/` si es una decisión). Skill `vitalia-docs`.
 11. **Generadores Nx.** Para crear apps, libs o componentes usá los generadores (skill `nx-generate`), con los tags correctos.
-12. **Commits.** Conventional Commits con el proyecto como scope: `feat(api): ...`, `fix(backoffice): ...`, `docs(roadmap): ...`. Ramas Gitflow: `main`, `develop`, `feature/*`.
+12. **Commits.** Conventional Commits con el proyecto como scope: `feat(api): ...`, `fix(backoffice): ...`, `docs(roadmap): ...`. Ramas `feature/*` con PR a **`main`** (`develop` está en pausa, ver [`docs/05-convenciones.md`](docs/05-convenciones.md#git)).
 
 ## Skills del proyecto
 

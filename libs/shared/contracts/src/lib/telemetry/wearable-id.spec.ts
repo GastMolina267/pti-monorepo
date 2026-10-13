@@ -43,3 +43,12 @@ describe('parseWearableCode', () => {
     }
   });
 });
+
+describe('WEARABLE_CODE_PATTERN', () => {
+  it('coincide con parseWearableCode: rechaza el número 00', () => {
+    expect(WEARABLE_CODE_PATTERN.test('wb-00-24d7cc')).toBe(false);
+    expect(WEARABLE_CODE_PATTERN.test('wb-01-24d7cc')).toBe(true);
+    expect(WEARABLE_CODE_PATTERN.test('wb-10-24d7cc')).toBe(true);
+    expect(WEARABLE_CODE_PATTERN.test('wb-99-24d7cc')).toBe(true);
+  });
+});

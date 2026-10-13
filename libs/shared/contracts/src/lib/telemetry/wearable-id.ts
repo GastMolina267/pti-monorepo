@@ -6,7 +6,9 @@
  * Es el `<id>` del tópico MQTT, el `wearableId` de la lectura, `wearables.code` en la base
  * y (Fase 4) el usuario de Mosquitto.
  */
-export const WEARABLE_CODE_PATTERN = /^wb-(\d{2})-([0-9a-f]{6})$/;
+// El número excluye `00` en el propio regex: así da lo mismo validar con el pattern
+// (por ejemplo, en un z.string().regex()) o con parseWearableCode().
+export const WEARABLE_CODE_PATTERN = /^wb-(0[1-9]|[1-9]\d)-([0-9a-f]{6})$/;
 
 export const WEARABLE_NUMBER_MIN = 1;
 export const WEARABLE_NUMBER_MAX = 99;
@@ -34,7 +36,5 @@ export function formatWearableCode(number: number, macSuffix: string): string {
 export function parseWearableCode(code: string): WearableCodeParts | null {
   const match = WEARABLE_CODE_PATTERN.exec(code);
   if (!match) return null;
-  const number = Number(match[1]);
-  if (number < WEARABLE_NUMBER_MIN) return null;
-  return { number, macSuffix: match[2] };
+  return { number: Number(match[1]), macSuffix: match[2] };
 }

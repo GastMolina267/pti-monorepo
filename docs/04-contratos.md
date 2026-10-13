@@ -119,6 +119,7 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 - Algoritmo **AES-256-GCM**. Clave de 32 bytes compartida (`TELEMETRY_AES_KEY`, 64 hex). IV aleatorio por mensaje ([ADR 0006](adr/0006-cifrado-aes-256-gcm.md)).
 - Si el tag no valida, el mensaje se descarta.
 - **Sin AAD**: el campo `v` viaja en claro y no forma parte de la autenticación.
+- **El `wearableId` descifrado tiene que coincidir con el `<id>` del tópico**; si no, el mensaje se descarta. El sobre no lleva AAD y la clave es una sola para todas las pulseras: sin este chequeo, un sobre válido de una pulsera publicado en el tópico de otra pasaría como bueno. A futuro (`v: 2`), el tópico puede ir como AAD.
 
 #### Vectores de prueba compartidos
 
@@ -131,6 +132,7 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 | `vitalia_reading_bad_tag` | Tag alterado: el descifrado **tiene que fallar**                   |
 
 - El spec de contracts los verifica con `node:crypto`.
+- Se importan desde **`@vitalia/contracts/testing`**, no desde el barrel principal, así Backoffice, TV y portal no los ven.
 - La API los usa en los tests de descifrado del módulo `telemetry`.
 - El firmware los recibe en `apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h`, generado con `pnpm fw:codegen`. La CI corre `pnpm fw:codegen --check` para que no quede desactualizado.
 - La clave de los vectores (`00…1f`) es solo para tests: nunca usarla como `TELEMETRY_AES_KEY`.

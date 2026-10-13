@@ -31,6 +31,10 @@
 #include "vitalia_contracts.h"
 #include "wifi_link.h"
 
+// Un secrets.h anterior al ADR 0011 no lo trae: mejor este mensaje que "not declared in this scope".
+#ifndef WEARABLE_NUMBER
+#error "Falta WEARABLE_NUMBER en secrets.h (ver secrets.h.example, ADR 0011)"
+#endif
 static_assert(WEARABLE_NUMBER >= vitalia::WEARABLE_NUMBER_MIN &&
                   WEARABLE_NUMBER <= vitalia::WEARABLE_NUMBER_MAX,
               "WEARABLE_NUMBER (secrets.h) tiene que estar entre 1 y 99 (ADR 0011)");

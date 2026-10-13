@@ -32,12 +32,13 @@
 
 ## Git
 
-- **Ramas (Gitflow):** `main` (entregas estables), `develop` (integración), `feature/<fase>-<descripción>` (ej. `feature/f1-tickets-module`), `fix/<descripción>`.
+- **Ramas:** `main`, `feature/<fase>-<descripción>` (ej. `feature/f1-tickets-module`), `fix/<descripción>`.
 - **Commits (Conventional Commits, validados por commitlint):** `<tipo>(<scope>): <descripción en español>`.
   - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `build`, `perf`, `style`.
   - Scopes: `api`, `backoffice`, `tv-display`, `wearable-firmware-poc`, `contracts`, `design-tokens`, `ui`, `infra`, `docs`, `ai`, `ci`, `deps`, `repo`.
   - Ej.: `feat(api): agregar módulo de turnos con llamado a consultorio`.
-- **PRs** hacia `develop`, con la CI en verde (`nx affected -t lint test build`) y la doc actualizada.
+- **PRs** hacia **`main`** (por ahora: `develop` quedó en el commit inicial y el equipo decide más adelante si se retoma Gitflow), con la CI en verde (`nx affected -t lint test build`) y la doc actualizada.
+- **PRs apilados:** si un PR depende de otro abierto, igual apuntalo a `main`; mientras el primero no se mergee, el diff muestra los dos. No uses la rama del otro PR como base: si el de abajo se mergea primero, el de arriba queda mergeado en una rama muerta y no llega a `main` (pasó con el #4).
 
 ## Testing
 

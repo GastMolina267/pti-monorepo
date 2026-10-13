@@ -82,10 +82,10 @@ gantt
 - [ ] Módulo `realtime`: gateway Socket.IO con salas `staff` / `tv` / `patient:<id>` — [ADR 0007](adr/0007-tiempo-real-socket-io.md)
 - [ ] `ticket:called` y `queue:updated` emitidos desde `tickets`
 - [ ] Módulo `telemetry`: cliente MQTT, suscripción `hospital/+/wearable/+/data`, QoS 1
-- [ ] Descifrado AES-256-GCM + tests con `GCM_TEST_VECTORS` de contracts — [ADR 0006](adr/0006-cifrado-aes-256-gcm.md) (F: mismos vectores en el firmware)
+- [ ] Descifrado AES-256-GCM + tests con `GCM_TEST_VECTORS` (`@vitalia/contracts/testing`) + descartar si el `wearableId` descifrado no coincide con el del tópico — [ADR 0006](adr/0006-cifrado-aes-256-gcm.md) (F: mismos vectores en el firmware)
 - [ ] Validación (zod), deduplicación por `seq`, `assessVitals()`, persistencia sin bloquear la emisión
 - [ ] Módulo `alerts`: creación ante `CRITICAL`, `alert:emergency`, reconocimiento (`ack`)
-- [ ] Módulo `wearables`: alta, asignación a un turno, última lectura, comando al OLED (`.../cmd`)
+- [ ] Módulo `wearables`: alta, asignación a un turno, última lectura, comando al OLED (`.../cmd`). Al dar de alta, validar que el **número** de pulsera (`parseWearableCode`) no esté repetido (ADR 0011)
 - [ ] `tools/wearable-simulator`: N pulseras simuladas, anomalías inyectables, cifrado real
 - [ ] Check de MQTT en `/api/health`
 
@@ -112,7 +112,7 @@ gantt
 - [ ] Portal cautivo → check-in y estado del turno contra la API (repo `pti-captive-portal`, `VITE_BASE_URL` al gateway)
 - [ ] Wearable real publicando cifrado en Mosquitto (F) y recibiendo el turno en el OLED
 - [ ] Dockerfile multi-stage de la API + Nginx (Backoffice, TV, portal, proxy `/api` y `/socket.io`) en `docker-compose`
-- [ ] Mosquitto con usuario/contraseña y ACL por wearable: usuario = código `wb-<NN>-<mac>`, contraseña con `mosquitto_passwd` cargada **a mano** en el `secrets.h` de cada pulsera; ACL `pattern write hospital/+/wearable/%u/data` y `pattern read hospital/+/wearable/%u/cmd`
+- [ ] Mosquitto con usuario/contraseña y ACL por wearable: usuario = código `wb-<NN>-<mac>`, contraseña con `mosquitto_passwd` cargada **a mano** en el `secrets.h` de cada pulsera; ACL `pattern write hospital/+/wearable/%u/data` y `pattern read hospital/+/wearable/%u/cmd`. **La API también necesita su usuario** (`read hospital/+/wearable/+/data`, `write hospital/+/wearable/+/cmd`); si no, deja de recibir telemetría
 - [ ] RUT956: VLANs 10/20/30/40 apuntando al gateway; portal cautivo con walled garden; **servidor NTP local** para la VLAN 10 (sin internet) y `NTP_SERVER` del firmware apuntando a él (F)
 - [ ] Guion de demo E2E documentado
 
