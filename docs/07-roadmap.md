@@ -9,7 +9,7 @@
 | ---- | ----------------------------------------- | --------- | ------ | ----------------------- |
 | 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa             |
 | 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa             |
-| 2    | Telemetría MQTT, alertas y tiempo real    | 5–19 oct  | G (+F) | ⏳ Siguiente            |
+| 2    | Telemetría MQTT, alertas y tiempo real    | 5–19 oct  | G (+F) | ⏳ En curso             |
 | 3    | Backoffice y llamador TV funcionales      | 12–26 oct | T      | Pendiente (en paralelo) |
 | 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente               |
 | 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente               |
@@ -69,7 +69,7 @@ gantt
 - [x] Firmware del wearable migrado al monorepo con su historial: `apps/wearable-firmware-poc`, targets `pio-*`, job `firmware` en CI ([ADR 0010](adr/0010-firmware-del-wearable-en-el-monorepo.md)) (F)
 - [x] Firmware reestructurado (`lib/` telemetry, fall_detection, sensors, net, ui + `config.h`) con tests native en CI (`pnpm fw:test`) (F)
 - [x] Firmware: arma `TelemetryReading` cada 3 s (`seq` por arranque en NVS, `ts` en ms) y la expone por HTTP `/data`, sin MQTT todavía (F)
-- [ ] Firmware: publicar `TelemetryReading` por MQTT (con `seq` y `ts` en ms), reemplazando el payload del POC (`device_id`, `bpm`, `temp_c`, `event`) (F)
+- [x] Firmware: publicar `TelemetryReading` cifrada por MQTT (con `seq` y `ts` en ms), reemplazando el payload del POC (`device_id`, `bpm`, `temp_c`, `event`) (F)
 - [x] Firmware: MQTT con ESP-MQTT contra Mosquitto, QoS 1 y outbox (Hito 6b, [ADR 0012](adr/0012-esp-mqtt-en-el-firmware.md)) — falta probarlo en la placa (F)
 - [x] Código de wearable `wb-<NN>-<mac>` en contracts, seed y firmware ([ADR 0011](adr/0011-identificador-del-wearable.md)) (F)
 - [x] Vectores AES-256-GCM compartidos: `GCM_TEST_VECTORS` en contracts → `gcm_vectors.h` del firmware (`pnpm fw:codegen`, check en CI) (F)
