@@ -31,6 +31,19 @@ constexpr uint32_t TELEMETRY_PERIOD_MS = 3000;  // una lectura cada 3 s (docs/03
 constexpr uint32_t WIFI_RETRY_MS = 3000;
 constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una caída
 
+// --- Detección de caídas (Hito 8, lib/fall_detection) ---
+// Punto de partida del marco teórico: se calibran con caídas controladas (AGENTS.md §9).
+// El umbral de impacto (2,8 g) viene del contrato: vitalia::FALL_IMPACT_G.
+constexpr float FALL_FREE_FALL_G = 0.4f;
+constexpr uint32_t FALL_FREE_FALL_MIN_MS = 60;
+constexpr uint32_t FALL_IMPACT_WINDOW_MS = 1000;
+constexpr uint32_t FALL_SETTLE_MS = 500;
+constexpr uint32_t FALL_STILL_MS = 2000;
+constexpr float FALL_STILL_TOLERANCE_G = 0.3f;
+constexpr bool FALL_REQUIRE_FREE_FALL = true;
+// Imprime por serie cada cambio de fase (para calibrar). Apagar cuando esté calibrado.
+constexpr bool FALL_LOG_TRANSITIONS = true;
+
 // --- Red ---
 constexpr const char* MDNS_HOST = "wearable-pti";
 // Tope del outbox de MQTT (broker caído): ~30 sobres. Más allá, la lectura se descarta.
