@@ -1,0 +1,9 @@
+{
+  "name": "wearable-simulator",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/wearable-simulator/src",
+  "projectType": "application",
+  "tags": ["scope:tools", "type:app"],
+  "// targets": "test y lint se infieren (vitest.config.mts, eslint.config.mjs). Se ejecuta con `pnpm sim:wearables`.",
+  "targets": {}
+}

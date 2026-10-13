@@ -22,6 +22,7 @@ Monorepo **Nx** del Proyecto Tecnológico Integrador (Ingeniería Informática, 
 | `contracts`             | `libs/shared/contracts`      | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas                                    | —                                  |
 | `design-tokens`         | `libs/shared/design-tokens`  | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material                                               | —                                  |
 | `ui`                    | `libs/shared/ui`             | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)                                              | —                                  |
+| `wearable-simulator`    | `tools/wearable-simulator`   | `scope:tools`, `type:app`        | Node + mqtt: pulseras simuladas con cifrado real (`pnpm sim:wearables`)                   | —                                  |
 
 Fuera de este repo: **portal cautivo** (`pti-captive-portal`, React + Vite, UAM/CHAP con el router RUT956), que consume los contratos documentados en [`docs/04-contratos.md`](docs/04-contratos.md). El firmware del wearable está en `apps/wearable-firmware-poc` ([ADR 0010](docs/adr/0010-firmware-del-wearable-en-el-monorepo.md)). Implementa el contrato MQTT de `@vitalia/contracts` en C++ y no importa TypeScript.
 
@@ -36,6 +37,7 @@ pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:re
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv
 pnpm fw:build | fw:upload | fw:monitor   # firmware del wearable (requiere PlatformIO en el PATH)
+pnpm sim:wearables        # pulseras simuladas por MQTT (--help para anomalías y carga)
 pnpm nx test <proyecto>   # vitest (front/libs) · jest (api)
 pnpm nx lint <proyecto>
 pnpm affected             # lint + test + build de lo afectado (usar antes de terminar)

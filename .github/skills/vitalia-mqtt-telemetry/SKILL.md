@@ -46,9 +46,23 @@ pnpm add mqtt
 5. Emitir `telemetry:reading` a `staff`. Si `level === 'CRITICAL'`, crear `Alert` y emitir `alert:emergency` (skill `vitalia-realtime`).
 6. **Camino crítico sin bloqueos:** la emisión WS va antes de la persistencia o en paralelo. La persistencia nunca demora la alerta.
 
-## Simulador de wearables (Fase 2, `tools/wearable-simulator/`)
+## Simulador de wearables (`tools/wearable-simulator/`, `pnpm sim:wearables`)
 
-Script Node que emula **50 pulseras publicando cada 3 s** (§11.1.4) con valores normales y anomalías inyectables (caída, hipoxia), cifrando con la misma clave. Sirve para desarrollar sin hardware y para las pruebas de carga y latencia de la Fase 5.
+Proyecto Nx `wearable-simulator` (`scope:tools`): N pulseras que publican `TelemetryReading` cifradas con AES-256-GCM por MQTT (QoS 1), cada una con su conexión y client ID = código, igual que el firmware. Usa `TELEMETRY_AES_KEY` y `MQTT_URL` del `.env`.
+
+```bash
+pnpm sim:wearables                                   # wb-02…wb-08 (las del seed) cada 3 s
+pnpm sim:wearables --count=50 --duration=600         # carga de la Fase 5
+pnpm sim:wearables --inject=fall:3@10 --inject=hypoxia:4@20~60 --seed=7
+pnpm sim:wearables --help
+```
+
+- Códigos `wb-NN-5e00NN`: `wb-02…wb-08` existen en el seed; las demás sirven para cargar el broker, pero la API las descarta.
+- Signos vitales coherentes con `CLINICAL_THRESHOLDS`: ESTABLE en reposo; cada anomalía (`fall`, `hypoxia`, `tachycardia`, `bradycardia`, `fever`, `hypothermia`) es CRÍTICA desde la primera lectura y después vuelve gradualmente (pasa por ATENCIÓN). Una caída se publica en el momento, como el firmware, y el log muestra su `ts` para medir latencia.
+- Eventos para probar la API: `reboot` (`seq` salta de bloque), `duplicate` (reenvía la última lectura: deduplicar), `tamper` (tag alterado: descartar) y `spoof` (última lectura en el tópico de otra pulsera: descartar).
+- `seq`: el arranque inicial son los segundos desde 2024, así cada corrida usa un bloque nuevo y la deduplicación no descarta lecturas.
+- En la terminal se pueden inyectar eventos escribiendo `fall 3`, `hypoxia 4 60` o `estado`.
+- Validación cruzada: `pnpm fw:mqtt-check` en otra terminal tiene que marcar ✔ todo salvo `tamper` y `spoof`.
 
 ## Reglas
 

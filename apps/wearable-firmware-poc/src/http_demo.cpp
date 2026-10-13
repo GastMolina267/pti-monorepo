@@ -42,7 +42,7 @@ const char PAGE[] PROGMEM = R"HTML(
 <div class="grid">
  <div class="card"><div class="k">Temp. central (est.)</div><div class="v"><span id="temp">--</span><span class="u"> &deg;C</span></div><div class="u" id="skin"></div></div>
  <div class="card"><div class="k">Pico de aceleraci&oacute;n</div><div class="v"><span id="acc">--</span><span class="u"> g</span></div><div class="u">umbral de ca&iacute;da 2.8 g</div></div>
- <div class="card"><div class="k">Evento</div><div class="v" id="evt">--</div></div>
+ <div class="card"><div class="k">Evento</div><div class="v" id="evt">--</div><div class="u" id="fst"></div></div>
  <div class="card"><div class="k">BPM / SpO2</div><div class="v u" style="font-size:18px">pendiente<br>(Hito 5)</div></div>
  <div class="card"><div class="k">seq</div><div class="v" style="font-size:20px" id="seq">--</div><div class="u" id="ts"></div></div>
  <div class="card"><div class="k">Se&ntilde;al Wi-Fi</div><div class="v"><span id="rssi">--</span><span class="u"> dBm</span></div></div>
@@ -66,8 +66,9 @@ async function tick(){
   $('d_mpu').className='dot '+(s.sensors.mpu6050?'ok':'bad');
   $('d_mlx').className='dot '+(s.sensors.mlx90614?'ok':'bad');
   $('d_ntp').className='dot '+(s.ntp?'ok':'bad');
-  $('evt').textContent=s.impact_recent?'CAÍDA':'normal';
-  $('evt').parentElement.className='card'+(s.impact_recent?' alert':'');
+  $('evt').textContent=s.fall_recent?'CAÍDA':(s.impact_recent?'impacto':'normal');
+  $('evt').parentElement.className='card'+(s.fall_recent?' alert':'');
+  $('fst').textContent=s.fall_state||'';
   const r=await fetch('/data');
   if(r.status!==200){ $('raw').textContent=(await r.json()).error; return; }
   const d=await r.json();

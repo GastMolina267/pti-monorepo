@@ -20,7 +20,7 @@ pasar al siguiente hasta que el anterior pasa.
 | 6a. Wi-Fi (asociación) | ✅ **PASA**                                   | Asocia, obtiene IP, RSSI excelente. Quirk: el 1er `WiFi.begin()` post-boot falla, el 2do conecta (retry automático). Client ID MQTT = `wb-01-24d7cc` (número físico 01 + MAC `44:BD:8D:24:D7:CC`, ADR 0011). |
 | 6b. MQTT               | ⛔ pendiente                                  | Depende de tener Mosquitto corriendo en el Edge Gateway. `MQTT_BROKER` en `secrets.h` hay que ponerlo con la IP real del gateway.                                                                            |
 | 7. Cifrado AES-256     | ⛔ pendiente                                  |                                                                                                                                                                                                              |
-| 8. Detección de caídas | ⛔ pendiente                                  |                                                                                                                                                                                                              |
+| 8. Detección de caídas | ⚠️ **LÓGICA LISTA — falta calibrar**          | `FallDetector` en tres fases (caída libre → impacto → inmovilidad) con tests native. Falta ajustar los parámetros de `config.h` con caídas controladas en la placa (ver abajo).                              |
 
 ---
 
@@ -88,7 +88,11 @@ a ambiente ~23 °C.
    1. Misma clave en `TELEMETRY_AES_KEY` (`.env`) y `TELEMETRY_AES_KEY_HEX` (`secrets.h`); `MQTT_BROKER` = IP de la notebook.
    2. `pnpm infra:up` (Mosquitto local) y `pnpm nx run wearable-firmware-poc:pio-test-device` (vectores GCM en la placa).
    3. `pnpm fw:upload` y `pnpm fw:mqtt-check`: cada lectura tiene que salir ✔.
-5. **Hito 8 — caídas:** sumar caída libre previa e inmovilidad a `lib/fall_detection` y calibrar.
+5. **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13). Falta calibrar en la placa:
+   1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
+   2. Caídas controladas sobre superficie acolchada con la pulsera puesta: si la muñeca no llega a marcar caída libre (< 0,4 g por 60 ms), bajar `FALL_FREE_FALL_MIN_MS`, subir `FALL_FREE_FALL_G` o, en último caso, `FALL_REQUIRE_FREE_FALL = false`.
+   3. Falsos positivos: golpes de la mano contra la mesa, sentarse de golpe, aplaudir. No tienen que confirmar caída (sin caída libre o con movimiento después).
+   4. Ajustar `FALL_STILL_TOLERANCE_G` con el offset real del MPU6050 en reposo (~1,05 g).
 
 Estructura actual del firmware: `AGENTS.md` §5.
 
@@ -137,7 +141,7 @@ Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, d
     de bloque en cada reinicio.
   - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, temperatura de piel.
   - `http://wearable-pti.local/` → lo mismo vía mDNS.
-- Detección de caída (preview, Hito 8 pendiente): `|a| > 2.8 g` → `fall: true` en la próxima lectura; el OLED y la página muestran CAÍDA durante 5 s.
+- Detección de caída (Hito 8, sin calibrar): caída libre (< 0,4 g) → impacto (> 2,8 g) → 2 s de inmovilidad. Al confirmarse, la lectura con `fall: true` se publica en el momento (no espera el ciclo de 3 s) y el OLED y la página muestran CAÍDA durante 5 s. La página muestra "impacto" si hubo un golpe que no terminó en caída.
 - Fiebre (solo indicador del OLED): temperatura central estimada > 38.0 °C (offset provisional +1.2, ver arriba). La alerta la decide la API.
 - En la universidad: cambiar SSID/PASS en `src/secrets.h`.
 - **Requisito de red:** notebook y dispositivo en el mismo SSID **sin client isolation**.

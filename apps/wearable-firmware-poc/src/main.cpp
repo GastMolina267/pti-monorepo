@@ -2,7 +2,8 @@
  * Firmware del wearable IoMT de Vitalia (ESP32-C3 SuperMini).
  *
  * Orquestación: muestrea sensores y cada 3 s arma una TelemetryReading del contrato, la
- * cifra con AES-256-GCM y la publica por MQTT con QoS 1 (Hitos 6b y 7). También la expone
+ * cifra con AES-256-GCM y la publica por MQTT con QoS 1 (Hitos 6b y 7). Una caída
+ * confirmada (Hito 8) se publica en el momento, sin esperar el ciclo. También la expone
  * por HTTP (/data) para la demo. La lógica está en lib/ (AGENTS.md §5): telemetry,
  * fall_detection y envelope son puras y se testean sin placa (pnpm fw:test).
  *
@@ -22,7 +23,7 @@
 #include "gcm.h"
 #include "http_demo.h"
 #include "identity.h"
-#include "impact_detector.h"
+#include "fall_detector.h"
 #include "imu.h"
 #include "mqtt_link.h"
 #include "oled.h"
@@ -50,13 +51,25 @@ static_assert(WEARABLE_NUMBER >= vitalia::WEARABLE_NUMBER_MIN &&
 #endif
 
 // ---------------- Módulos ----------------
+static fall_detection::FallParams fallParams() {
+  fall_detection::FallParams p;  // impactG = vitalia::FALL_IMPACT_G (contrato)
+  p.freeFallG = FALL_FREE_FALL_G;
+  p.freeFallMinMs = FALL_FREE_FALL_MIN_MS;
+  p.impactWindowMs = FALL_IMPACT_WINDOW_MS;
+  p.settleMs = FALL_SETTLE_MS;
+  p.stillMs = FALL_STILL_MS;
+  p.stillToleranceG = FALL_STILL_TOLERANCE_G;
+  p.requireFreeFall = FALL_REQUIRE_FREE_FALL;
+  return p;
+}
+
 sensors::Imu imu;
 sensors::SkinTemp skinTemp;
 net::WifiLink wifi;
 ui::Oled oled(Wire, I2C_CLOCK_HZ);
 ui::StatusLed led(PIN_LED);
 telemetry::PeakTracker accPeak;
-fall_detection::ImpactDetector impact;
+fall_detection::FallDetector fall(fallParams());
 net::MqttLink mqtt;
 
 // ---------------- Estado ----------------
@@ -74,24 +87,26 @@ uint32_t publishedCount = 0;   // lecturas encoladas en MQTT desde el arranque
 uint32_t droppedCount = 0;     // lecturas que no se pudieron encolar
 
 // ---------------- MQTT ----------------
-static void publishReading(size_t len) {
-  if (!aesKeyOk) return;  // ya se avisó por serie en setup()
+/** Cifra y encola la última lectura. Devuelve true si quedó en el outbox de ESP-MQTT. */
+static bool publishReading(size_t len) {
+  if (!aesKeyOk) return false;  // ya se avisó por serie en setup()
   // Outbox lleno (broker caído): no seguir acumulando en RAM.
   if (mqtt.outboxBytes() > MQTT_OUTBOX_MAX_BYTES) {
     droppedCount++;
-    return;
+    return false;
   }
   char sealed[512];
   size_t n = crypto::seal(aesKey, lastReadingJson, len, sealed, sizeof(sealed));
   if (n == 0 || !mqtt.publish(dataTopic, sealed, vitalia::MQTT_QOS)) {
     droppedCount++;
     Serial.println(F("ERROR: no se pudo cifrar o encolar la lectura"));
-    return;
+    return false;
   }
   publishedCount++;
 #if MQTT_DEBUG_PLAINTEXT
   mqtt.publish(plainTopic, lastReadingJson, 0);
 #endif
+  return true;
 }
 
 // ---------------- Lectura del contrato ----------------
@@ -105,7 +120,9 @@ static void buildReading() {
   r.seq = telemetry::composeSeq(bootCount, readingCounter++);
   r.tsMs = net::nowMs();
   r.accPeakG = peak;
-  r.fall = impact.take();  // solo se consume con hora válida: una caída no se pierde
+  // Se lee sin consumir: la caída se da por entregada recién cuando la lectura queda encolada
+  // (abajo). Si no hay hora, el JSON no entra o el outbox está lleno, sale en la próxima.
+  r.fall = fall.pending();
   if (skinTemp.isHealthy()) r.temp = skinTemp.coreEstC();
   // hr / spo2: vacíos hasta el Hito 5 (MAX30102).
 
@@ -115,7 +132,10 @@ static void buildReading() {
     Serial.println(F("ERROR: la lectura no entra en el buffer"));
     return;
   }
-  publishReading(n);
+  bool queued = publishReading(n);
+  // Sin clave AES no sale nada por MQTT (nunca va a encolar): la caída queda en /data y
+  // se consume igual, para que no viaje en todas las lecturas siguientes.
+  if (r.fall && (queued || !aesKeyOk)) fall.take();
 }
 
 // ---------------- HTTP (demo) ----------------
@@ -142,7 +162,9 @@ static bool provideStatus(String& out) {
     doc["temp_skin_c"] = roundf(skinTemp.skinC() * 10) / 10.0;
     doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
   }
-  doc["impact_recent"] = impact.recentImpact(now, FALL_DISPLAY_MS);
+  doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
+  doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
+  doc["fall_state"] = fall_detection::stateName(fall.state());
   JsonObject m = doc["mqtt"].to<JsonObject>();
   m["topic"] = dataTopic;
   m["connected"] = mqtt.connected();
@@ -172,7 +194,7 @@ static void renderOled(uint32_t now) {
     snprintf(line1, sizeof(line1), "T --");
   }
 
-  const char* event = impact.recentImpact(now, FALL_DISPLAY_MS) ? "CAIDA" : "ok";
+  const char* event = fall.recentFall(now, FALL_DISPLAY_MS) ? "CAIDA" : "ok";
   if (imu.isHealthy()) snprintf(line2, sizeof(line2), "a %.2fg  %s", imu.magnitudeG(), event);
   else snprintf(line2, sizeof(line2), "a --");
 
@@ -255,8 +277,22 @@ void loop() {
   if (now - lastImu >= IMU_PERIOD_MS) {
     lastImu = now;
     if (imu.read()) {
-      accPeak.update(imu.magnitudeG());
-      impact.update(imu.magnitudeG(), now);
+      float g = imu.magnitudeG();
+      accPeak.update(g);
+      bool fallConfirmed = fall.update(g, now);
+      static fall_detection::FallState lastFallState = fall_detection::FallState::Idle;
+      if (FALL_LOG_TRANSITIONS && fall.state() != lastFallState) {
+        Serial.printf("caída: %s -> %s (a=%.2f g)\n", fall_detection::stateName(lastFallState),
+                      fall_detection::stateName(fall.state()), g);
+      }
+      lastFallState = fall.state();
+      if (fallConfirmed) {
+        // RNF-O1: la alerta no espera hasta 3 s al próximo ciclo. Se publica ya y el ciclo
+        // arranca de nuevo desde acá.
+        Serial.println(F("CAÍDA confirmada: se publica la lectura ahora"));
+        lastReading = now;
+        buildReading();
+      }
     }
   }
   if (now - lastTemp >= TEMP_PERIOD_MS) {

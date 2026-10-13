@@ -168,7 +168,7 @@ pio device list
   secrets.h             // por pulsera: número, Wi-Fi, NTP, MQTT, clave AES — NO versionar
 /lib
   telemetry/            // PURA: Reading + JSON del contrato, composeSeq, wb-NN-mac, PeakTracker
-  fall_detection/       // PURA: ImpactDetector (impacto > 2,8 g; Hito 8: inmovilidad)
+  fall_detection/       // PURA: FallDetector (caída libre → impacto > 2,8 g → inmovilidad, Hito 8)
   sensors/              // Imu (MPU6050), SkinTemp (MLX90614); a futuro MAX30102
   envelope/             // PURA: base64, sobre { v, iv, ct, tag } del contrato, clave hex de secrets.h
   net/                  // Wi-Fi con reintento, NTP, MqttLink (ESP-MQTT, QoS 1), código del dispositivo, arranques (NVS)
@@ -268,8 +268,12 @@ Lo propio del dispositivo (pines, tiempos, offset de temperatura, indicador loca
 | Parámetro                              | Valor     | Origen                                  |
 | :------------------------------------- | :-------- | :-------------------------------------- |
 | Umbral de impacto (caída)              | **2.8 g** | `vitalia::FALL_IMPACT_G` (contracts)    |
-| Umbral de caída libre previa           | ~0.4 g    | Marco teórico                           |
-| Ventana de inmovilidad post-impacto    | 2000 ms   | A calibrar en ensayos                   |
+| Umbral de caída libre previa           | 0.4 g     | `FALL_FREE_FALL_G` · a calibrar         |
+| Duración mínima de la caída libre      | 60 ms     | `FALL_FREE_FALL_MIN_MS` · a calibrar    |
+| Ventana caída libre → impacto          | 1000 ms   | `FALL_IMPACT_WINDOW_MS` · a calibrar    |
+| Rebotes ignorados después del impacto  | 500 ms    | `FALL_SETTLE_MS` · a calibrar           |
+| Ventana de inmovilidad post-impacto    | 2000 ms   | `FALL_STILL_MS` · a calibrar            |
+| Tolerancia de inmovilidad              | ±0.3 g    | `FALL_STILL_TOLERANCE_G` · a calibrar   |
 | Frecuencia de muestreo IMU             | 50 Hz     | —                                       |
 | Intervalo de publicación de telemetría | 3 s       | docs/03-dominio y prueba de carga F5    |
 | SpO2 crítico                           | < 90 %    | Marco teórico                           |
@@ -315,4 +319,4 @@ Ejecutar en orden. No avanzar al siguiente hasta que el anterior pase.
 5. **MAX30102.** Lectura de BPM estable con el dedo apoyado; SpO2 contra un oxímetro comercial.
 6. **Wi-Fi + MQTT.** Con `pnpm infra:up` y `MQTT_DEBUG_PLAINTEXT 1`, ver la lectura en claro en `<tópico>/plain` (`mosquitto_sub -t "hospital/+/wearable/+/data/plain"`) y el sobre cifrado en el tópico de datos.
 7. **Cifrado.** `pnpm nx run wearable-firmware-poc:pio-test-device` (los 3 vectores en la placa) y `pnpm fw:mqtt-check` con la misma `TELEMETRY_AES_KEY` en el `.env` y en `secrets.h`: cada lectura tiene que salir ✔.
-8. **Detección de caídas.** Ensayos con el dispositivo en caída controlada sobre superficie acolchada. Calibrar umbral y ventana.
+8. **Detección de caídas.** Ensayos con el dispositivo en caída controlada sobre superficie acolchada. Calibrar los parámetros `FALL_*` de `config.h` con `FALL_LOG_TRANSITIONS = true` (el monitor serie muestra cada fase) y probar falsos positivos (golpes, aplausos, sentarse de golpe). Una caída confirmada se publica en el momento, sin esperar el ciclo de 3 s (RNF-O1). Pasos en `ESTADO.md`.
