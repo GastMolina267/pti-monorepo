@@ -77,6 +77,7 @@ gantt
 - [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
 - [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
 - [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
+- [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — falta calibrar con caídas controladas en la placa (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
 - [ ] Emitir eventos de dominio desde `tickets` (hoy hay un `// Fase 2` en `TicketsService.call`)
@@ -87,7 +88,7 @@ gantt
 - [ ] Validación (zod), deduplicación por `seq`, `assessVitals()`, persistencia sin bloquear la emisión
 - [ ] Módulo `alerts`: creación ante `CRITICAL`, `alert:emergency`, reconocimiento (`ack`)
 - [ ] Módulo `wearables`: alta, asignación a un turno, última lectura, comando al OLED (`.../cmd`). Al dar de alta, validar que el **número** de pulsera (`parseWearableCode`) no esté repetido (ADR 0011)
-- [ ] `tools/wearable-simulator`: N pulseras simuladas, anomalías inyectables, cifrado real
+- [x] `tools/wearable-simulator` (`pnpm sim:wearables`): N pulseras simuladas, anomalías inyectables (caída, hipoxia, taquicardia…), eventos de prueba (reinicio, duplicado, tag alterado, tópico ajeno) y cifrado real. Probado contra Mosquitto con `fw:mqtt-check` y con 50 pulseras (F)
 - [ ] Check de MQTT en `/api/health`
 
 **Terminado cuando:** con el simulador corriendo, una caída simulada genera `alert:emergency` en < 500 ms y queda persistida.
