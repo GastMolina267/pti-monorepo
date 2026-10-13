@@ -13,6 +13,7 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 - Payload publicado: `EncryptedEnvelope { v: 1, iv, ct, tag }` (base64). Descifrado: `TelemetryReading { wearableId, seq, ts, hr?, spo2?, temp?, accPeakG?, fall? }`.
 - `seq = arranque × 2^24 + contador` (`composeSeq`/`splitSeq`): salta de bloque cuando el wearable reinicia. Deduplicá por `(wearableId, seq)` y usá `splitSeq` para distinguir un reinicio de una pérdida. El simulador arma `seq` igual.
 - Identificador `<id>` = `wearableId` = `wearables.code` = `wb-<NN>-<mac>` (ej. `wb-07-24d7cc`, ADR 0011). Validalo con `WEARABLE_CODE_PATTERN` / `parseWearableCode()` de contracts y descartá los mensajes cuyo código no exista en `wearables`.
+- **Referencia:** `tools/scripts/mqtt-check.ts` (`pnpm fw:mqtt-check`) ya descifra y valida todo esto con `node:crypto` y el paquete `mqtt` (ya instalado). Reusá esa lógica en el módulo `telemetry`.
 - **Seguridad:** después de descifrar, exigí que `reading.wearableId` sea igual al `<id>` del tópico y descartá el mensaje si no. No hay AAD y la clave es compartida: sin este chequeo, un sobre válido de una pulsera se puede reinyectar en el tópico de otra.
 
 ## Cifrado (RNF-O3)

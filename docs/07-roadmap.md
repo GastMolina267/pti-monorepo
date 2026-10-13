@@ -70,11 +70,12 @@ gantt
 - [x] Firmware reestructurado (`lib/` telemetry, fall_detection, sensors, net, ui + `config.h`) con tests native en CI (`pnpm fw:test`) (F)
 - [x] Firmware: arma `TelemetryReading` cada 3 s (`seq` por arranque en NVS, `ts` en ms) y la expone por HTTP `/data`, sin MQTT todavía (F)
 - [ ] Firmware: publicar `TelemetryReading` por MQTT (con `seq` y `ts` en ms), reemplazando el payload del POC (`device_id`, `bpm`, `temp_c`, `event`) (F)
-- [ ] Firmware: MQTT con PubSubClient contra Mosquitto (Hito 6b), QoS 1 y `setBufferSize(512)` (F)
+- [x] Firmware: MQTT con ESP-MQTT contra Mosquitto, QoS 1 y outbox (Hito 6b, [ADR 0012](adr/0012-esp-mqtt-en-el-firmware.md)) — falta probarlo en la placa (F)
 - [x] Código de wearable `wb-<NN>-<mac>` en contracts, seed y firmware ([ADR 0011](adr/0011-identificador-del-wearable.md)) (F)
 - [x] Vectores AES-256-GCM compartidos: `GCM_TEST_VECTORS` en contracts → `gcm_vectors.h` del firmware (`pnpm fw:codegen`, check en CI) (F)
 - [x] Firmware: hora por NTP (`configTime` con `NTP_SERVER`); en desarrollo, NTP público (red única con internet) (F)
-- [ ] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
+- [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
+- [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
 - [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
@@ -121,6 +122,7 @@ gantt
 ## Fase 5 · Resiliencia, carga y validación (Eq)
 
 - [ ] Módulo `sync`: outbox local → réplica a la nube al volver la WAN (RF-O6, capa Cloud)
+- [ ] Firmware: buffer propio para cortes del broker de más de 30 s (el outbox de ESP-MQTT descarta a los 30 s, ADR 0012) (F)
 - [ ] Prueba de corte de WAN durante 24 h (RNF-O2)
 - [ ] Carga: 50 pulseras cada 3 s (simulador) y 0 % de pérdida con QoS 1
 - [ ] Medición de latencias (alerta < 500 ms, REST < 50 ms, llamado < 100 ms) con reporte

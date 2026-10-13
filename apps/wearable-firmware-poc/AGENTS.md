@@ -14,7 +14,7 @@ Firmware de la pulsera wearable de monitoreo hospitalario en tiempo real (IoMT) 
 - **Microcontrolador:** ESP32-C3 SuperMini (RISC-V 32-bit single-core @ 160 MHz, 4 MB Flash, 400 KB SRAM)
 - **Framework:** Arduino Core para ESP32 (FreeRTOS subyacente)
 - **Lenguaje:** C++17
-- **Conectividad:** Wi-Fi 802.11 b/g/n (**solo 2.4 GHz**) + MQTT (PubSubClient)
+- **Conectividad:** Wi-Fi 802.11 b/g/n (**solo 2.4 GHz**) + MQTT con **ESP-MQTT** (incluido en el core, QoS 1 y outbox: [ADR 0012](../../docs/adr/0012-esp-mqtt-en-el-firmware.md))
 - **Serial / consola:** USB CDC **nativo** a 115200 baudios
 - **Cifrado:** AES-256-GCM con el acelerador AES por hardware vía mbedTLS (`mbedtls/gcm.h`)
 
@@ -97,14 +97,13 @@ lib_deps =
     adafruit/Adafruit SSD1306@2.5.17
     adafruit/Adafruit GFX Library@1.12.6
     adafruit/Adafruit BusIO@1.17.4
-    knolleary/PubSubClient@2.8
     bblanchon/ArduinoJson@7.4.3
 ```
 
 ### Gotchas del entorno
 
 - **USB CDC:** al subir firmware, el puerto se re-enumera. Si el monitor queda colgado, cerrarlo antes de flashear. Si la placa no aparece, mantener BOOT presionado mientras se conecta el USB.
-- **PubSubClient:** el buffer por defecto es de 256 bytes. Un JSON biométrico cifrado en AES-256 y codificado en Base64 lo supera, y la librería **descarta el mensaje en silencio, sin error**. Llamar a `client.setBufferSize(512)` (o más) después de `client.setServer()`.
+- **ESP-MQTT y el outbox:** los mensajes QoS 1 se encolan y se reintentan hasta el PUBACK, pero el outbox de esta versión del core **descarta los que llevan 30 s sin confirmar** (fijo en el SDK). Un corte del broker de más de 30 s pierde lecturas: el monitor serie lo avisa ("lectura descartada del outbox"). `MQTT_OUTBOX_MAX_BYTES` (config.h) limita la RAM que ocupa. El sobre de una lectura completa ronda los 300 bytes (buffer de ESP-MQTT: 1024).
 - **Antena:** la antena PCB de la SuperMini es notoriamente pobre. Si hay desconexiones de Wi-Fi, es el hardware y no el código.
 - **Adafruit_SSD1306 y la velocidad del bus:** por defecto el constructor sube el bus I²C a **400 kHz durante cada `display.display()`** (`clkDuring = 400000`) y lo baja después. En un bus compartido con el MLX90614 (SMBus, máx 100 kHz) y 4 dispositivos hand-wired, ese salto **corrompe la transferencia** (píxeles al azar). Fijar el reloj en las dos fases: `Adafruit_SSD1306 display(W, H, &Wire, RST, 100000, 100000);`
 - **MLX90614 con EEPROM de configuración corrupta:** _síntoma_ = la temperatura de objeto tiene **error de escala** (p. ej. +28 °C sobre piel a 33 °C, pero solo unos grados sobre superficies a temperatura ambiente); `Ta` lee bien y la emisividad es 1.00. _Causa_ = registro `Config1` (EEPROM `0x25`) alterado — ganancia en ×12.5 en vez de ×100 y bits de signo Ks/KT2 invertidos (leído `0xAFF4`, correcto `0x9FB4`). Puede venir de fábrica (clon), de una escritura interrumpida, de ESD por punta de soldador sin descarga a tierra o de sobrecalentar el encapsulado al soldar. _Fix_ = reescribir `0x25 = 0x9FB4` con el ciclo borrar→escribir de SMBus y **ciclar la alimentación del sensor** (el MLX solo carga la config de EEPROM al arrancar; un reset del ESP32 no alcanza si el sensor sigue con 3V3). Verificar con un volcado de registros. Si la EEPROM no acepta la escritura o el error persiste tras corregir `0x25`, el chip está dañado: reemplazar.
@@ -122,6 +121,8 @@ pnpm fw:upload     # = ...:pio-upload                               (pio run -t 
 pnpm fw:monitor    # = ...:pio-monitor                              (pio device monitor)
 pnpm fw:test       # = ...:pio-test   tests native, sin placa       (pio test -e native)
 pnpm fw:codegen    # regenera include/vitalia_contracts.h y test/fixtures/gcm_vectors.h
+pnpm fw:mqtt-check # escucha Mosquitto, descifra y valida cada lectura contra el contrato
+pnpm nx run wearable-firmware-poc:pio-test-device   # tests en la placa (lib/crypto + vectores GCM)
 pnpm nx run wearable-firmware-poc:pio-clean
 ```
 
@@ -169,11 +170,13 @@ pio device list
   telemetry/            // PURA: Reading + JSON del contrato, composeSeq, wb-NN-mac, PeakTracker
   fall_detection/       // PURA: ImpactDetector (impacto > 2,8 g; Hito 8: inmovilidad)
   sensors/              // Imu (MPU6050), SkinTemp (MLX90614); a futuro MAX30102
-  net/                  // Wi-Fi con reintento, NTP, código del dispositivo, contador de arranques (NVS)
+  envelope/             // PURA: base64, sobre { v, iv, ct, tag } del contrato, clave hex de secrets.h
+  net/                  // Wi-Fi con reintento, NTP, MqttLink (ESP-MQTT, QoS 1), código del dispositivo, arranques (NVS)
   ui/                   // Oled, StatusLed (a futuro buzzer)
-  crypto/               // (Hito 7) AES-256-GCM sobre mbedTLS → sobre { v, iv, ct, tag }
+  crypto/               // AES-256-GCM con mbedTLS (AES por hardware) y seal(): IV aleatorio + sobre
 /test
   native/test_*/        // tests Unity de las libs PURAS en la PC (pnpm fw:test, CI)
+  esp32/test_crypto/    // tests EN LA PLACA de lib/crypto con los vectores compartidos (CI solo los compila)
   fixtures/gcm_vectors.h  // GENERADO: vectores GCM compartidos con la API
 ```
 
@@ -228,7 +231,12 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 >
 > **NTP:** en desarrollo todo corre en **una sola red con internet**, así que alcanza con un NTP público (`pool.ntp.org`). En producción la VLAN 10 no tiene internet: el RUT956 o el gateway tienen que servir NTP local (pendiente, roadmap Fase 4). **No se arman lecturas hasta tener hora válida** (`net::timeValid()`); si no, `ts` llegaría como 1970.
 
-**Hoy (antes del Hito 6b)** la lectura se arma cada 3 s y se expone por HTTP en `http://<IP>/data`, exactamente como se va a publicar (503 mientras no haya hora NTP). `http://<IP>/status` da el diagnóstico (sensores, NTP, arranque, RSSI) y no es parte del contrato.
+**Publicación (Hitos 6b y 7):** cada 3 s, con hora NTP válida, el firmware arma la `TelemetryReading`, la cifra con un IV aleatorio (`crypto::seal`) y encola el sobre con **QoS 1** en `hospital/<MQTT_SALA>/wearable/<id>/data`.
+
+- **Sin clave válida no publica nada:** si `TELEMETRY_AES_KEY_HEX` está vacía o no son 64 hex, el monitor serie lo avisa y no sale nada por MQTT (nunca en claro por accidente).
+- **`MQTT_DEBUG_PLAINTEXT 1`** (solo desarrollo) publica además la lectura en claro en `<tópico>/plain`, con QoS 0. La API no lo escucha (`hospital/+/wearable/+/data` no matchea `/data/plain`). Son datos biométricos: nunca en 1 fuera del laboratorio.
+- La misma lectura sigue en `http://<IP>/data` (demo), y `http://<IP>/status` suma el estado de MQTT: conexión, publicadas, confirmadas (PUBACK), descartadas y outbox.
+- Para validar de punta a punta sin la API: `pnpm fw:mqtt-check` en la notebook (misma `TELEMETRY_AES_KEY` en el `.env`).
 
 El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes-256-gcm.md)) y se publica como sobre `EncryptedEnvelope`:
 
@@ -305,6 +313,6 @@ Ejecutar en orden. No avanzar al siguiente hasta que el anterior pase.
 3. **MPU6050.** Volcar aceleración cruda en los tres ejes por serie y verificar ~1 g en reposo sobre el eje vertical.
 4. **MLX90614.** Comparar contra un termómetro comercial. Registrar el delta piel-central para armar la curva de compensación.
 5. **MAX30102.** Lectura de BPM estable con el dedo apoyado; SpO2 contra un oxímetro comercial.
-6. **Wi-Fi + MQTT.** Publicar un `TelemetryReading` en claro y verificar la recepción en el broker con `mosquitto_sub`.
-7. **Cifrado.** Activar AES-256-GCM (sobre `{ v, iv, ct, tag }`) y validar que el Gateway descifra correctamente.
+6. **Wi-Fi + MQTT.** Con `pnpm infra:up` y `MQTT_DEBUG_PLAINTEXT 1`, ver la lectura en claro en `<tópico>/plain` (`mosquitto_sub -t "hospital/+/wearable/+/data/plain"`) y el sobre cifrado en el tópico de datos.
+7. **Cifrado.** `pnpm nx run wearable-firmware-poc:pio-test-device` (los 3 vectores en la placa) y `pnpm fw:mqtt-check` con la misma `TELEMETRY_AES_KEY` en el `.env` y en `secrets.h`: cada lectura tiene que salir ✔.
 8. **Detección de caídas.** Ensayos con el dispositivo en caída controlada sobre superficie acolchada. Calibrar umbral y ventana.

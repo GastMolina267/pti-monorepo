@@ -103,8 +103,14 @@ function renderVectors(): string {
       bytes(`${v.name}_plaintext`, v.plaintextHex),
       bytes(`${v.name}_ct`, v.ctHex),
       bytes(`${v.name}_tag`, v.tagHex),
-      '',
     );
+    if (v.envelope) {
+      // El sobre tal cual lo publica el wearable (mismo orden de claves que el contrato).
+      arrays.push(
+        `static const char ${v.name}_envelope_json[] = ${JSON.stringify(JSON.stringify(v.envelope))};`,
+      );
+    }
+    arrays.push('');
     entries.push(
       `  {"${v.name}", ${v.name}_key, ${v.name}_iv, ${v.name}_plaintext, sizeof(${v.name}_plaintext), ` +
         `${v.name}_ct, ${v.name}_tag, ${v.expect === 'ok'}},`,

@@ -121,6 +121,8 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 - **Sin AAD**: el campo `v` viaja en claro y no forma parte de la autenticación.
 - **El `wearableId` descifrado tiene que coincidir con el `<id>` del tópico**; si no, el mensaje se descarta. El sobre no lleva AAD y la clave es una sola para todas las pulseras: sin este chequeo, un sobre válido de una pulsera publicado en el tópico de otra pasaría como bueno. A futuro (`v: 2`), el tópico puede ir como AAD.
 
+**Implementación de referencia del descifrado y la validación:** `tools/scripts/mqtt-check.ts` (`pnpm fw:mqtt-check`). El tópico `<…>/data/plain` que el firmware puede publicar en desarrollo (`MQTT_DEBUG_PLAINTEXT`) **no es parte del contrato**.
+
 #### Vectores de prueba compartidos
 
 `GCM_TEST_VECTORS` de `@vitalia/contracts` (`telemetry/gcm-test-vectors.ts`) es la fuente única de vectores AES-256-GCM:

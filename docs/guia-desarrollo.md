@@ -57,6 +57,8 @@ pnpm fw:monitor    # monitor serie a 115200
 
 - La extensión de VS Code espera el `platformio.ini` en la raíz de la carpeta abierta. Para usar sus botones e IntelliSense, abrí `apps/wearable-firmware-poc` en una ventana aparte (`code apps/wearable-firmware-poc`).
 - Para probar MQTT sin el gateway: `pnpm infra:up` levanta Mosquitto en tu notebook (puerto 1883). Poné la IP de la notebook en `MQTT_BROKER`.
+- **Clave de cifrado:** generá una con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y poné **la misma** en `TELEMETRY_AES_KEY` del `.env` y en `TELEMETRY_AES_KEY_HEX` del `secrets.h`. Sin clave, el firmware no publica.
+- **Verificar la telemetría:** `pnpm fw:mqtt-check` se suscribe a Mosquitto, descifra cada sobre y valida la lectura contra el contrato (✔ / ⚠ / ✖ por mensaje).
 - Pinout, gotchas de hardware y el contrato MQTT: [`apps/wearable-firmware-poc/AGENTS.md`](../apps/wearable-firmware-poc/AGENTS.md). Estado de los hitos de hardware: [`ESTADO.md`](../apps/wearable-firmware-poc/ESTADO.md).
 
 ## Flujo de trabajo
