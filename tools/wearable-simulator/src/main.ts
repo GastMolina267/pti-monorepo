@@ -32,7 +32,8 @@ import {
 } from './lib/cli';
 import { parseKey, sealReading, tamperEnvelope } from './lib/envelope';
 import { createRng } from './lib/rng';
-import { SimulatedWearable, initialBoot } from './lib/wearable';
+import { BootStore } from './lib/boot-store';
+import { SimulatedWearable, nextBoot } from './lib/wearable';
 
 interface Sim {
   wearable: SimulatedWearable;
@@ -79,7 +80,10 @@ function loadOptions(): SimOptions {
 const options = loadOptions();
 const key = parseKey(options.keyHex);
 const rng = createRng(options.seed);
-const boot = initialBoot(Date.now());
+// Como el contador de arranques en NVS del firmware: cada corrida usa un bloque de seq nuevo.
+const bootStore = new BootStore();
+const boot = nextBoot(Date.now(), bootStore.load());
+bootStore.save(boot);
 const stats = { published: 0, acked: 0, failed: 0 };
 const timers: NodeJS.Timeout[] = [];
 
@@ -141,7 +145,7 @@ function apply(injection: Injection): void {
 
   switch (injection.kind) {
     case 'reboot':
-      sim.wearable.reboot();
+      bootStore.save(sim.wearable.reboot());
       log(`↻ ${code}: reinicio (el próximo seq salta de bloque)`);
       return;
     case 'duplicate':

@@ -1,6 +1,6 @@
 import { MQTT_TOPICS, WEARABLE_CODE_PATTERN, composeSeq, splitSeq } from '@vitalia/contracts';
 import { createRng } from './rng';
-import { SimulatedWearable, initialBoot, simulatedCode } from './wearable';
+import { SimulatedWearable, initialBoot, nextBoot, simulatedCode } from './wearable';
 
 describe('simulatedCode', () => {
   it('usa el mismo esquema que el seed de la API (wb-02-5e0002 … wb-08-5e0008)', () => {
@@ -18,6 +18,20 @@ describe('initialBoot', () => {
     const now = Date.UTC(2026, 9, 13, 12, 0, 0);
     expect(initialBoot(now + 1000)).toBe(initialBoot(now) + 1);
     expect(composeSeq(initialBoot(now + 1000), 0)).toBeGreaterThan(composeSeq(initialBoot(now), 5000));
+  });
+});
+
+describe('nextBoot', () => {
+  const now = Date.UTC(2026, 9, 13, 12, 0, 0);
+
+  it('sin arranque previo usa la hora', () => {
+    expect(nextBoot(now)).toBe(initialBoot(now));
+  });
+
+  it('nunca repite ni retrocede respecto del último usado', () => {
+    expect(nextBoot(now, initialBoot(now))).toBe(initialBoot(now) + 1); // mismo segundo
+    expect(nextBoot(now, initialBoot(now) + 5)).toBe(initialBoot(now) + 6); // después de reboots
+    expect(nextBoot(now, 10)).toBe(initialBoot(now)); // la hora ya lo superó
   });
 });
 

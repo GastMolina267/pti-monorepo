@@ -19,14 +19,21 @@ export function simulatedCode(n: number): string {
 
 const BOOT_EPOCH_MS = Date.UTC(2024, 0, 1);
 
-/**
- * Arranque inicial de las pulseras simuladas: segundos desde 2024. El firmware guarda su
- * contador de arranques en NVS; el simulador no tiene dónde, así que usa la hora. Así cada
- * ejecución empieza en un bloque de `seq` posterior al de la anterior y la deduplicación de
- * la API no descarta las lecturas nuevas.
- */
+/** Segundos desde 2024: base del arranque de las pulseras simuladas. */
 export function initialBoot(nowMs: number): number {
   return Math.min(Math.floor((nowMs - BOOT_EPOCH_MS) / 1000), SEQ_MAX_BOOT);
+}
+
+/**
+ * Arranque de una corrida nueva. El firmware guarda su contador de arranques en NVS; el
+ * simulador guarda el último que usó (ver `boot-store.ts`) y arranca en el siguiente. La
+ * hora es solo un piso: así, aunque se pierda el archivo, cada ejecución empieza en un bloque
+ * de `seq` posterior y la deduplicación de la API no descarta las lecturas nuevas, incluso
+ * si se reinicia dentro del mismo segundo o después de un `reboot` inyectado.
+ */
+export function nextBoot(nowMs: number, lastBoot?: number): number {
+  const floor = initialBoot(nowMs);
+  return lastBoot === undefined ? floor : Math.min(Math.max(floor, lastBoot + 1), SEQ_MAX_BOOT);
 }
 
 /** Una pulsera simulada: arma lecturas del contrato con `seq` y signos vitales coherentes. */
@@ -69,9 +76,10 @@ export class SimulatedWearable {
     return this.vitals.active(nowMs);
   }
 
-  /** Como un reinicio del firmware: arranque siguiente y contador en 0. */
-  reboot(): void {
+  /** Como un reinicio del firmware: arranque siguiente y contador en 0. Devuelve el arranque nuevo. */
+  reboot(): number {
     this.boot = Math.min(this.boot + 1, SEQ_MAX_BOOT);
     this.counter = 0;
+    return this.boot;
   }
 }
