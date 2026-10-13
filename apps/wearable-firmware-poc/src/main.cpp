@@ -87,24 +87,26 @@ uint32_t publishedCount = 0;   // lecturas encoladas en MQTT desde el arranque
 uint32_t droppedCount = 0;     // lecturas que no se pudieron encolar
 
 // ---------------- MQTT ----------------
-static void publishReading(size_t len) {
-  if (!aesKeyOk) return;  // ya se avisó por serie en setup()
+/** Cifra y encola la última lectura. Devuelve true si quedó en el outbox de ESP-MQTT. */
+static bool publishReading(size_t len) {
+  if (!aesKeyOk) return false;  // ya se avisó por serie en setup()
   // Outbox lleno (broker caído): no seguir acumulando en RAM.
   if (mqtt.outboxBytes() > MQTT_OUTBOX_MAX_BYTES) {
     droppedCount++;
-    return;
+    return false;
   }
   char sealed[512];
   size_t n = crypto::seal(aesKey, lastReadingJson, len, sealed, sizeof(sealed));
   if (n == 0 || !mqtt.publish(dataTopic, sealed, vitalia::MQTT_QOS)) {
     droppedCount++;
     Serial.println(F("ERROR: no se pudo cifrar o encolar la lectura"));
-    return;
+    return false;
   }
   publishedCount++;
 #if MQTT_DEBUG_PLAINTEXT
   mqtt.publish(plainTopic, lastReadingJson, 0);
 #endif
+  return true;
 }
 
 // ---------------- Lectura del contrato ----------------
@@ -118,7 +120,9 @@ static void buildReading() {
   r.seq = telemetry::composeSeq(bootCount, readingCounter++);
   r.tsMs = net::nowMs();
   r.accPeakG = peak;
-  r.fall = fall.take();  // solo se consume con hora válida: una caída no se pierde
+  // Se lee sin consumir: la caída se da por entregada recién cuando la lectura queda encolada
+  // (abajo). Si no hay hora, el JSON no entra o el outbox está lleno, sale en la próxima.
+  r.fall = fall.pending();
   if (skinTemp.isHealthy()) r.temp = skinTemp.coreEstC();
   // hr / spo2: vacíos hasta el Hito 5 (MAX30102).
 
@@ -128,7 +132,10 @@ static void buildReading() {
     Serial.println(F("ERROR: la lectura no entra en el buffer"));
     return;
   }
-  publishReading(n);
+  bool queued = publishReading(n);
+  // Sin clave AES no sale nada por MQTT (nunca va a encolar): la caída queda en /data y
+  // se consume igual, para que no viaje en todas las lecturas siguientes.
+  if (r.fall && (queued || !aesKeyOk)) fall.take();
 }
 
 // ---------------- HTTP (demo) ----------------

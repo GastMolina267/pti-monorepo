@@ -54,6 +54,36 @@ void test_full_fall_is_confirmed_once() {
   TEST_ASSERT_EQUAL(FallState::Idle, d.state());
 }
 
+void test_confirmation_delay_is_settle_plus_still_after_impact() {
+  // Deja explícito el compromiso de latencia (RNF-O1 corre desde la confirmación).
+  FallParams p;
+  p.settleMs = 300;
+  p.stillMs = 1200;
+  FallDetector d(p);
+  feed(d, 1.0f, 500);
+  feed(d, 0.2f, 300);
+  uint32_t impactAt = t;
+  feed(d, 3.6f, STEP_MS);
+  uint32_t confirmedAt = 0;
+  for (int i = 0; i < 200 && confirmedAt == 0; i++, t += STEP_MS) {
+    if (d.update(1.0f, t)) confirmedAt = t;
+  }
+  TEST_ASSERT_EQUAL_UINT32(p.settleMs + p.stillMs, confirmedAt - impactAt);
+}
+
+void test_pending_does_not_consume_the_fall() {
+  // main.cpp lee pending() al armar la lectura y llama a take() solo si quedó encolada:
+  // si la publicación falla, la caída tiene que viajar en la lectura siguiente.
+  FallDetector d;
+  TEST_ASSERT_FALSE(d.pending());
+  fallUntilImpact(d);
+  feed(d, 1.0f, 3000);
+  TEST_ASSERT_TRUE(d.pending());
+  TEST_ASSERT_TRUE(d.pending());  // publicación fallida: sigue pendiente
+  TEST_ASSERT_TRUE(d.take());     // encolada: se consume
+  TEST_ASSERT_FALSE(d.pending());
+}
+
 void test_fall_is_not_confirmed_before_the_still_window() {
   FallDetector d;
   fallUntilImpact(d);
@@ -180,6 +210,8 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_impact_threshold_comes_from_contracts);
   RUN_TEST(test_full_fall_is_confirmed_once);
+  RUN_TEST(test_confirmation_delay_is_settle_plus_still_after_impact);
+  RUN_TEST(test_pending_does_not_consume_the_fall);
   RUN_TEST(test_fall_is_not_confirmed_before_the_still_window);
   RUN_TEST(test_states_follow_the_three_phases);
   RUN_TEST(test_impact_without_free_fall_is_not_a_fall);

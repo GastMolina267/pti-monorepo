@@ -45,14 +45,14 @@ El firmware compensa la temperatura de la piel de la muñeca (31–34 °C) para 
 
 ## Requerimientos no funcionales
 
-| ID     | Requerimiento                                | Cómo se cumple                                               |
-| ------ | -------------------------------------------- | ------------------------------------------------------------ |
-| RNF-O1 | Alerta en ≤ 2 s (objetivo < 500 ms)          | Camino MQTT → WS sin bloqueos; medición en Fase 5            |
-| RNF-O2 | 24 h de operación sin WAN                    | Todo local (Fog), sin CDNs, fuentes y íconos auto-hospedados |
-| RNF-O3 | Datos médicos cifrados con AES-256           | AES-256-GCM en el wearable y descifrado en `api/telemetry`   |
-| RNF-O4 | UIs responsivas                              | Layouts fluidos, probados de 360 px a escritorio             |
-| RNF-D1 | Firmware preparado para deep sleep y batería | Firmware                                                     |
-| RNF-D2 | App de turnos en español e inglés            | Portal / i18n (opcional)                                     |
+| ID     | Requerimiento                                | Cómo se cumple                                                                                                                                                                                                   |
+| ------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RNF-O1 | Alerta en ≤ 2 s (objetivo < 500 ms)          | Camino MQTT → WS sin bloqueos; medición en Fase 5. Se mide desde la detección en el wearable: una caída se confirma ~2,5 s después del impacto (inmovilidad, `config.h` del firmware) y se publica en el momento |
+| RNF-O2 | 24 h de operación sin WAN                    | Todo local (Fog), sin CDNs, fuentes y íconos auto-hospedados                                                                                                                                                     |
+| RNF-O3 | Datos médicos cifrados con AES-256           | AES-256-GCM en el wearable y descifrado en `api/telemetry`                                                                                                                                                       |
+| RNF-O4 | UIs responsivas                              | Layouts fluidos, probados de 360 px a escritorio                                                                                                                                                                 |
+| RNF-D1 | Firmware preparado para deep sleep y batería | Firmware                                                                                                                                                                                                         |
+| RNF-D2 | App de turnos en español e inglés            | Portal / i18n (opcional)                                                                                                                                                                                         |
 
 ## Reglas de negocio (a refinar en la Fase 1)
 

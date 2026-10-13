@@ -37,6 +37,8 @@ constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una ca�
 constexpr float FALL_FREE_FALL_G = 0.4f;
 constexpr uint32_t FALL_FREE_FALL_MIN_MS = 60;
 constexpr uint32_t FALL_IMPACT_WINDOW_MS = 1000;
+// Impacto → caída confirmada = FALL_SETTLE_MS + FALL_STILL_MS (2,5 s). RNF-O1 (< 2 s) corre
+// desde la confirmación; si se achican, revisar los falsos positivos (golpes, sentarse).
 constexpr uint32_t FALL_SETTLE_MS = 500;
 constexpr uint32_t FALL_STILL_MS = 2000;
 constexpr float FALL_STILL_TOLERANCE_G = 0.3f;

@@ -9,6 +9,13 @@
  *      de restG (1 g) durante stillMs. Si hay movimiento antes, no es una caída: el
  *      paciente se levantó o fue un golpe de la mano contra algo.
  *
+ * Latencia: la caída se confirma settleMs + stillMs después del impacto (2,5 s con los
+ * valores por defecto). Es un compromiso deliberado: una ventana de inmovilidad más corta
+ * confunde caídas con golpes o con sentarse de golpe. El requisito RNF-O1 (< 2 s) se mide
+ * desde la detección, es decir, desde esta confirmación hasta la UI; por eso main.cpp
+ * publica la lectura apenas update() devuelve true. Achicar la ventana es una decisión
+ * de la calibración (Hito 8), no de este código.
+ *
  * Sin Arduino: el tiempo entra por parámetro (`millis()`), así se testea en native con
  * trazas sintéticas. Los valores por defecto de FallParams son el punto de partida; se
  * calibran con el hardware (AGENTS.md §7) y el firmware los pasa desde config.h.
@@ -106,7 +113,13 @@ class FallDetector {
     return false;
   }
 
-  /** `fall` de la próxima lectura: true si se confirmó una caída desde la anterior. Limpia el flag. */
+  /** Hay una caída confirmada que todavía no salió en ninguna lectura. No limpia el flag. */
+  bool pending() const { return pending_; }
+
+  /**
+   * Consume la caída pendiente. Llamarlo recién cuando la lectura con `fall: true` quedó
+   * encolada: si la publicación falla, la caída tiene que salir en la próxima lectura.
+   */
   bool take() {
     bool fall = pending_;
     pending_ = false;
