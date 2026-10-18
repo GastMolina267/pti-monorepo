@@ -32,7 +32,7 @@ async function bootstrap() {
     SwaggerModule.setup(`${API_PREFIX}/docs`, app, SwaggerModule.createDocument(app, doc));
   }
 
-  const port = config.get('PORT', { infer: true });
+  const port = config.get('API_PORT', { infer: true }) ?? config.get('PORT', { infer: true }) ?? 3000;
   await app.listen(port, '0.0.0.0');
   Logger.log(`🩺 Vitalia API en http://localhost:${port}/${API_PREFIX}`, 'Bootstrap');
   Logger.log(`📚 Swagger en http://localhost:${port}/${API_PREFIX}/docs`, 'Bootstrap');

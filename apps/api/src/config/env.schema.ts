@@ -14,6 +14,13 @@ const bool = (def: 'true' | 'false') =>
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_VERSION: z.string().default('0.2.0'),
+  /**
+   * Puerto HTTP de la API. Se llama `API_PORT` y no `PORT` porque Nx carga el `.env` raíz en
+   * todas las tareas y el dev-server de Angular usa `PORT` por encima de su configuración:
+   * con `PORT=3000`, Backoffice y TV intentarían levantar en el puerto de la API.
+   */
+  API_PORT: z.coerce.number().int().positive().optional(),
+  /** @deprecated Compatibilidad con `.env` viejos: usá `API_PORT`. */
   PORT: z.coerce.number().int().positive().default(3000),
   /** Orígenes permitidos para CORS, separados por coma. */
   CORS_ORIGINS: z.string().default('http://localhost:4200,http://localhost:4300,http://localhost:5173'),

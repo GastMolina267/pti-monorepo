@@ -561,6 +561,14 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
       });
       expect(JSON.stringify(await queue)).not.toContain('triage');
 
+      const recent = await request(app.getHttpServer()).get('/api/tickets/recent-calls').expect(200);
+      expect(recent.body[0]).toMatchObject({
+        ticketId,
+        ticketCode: wearable.ticket?.code,
+        consultingRoom: room.name,
+      });
+      expect(JSON.stringify(recent.body)).not.toMatch(/triage|patient/i);
+
       const { topic, cmd } = await cmdP;
       expect(topic).toBe(MQTT_TOPICS.wearableCommand('sala1', wearable.code));
       expect(cmd).toEqual({

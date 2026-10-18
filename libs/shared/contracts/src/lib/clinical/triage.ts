@@ -4,6 +4,12 @@ import { CLINICAL_THRESHOLDS as T } from './thresholds';
 export const TRIAGE_LEVELS = ['STABLE', 'ATTENTION', 'CRITICAL'] as const;
 export type TriageLevel = (typeof TRIAGE_LEVELS)[number];
 
+export const TRIAGE_LEVEL_LABELS: Record<TriageLevel, string> = {
+  STABLE: 'Estable',
+  ATTENTION: 'Atención',
+  CRITICAL: 'Crítico',
+};
+
 /** Tipos de hallazgo clínico. Cada hallazgo CRÍTICO genera una alerta de ese tipo. */
 export const ALERT_KINDS = ['FALL', 'HYPOXIA', 'TACHYCARDIA', 'BRADYCARDIA', 'FEVER', 'HYPOTHERMIA'] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];

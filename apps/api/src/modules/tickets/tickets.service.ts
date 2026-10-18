@@ -12,18 +12,20 @@ import {
   compareQueueOrder,
   formatTicketCode,
   OPEN_TICKET_STATUSES,
+  RECENT_CALLS_LIMIT,
   TICKET_STATUS_LABELS,
   TICKET_STATUSES,
   TRIAGE_LEVELS,
   type CheckInRequest,
   type QueueChange,
   type PublicTicket,
+  type RecentCallsResponse,
   type Ticket,
   type TicketQuery,
   type TicketStatus,
   type TriageLevel,
 } from '@vitalia/contracts';
-import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import type { AuthUser } from '../../common/auth/auth-user';
 import { toDayKey } from '../../common/time/day-key';
 import type { Env } from '../../config/env.schema';
@@ -146,6 +148,23 @@ export class TicketsService {
       relations: RELATIONS,
     });
     return rows.map(toTicket).sort(compareQueueOrder);
+  }
+
+  /** Últimos llamados del día para la TV (sin datos clínicos), el más reciente primero. */
+  async recentCalls(): Promise<RecentCallsResponse> {
+    const rows = await this.tickets.find({
+      where: { dayKey: this.today(), calledAt: Not(IsNull()), consultingRoomId: Not(IsNull()) },
+      relations: { consultingRoom: true, calledBy: true },
+      order: { calledAt: 'DESC' },
+      take: RECENT_CALLS_LIMIT,
+    });
+    return rows.map((t) => ({
+      ticketId: t.id,
+      ticketCode: t.code,
+      consultingRoom: t.consultingRoom?.name ?? '',
+      ...(t.calledBy ? { professionalName: t.calledBy.fullName } : {}),
+      calledAt: (t.calledAt as Date).toISOString(),
+    }));
   }
 
   async findOne(id: string): Promise<Ticket> {
