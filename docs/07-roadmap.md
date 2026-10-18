@@ -5,15 +5,15 @@
 
 ## Resumen
 
-| Fase | Objetivo                                  | Fechas    | Resp.  | Estado                  |
-| ---- | ----------------------------------------- | --------- | ------ | ----------------------- |
-| 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa             |
-| 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa             |
-| 2    | Telemetría MQTT, alertas y tiempo real    | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F)    |
-| 3    | Backoffice y llamador TV funcionales      | 12–26 oct | T      | Pendiente (en paralelo) |
-| 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente               |
-| 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente               |
-| 6    | Landing, memoria y defensa (**Hito 4**)   | nov       | Eq     | Pendiente               |
+| Fase | Objetivo                                  | Fechas    | Resp.  | Estado               |
+| ---- | ----------------------------------------- | --------- | ------ | -------------------- |
+| 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa          |
+| 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa          |
+| 2    | Telemetría MQTT, alertas y tiempo real    | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F) |
+| 3    | Backoffice y llamador TV funcionales      | 12–18 oct | G (T)  | ✅ Completa          |
+| 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente            |
+| 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente            |
+| 6    | Landing, memoria y defensa (**Hito 4**)   | nov       | Eq     | Pendiente            |
 
 ```mermaid
 gantt
@@ -23,7 +23,7 @@ gantt
   F1 Datos y turnos        :done, f1, 2026-10-03, 2d
   F2 Telemetría y RT       :done, f2, 2026-10-05, 14d
   section Frontend
-  F3 Backoffice y TV       :f3, 2026-10-12, 15d
+  F3 Backoffice y TV       :done, f3, 2026-10-12, 7d
   section Equipo
   F4 Integración (Hito 3)  :crit, f4, 2026-10-26, 6d
   F5 Validación            :f5, 2026-11-01, 15d
@@ -95,21 +95,24 @@ gantt
 
 **Terminado ✅ (lado API, 18/10):** con `pnpm sim:wearables --inject=fall:3@4` y la API corriendo, la caída llega a la sala `staff` como `alert:emergency` **~8 ms** después del `ts` del wearable y queda persistida; el test de integración mide ~15 ms entre publicar y recibir (objetivo < 500 ms). El simulador confirma el descarte de `tamper` y `spoof` y la deduplicación de `duplicate`. Queda del lado del firmware mostrar `SHOW_TICKET` en el OLED (F).
 
-## Fase 3 · Backoffice y llamador TV (T, en paralelo desde el 12/10)
+## Fase 3 · Backoffice y llamador TV ✅
 
-> Se puede arrancar contra los contratos y datos mock antes de que la API de la Fase 1 y 2 esté lista.
+> La terminó el backend (G) el 18/10, adelantando la parte de Tomás para llegar al Hito 3 con todo integrado.
 
-- [ ] Login del personal + guard + interceptor JWT
-- [ ] Layout con navegación (Triaje · Alertas · Turnos · Wearables) y estado de conexión
-- [ ] Servicio `realtime` (socket.io-client) con reconexión
-- [ ] **Fila de triaje** priorizada en vivo (nivel → hora), con signos vitales y motivos
-- [ ] **Panel de alertas**: modal rojo intermitente + sonido, reconocer alerta (RF-O4)
-- [ ] **Llamar turno** desde la fila → TV
-- [ ] Vista de wearables (asignación, batería/conexión, última lectura)
-- [ ] TV: suscripción a `ticket:called`, historial, aviso sonoro o voz, reconexión
-- [ ] Responsivo (RNF-O4), modo claro/oscuro, tests de componentes
+- [x] Login del personal + guards (`authGuard`, `guestGuard`) + interceptor JWT (401 → login con "sesión vencida") (3a)
+- [x] Layout con navegación (Triaje · Turnos · Alertas · Pulseras), estado de la conexión en vivo, sonido, usuario y estado del gateway (3a)
+- [x] Servicio `realtime` (socket.io-client): JWT en el handshake, `realtime:ready`/`realtime:error`, reconexión y re-sincronización al reconectar (3a)
+- [x] **Fila de triaje** priorizada en vivo (nivel → hora), con signos vitales de la pulsera, motivos, espera y filtro por servicio (3b)
+- [x] **Panel de alertas**: aviso rojo intermitente + alarma Web Audio, reconocer, minimizar, historial con quién reconoció (RF-O4) (3b)
+- [x] **Llamar turno** desde la fila (diálogo de consultorio) → TV, portal y OLED; acciones de estado y triaje manual según rol y `canTransition` (3c)
+- [x] Página **Turnos**: todos los del día, filtro por estado y búsqueda (3c)
+- [x] API: `GET /api/tickets/recent-calls` (público) para que la TV se ponga al día al arrancar o reconectar (3c)
+- [x] TV: `ticket:called` en vivo, historial de 5, destello, campanita + voz (`speechSynthesis`), reconexión y último estado guardado (3c)
+- [x] Vista de pulseras: conexión en vivo, sala, turno, última lectura, alta, asignar y liberar (3d). La batería no está en el contrato todavía (ver firmware)
+- [x] Responsivo de 360 px a escritorio, modo claro/oscuro, 26 tests en el Backoffice y 8 en la TV (3d)
+- [x] `API_PORT` en lugar de `PORT`: el dev-server de Angular tomaba `PORT=3000` del `.env` y Backoffice/TV no levantaban en 4200/4300
 
-**Terminado cuando:** un llamado desde el Backoffice aparece en la TV, y una alerta del simulador dispara el aviso visual y sonoro.
+**Terminado ✅ (18/10):** probado en Chromium con la API, el broker y el simulador corriendo. Una caída simulada abre el aviso rojo en el Backoffice (~3 s desde lanzar el simulador, que tarda en arrancar; la API la emite en milisegundos) y un llamado aparece en la TV **113 ms** después del click en "Llamar".
 
 ## Fase 4 · Integración de punta a punta — Hito 3 (Eq)
 

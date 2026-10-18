@@ -25,8 +25,16 @@ pnpm db:seed              # datos simulados (usuarios, servicios, turnos del dí
 pnpm dev                  # API :3000 · Backoffice :4200 · TV :4300
 ```
 
-- Backoffice: <http://localhost:4200> (el indicador "API en línea" confirma la conexión)
-- TV llamador: <http://localhost:4300>
+- Backoffice: <http://localhost:4200> → login con un usuario del seed. El punto "En vivo" de la barra confirma el tiempo real.
+- TV llamador: <http://localhost:4300> (sin login).
+- Para ver signos vitales y alertas en vivo: `pnpm sim:wearables` en otra terminal (con `TELEMETRY_AES_KEY` en el `.env`), y `fall 3` para simular una caída.
+
+> ⚠️ **`.env` de antes de la Fase 3:** si tu `.env` tiene `PORT=3000`, cambialo a `API_PORT=3000`. El dev-server de Angular usa `PORT` por encima de su configuración y Nx carga el `.env` en todas las tareas, así que Backoffice y TV intentan levantar en el 3000.
+
+### Sonido de las alertas y del llamador
+
+Los navegadores bloquean el audio hasta que el usuario toca la página. El Backoffice lo habilita con el click del login (o el botón "Activar sonido") y la TV muestra "Tocá la pantalla para activar el sonido". En el kiosco de la TV, abrí Chrome con `--kiosk --autoplay-policy=no-user-gesture-required http://<gateway>:4300` para que suene sin tocar nada.
+
 - Swagger: <http://localhost:3000/api/docs> → `POST /api/auth/login` con `medico@vitalia.local` / `Vitalia2026!`, después **Authorize** con el `accessToken`
 
 Usuarios del seed (clave `Vitalia2026!`): `admin@`, `enfermeria@`, `medico@`, `pediatria@`, `recepcion@` + `vitalia.local`.
