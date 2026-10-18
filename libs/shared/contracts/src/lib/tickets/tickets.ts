@@ -1,5 +1,6 @@
 import type { TriageLevel } from '../clinical/triage';
 import type { ConsultingRoom, ServiceArea } from '../catalog/catalog';
+import type { TicketCalledEvent } from '../realtime/events';
 
 /** Ciclo de vida de un turno. */
 export const TICKET_STATUSES = ['WAITING', 'CALLED', 'IN_PROGRESS', 'DONE', 'NO_SHOW', 'CANCELLED'] as const;
@@ -128,7 +129,17 @@ export interface UpdateTicketStatusRequest {
   status: TicketStatus;
 }
 
-/** `PATCH /api/tickets/:id/triage` (triaje manual hasta tener wearable). */
+/** Cantidad de llamados que devuelve `GET /api/tickets/recent-calls`. */
+export const RECENT_CALLS_LIMIT = 6;
+
+/**
+ * `GET /api/tickets/recent-calls` (público): últimos llamados del día, el más reciente
+ * primero. Lo usa la TV al arrancar o reconectarse. Mismo formato que `ticket:called`
+ * (sin datos clínicos).
+ */
+export type RecentCallsResponse = TicketCalledEvent[];
+
+/** `PATCH /api/tickets/:id/triage` (triaje manual; la telemetría solo lo sube). */
 export interface UpdateTriageRequest {
   triageLevel: TriageLevel;
 }

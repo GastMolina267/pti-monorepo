@@ -1,5 +1,5 @@
 <header class="top">
-  <vt-logo [size]="52" subtitle="Sala de espera · Guardia" />
+  <vt-logo [size]="52" subtitle="Sala de espera" />
   <div class="clock">
     <strong>{{ time(now()) }}</strong>
     <span>{{ date(now()) }}</span>
@@ -7,29 +7,56 @@
 </header>
 
 <main class="stage">
-  <section class="call">
-    <span class="vt-eyebrow">Llamando ahora</span>
-    <div class="code">{{ current().ticketCode }}</div>
-    <div class="room">{{ current().consultingRoom }}</div>
-    @if (current().professionalName) {
-      <div class="pro">{{ current().professionalName }}</div>
+  <section class="call" [class.flash]="highlight()" aria-live="assertive" aria-atomic="true">
+    @if (board().current; as c) {
+      <span class="vt-eyebrow">Llamando ahora</span>
+      <div class="code">{{ c.ticketCode }}</div>
+      <div class="room">{{ c.consultingRoom }}</div>
+      @if (c.professionalName) {
+        <div class="pro">{{ c.professionalName }}</div>
+      }
+    } @else {
+      <span class="vt-eyebrow">Bienvenido</span>
+      <div class="idle">Aguardá tu llamado</div>
+      <div class="pro">Tu turno va a aparecer en esta pantalla</div>
     }
   </section>
 
   <aside class="history vt-glass">
     <h2>Últimos llamados</h2>
     <ul>
-      @for (h of history(); track h.code) {
+      @for (h of board().history; track h.ticketId) {
         <li>
-          <strong>{{ h.code }}</strong
-          ><span>{{ h.room }}</span>
+          <strong>{{ h.ticketCode }}</strong>
+          <span>
+            {{ h.consultingRoom }}
+            <small>{{ calledAt(h.calledAt) }}</small>
+          </span>
         </li>
+      } @empty {
+        <li class="empty">Todavía no hubo otros llamados</li>
       }
     </ul>
   </aside>
 </main>
 
 <footer class="bottom">
-  <svg lucideWifi [size]="20"></svg>
-  Conectate al Wi-Fi <strong>Hospital_Pacientes_Guest</strong> y seguí tu turno desde el celular
+  <span class="tip">
+    <svg lucideWifi [size]="20"></svg>
+    Conectate al Wi-Fi <strong>Hospital_Pacientes_Guest</strong> y seguí tu turno desde el celular
+  </span>
+  <span class="conn" [class.live]="realtime.state() === 'live'" role="status">
+    @if (realtime.state() === 'live') {
+      <span class="dot"></span> En vivo
+    } @else {
+      <svg lucideWifiOff [size]="16"></svg> Reconectando… se muestra el último estado
+    }
+  </span>
 </footer>
+
+@if (announcer.needsUnlock()) {
+  <button type="button" class="unlock" (click)="announcer.unlock()">
+    <svg lucideVolume2 [size]="22"></svg>
+    Tocá la pantalla para activar el sonido de los llamados
+  </button>
+}

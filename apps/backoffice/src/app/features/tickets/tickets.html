@@ -1,0 +1,73 @@
+<header class="head">
+  <div>
+    <span class="vt-eyebrow">Día operativo</span>
+    <h1>Turnos</h1>
+  </div>
+  <label class="search">
+    <svg lucideSearch [size]="16"></svg>
+    <input
+      type="search"
+      placeholder="Buscar código, paciente o consultorio"
+      (input)="onSearch($event)"
+      aria-label="Buscar turnos"
+    />
+  </label>
+</header>
+
+<div class="filters" role="group" aria-label="Filtrar por estado">
+  <button type="button" [class.on]="!status()" (click)="status.set(null)">
+    Todos <span>{{ all()?.length ?? 0 }}</span>
+  </button>
+  @for (s of statuses; track s) {
+    <button type="button" [class.on]="status() === s" (click)="status.set(s)">
+      {{ statusLabels[s] }} <span>{{ counts().get(s) ?? 0 }}</span>
+    </button>
+  }
+</div>
+
+@if (all() === null && !error()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (error(); as msg) {
+  <p class="error" role="alert">{{ msg }}</p>
+}
+
+<div class="table" role="table" aria-label="Turnos del día">
+  <div class="tr th" role="row">
+    <span role="columnheader">Turno</span>
+    <span role="columnheader">Paciente</span>
+    <span role="columnheader">Estado</span>
+    <span role="columnheader">Triaje</span>
+    <span role="columnheader">Llegada</span>
+    <span role="columnheader">Llamado</span>
+    <span role="columnheader"><span class="sr-only">Acciones</span></span>
+  </div>
+  @for (t of view(); track t.id) {
+    <div class="tr" role="row">
+      <span class="code" role="cell">{{ t.code }}</span>
+      <span class="who" role="cell">
+        <strong>{{ t.patient.displayName }}</strong>
+        <small>{{ t.service.name }}</small>
+      </span>
+      <span role="cell"
+        ><span class="status" [class]="'status ' + t.status.toLowerCase()">{{
+          statusLabels[t.status]
+        }}</span></span
+      >
+      <span role="cell"><vt-level-pill [level]="t.triageLevel" /></span>
+      <span class="time" role="cell">{{ hhmm(t.checkedInAt) }}</span>
+      <span class="time" role="cell">
+        @if (t.calledAt) {
+          {{ hhmm(t.calledAt) }} · {{ t.consultingRoom?.name }}
+        } @else {
+          —
+        }
+      </span>
+      <span class="act" role="cell"><vt-ticket-actions [ticket]="t" /></span>
+    </div>
+  } @empty {
+    @if (all() !== null) {
+      <p class="empty">No hay turnos con ese filtro.</p>
+    }
+  }
+</div>

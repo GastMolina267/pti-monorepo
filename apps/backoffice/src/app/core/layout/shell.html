@@ -1,0 +1,93 @@
+<header class="topbar">
+  <a class="brand" routerLink="/triaje" aria-label="Vitalia, ir a la fila de triaje">
+    <vt-logo [size]="34" />
+    <span class="badge">Backoffice</span>
+  </a>
+
+  <nav class="nav" aria-label="Secciones">
+    <a routerLink="/triaje" routerLinkActive="active">
+      <svg lucideActivity [size]="17"></svg>
+      Triaje
+    </a>
+    <a routerLink="/turnos" routerLinkActive="active">
+      <svg lucideListOrdered [size]="17"></svg>
+      Turnos
+    </a>
+    <a routerLink="/alertas" routerLinkActive="active">
+      <svg lucideBellRing [size]="17"></svg>
+      Alertas
+      @if (alerts.count(); as n) {
+        <span class="count" [attr.aria-label]="n + ' alertas activas'">{{ n }}</span>
+      }
+    </a>
+    <a routerLink="/pulseras" routerLinkActive="active">
+      <svg lucideWatch [size]="17"></svg>
+      Pulseras
+    </a>
+  </nav>
+
+  <div class="tools">
+    <span
+      class="conn"
+      [class.live]="realtime.state() === 'live'"
+      [class.connecting]="realtime.state() === 'connecting'"
+      role="status"
+      [matTooltip]="'Tiempo real: ' + connectionLabel()"
+    >
+      <span class="dot"></span>
+      <span class="label">{{ connectionLabel() }}</span>
+    </span>
+
+    @if (alarm.needsUnlock() && !alarm.muted()) {
+      <button mat-stroked-button class="unlock" type="button" (click)="alarm.unlock()">Activar sonido</button>
+    }
+    <button
+      type="button"
+      class="icon-btn"
+      (click)="alarm.toggleMute()"
+      [attr.aria-label]="alarm.muted() ? 'Activar el sonido de las alertas' : 'Silenciar las alertas'"
+      [matTooltip]="alarm.muted() ? 'Alertas silenciadas' : 'Sonido de alertas activo'"
+      [class.off]="alarm.muted()"
+    >
+      @if (alarm.muted()) {
+        <svg lucideVolumeX [size]="18"></svg>
+      } @else {
+        <svg lucideVolume2 [size]="18"></svg>
+      }
+    </button>
+    <vt-theme-toggle />
+
+    <button type="button" class="user" [matMenuTriggerFor]="userMenu" (menuOpened)="health.reload()">
+      <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+      <span class="who">
+        <strong>{{ auth.user()?.fullName }}</strong>
+        <small>{{ auth.roleLabel() }}</small>
+      </span>
+    </button>
+    <mat-menu #userMenu="matMenu" xPosition="before" class="vt-user-menu">
+      <div class="menu-head">
+        <strong>{{ auth.user()?.fullName }}</strong>
+        <small>{{ auth.user()?.email }} · {{ auth.roleLabel() }}</small>
+        <div class="checks">
+          @if (health.value(); as h) {
+            @for (c of h.checks; track c.name) {
+              <span class="check" [class]="'check ' + c.status" [title]="c.detail ?? ''">{{ c.name }}</span>
+            }
+          } @else if (health.error()) {
+            <span class="check down">gateway sin respuesta</span>
+          }
+        </div>
+      </div>
+      <button mat-menu-item (click)="auth.logout()">
+        <svg lucideLogOut [size]="16"></svg>
+        <span>Cerrar sesión</span>
+      </button>
+    </mat-menu>
+  </div>
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>
+
+<vt-alert-overlay />

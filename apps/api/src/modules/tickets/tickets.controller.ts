@@ -15,6 +15,7 @@ import { Roles } from '../../common/auth/roles.decorator';
 import {
   CallTicketDto,
   PublicTicketDto,
+  TicketCalledDto,
   TicketDto,
   TicketQueryDto,
   UpdateTicketStatusDto,
@@ -35,6 +36,14 @@ export class TicketsController {
   @ApiOkResponse({ type: [TicketDto] })
   list(@Query() query: TicketQueryDto): Promise<TicketDto[]> {
     return this.tickets.list(query);
+  }
+
+  @Public()
+  @Get('recent-calls')
+  @ApiOperation({ summary: 'Últimos llamados del día para la TV (público, sin datos clínicos)' })
+  @ApiOkResponse({ type: [TicketCalledDto] })
+  recentCalls(): Promise<TicketCalledDto[]> {
+    return this.tickets.recentCalls();
   }
 
   @Public()

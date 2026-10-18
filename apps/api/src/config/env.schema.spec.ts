@@ -14,6 +14,10 @@ describe('validateEnv', () => {
     expect(env.JWT_EXPIRES_IN_SECONDS).toBe(28800);
   });
 
+  it('acepta API_PORT (el nombre recomendado)', () => {
+    expect(validateEnv({ ...required, API_PORT: '3100' }).API_PORT).toBe(3100);
+  });
+
   it('convierte PORT a número', () => {
     expect(validateEnv({ ...required, PORT: '8080' }).PORT).toBe(8080);
   });

@@ -19,6 +19,7 @@ Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint sa
 | GET    | `/api/tickets?status=&serviceCode=` | staff                        | Fila del día (por defecto, turnos abiertos), ordenada por triaje y llegada (`Ticket[]`) | ✅ F1  |
 | GET    | `/api/tickets/:id`                  | staff                        | Detalle de un turno (`Ticket`)                                                          | ✅ F1  |
 | GET    | `/api/tickets/:id/public`           | público                      | Estado para el paciente (`PublicTicket`: posición y espera estimada)                    | ✅ F1  |
+| GET    | `/api/tickets/recent-calls`         | público                      | Últimos 6 llamados del día para la TV (`RecentCallsResponse`, sin datos clínicos)       | ✅ F3  |
 | POST   | `/api/tickets/:id/call`             | `DOCTOR` · `NURSE` · `ADMIN` | Llamar a un consultorio (`CallTicketRequest`)                                           | ✅ F1  |
 | PATCH  | `/api/tickets/:id/status`           | staff                        | Cambiar el estado (`UpdateTicketStatusRequest`) según las transiciones permitidas       | ✅ F1  |
 | PATCH  | `/api/tickets/:id/triage`           | `NURSE` · `DOCTOR` · `ADMIN` | Triaje manual (`UpdateTriageRequest`)                                                   | ✅ F1  |

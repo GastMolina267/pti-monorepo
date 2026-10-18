@@ -43,7 +43,7 @@ Versiones fijadas al crear el monorepo (octubre 2026). Las de Angular y NestJS s
 | @lucide/angular               | 1.x                                | Íconos (sin CDN)                                          |
 | @fontsource/plus-jakarta-sans | 5                                  | Tipografía auto-hospedada                                 |
 | Vitest + Analog               | 4.1                                | Tests                                                     |
-| **Fase 3:** socket.io-client  |                                    | Tiempo real                                               |
+| socket.io-client              | 4                                  | Tiempo real (Backoffice: sala `staff` · TV: sala `tv`)    |
 
 ## Infraestructura (`docker-compose.yml`, `infra/`)
 

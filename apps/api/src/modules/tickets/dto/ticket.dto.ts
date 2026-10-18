@@ -8,6 +8,7 @@ import {
   type CheckInSource,
   type PublicTicket,
   type Ticket,
+  type TicketCalledEvent,
   type TicketQuery,
   type TicketStatus,
   type TriageLevel,
@@ -49,6 +50,14 @@ export class PublicTicketDto implements PublicTicket {
   @ApiProperty({ nullable: true, type: Number, example: 36 }) estimatedWaitMinutes!: number | null;
   @ApiProperty() checkedInAt!: string;
   @ApiPropertyOptional({ nullable: true, type: String }) calledAt?: string | null;
+}
+
+export class TicketCalledDto implements TicketCalledEvent {
+  @ApiProperty() ticketId!: string;
+  @ApiProperty({ example: 'A-024' }) ticketCode!: string;
+  @ApiProperty({ example: 'Consultorio 4' }) consultingRoom!: string;
+  @ApiPropertyOptional({ example: 'Dra. Laura Fernández' }) professionalName?: string;
+  @ApiProperty() calledAt!: string;
 }
 
 export class CheckInDto implements CheckInRequest {

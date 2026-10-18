@@ -31,11 +31,16 @@ Handshake (`RealtimeHandshakeAuth`): `{ token }` → `staff` · `{ role: 'tv' }`
 - Path por defecto `/socket.io` (los proxies dev de Angular ya lo redirigen a :3000).
 - Evento nuevo: agregalo a `REALTIME_EVENTS` (contracts), un método `emit*` en el gateway con su sala, test en `realtime.gateway.spec.ts` y la tabla de `docs/04-contratos.md`.
 
-## Cliente Angular (Fase 3)
+## Cliente Angular (✅ Fase 3)
 
-```bash
-pnpm add socket.io-client
-```
+Implementado en `apps/backoffice/src/app/core/realtime/realtime.service.ts` (sala `staff`, conecta solo con sesión) y `apps/tv-display/src/app/core/realtime/realtime.service.ts` (sala `tv`). Patrón:
+
+- El socket se crea con un `SOCKET_FACTORY` inyectable (en tests, `FakeSocket`).
+- `state` (signal) para el indicador de conexión; `ready$` cuando llega `realtime:ready` → los stores vuelven a pedir su estado (se perdieron eventos mientras estaba desconectado).
+- `realtime:error` en el Backoffice → `AuthService.logout('expired')`.
+- Los stores (`core/live`) se suscriben con `takeUntilDestroyed` y aplican los eventos a signals.
+
+Versión mínima de referencia:
 
 ```ts
 // apps/<app>/src/app/core/realtime/realtime.service.ts

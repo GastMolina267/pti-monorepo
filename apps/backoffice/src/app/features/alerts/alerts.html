@@ -1,0 +1,93 @@
+<header class="head">
+  <div>
+    <span class="vt-eyebrow">Monitoreo biométrico</span>
+    <h1>Alertas</h1>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Vista">
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="tab() === 'active'"
+      [class.on]="tab() === 'active'"
+      (click)="tab.set('active')"
+    >
+      Activas
+      @if (store.count()) {
+        <span class="n">{{ store.count() }}</span>
+      }
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="tab() === 'history'"
+      [class.on]="tab() === 'history'"
+      (click)="tab.set('history')"
+    >
+      Historial
+    </button>
+  </div>
+</header>
+
+@if (tab() === 'active') {
+  <ul class="list">
+    @for (a of store.active(); track a.id) {
+      <li class="item active">
+        <span class="icon"><vt-alert-kind-icon [kind]="a.kind" [size]="22" /></span>
+        <div class="body">
+          <strong>{{ kindLabels[a.kind] }}{{ a.ticketCode ? ' · ' + a.ticketCode : '' }}</strong>
+          <span>{{ a.message }}</span>
+          <small>
+            {{ a.patientDisplayName ?? 'Sin turno asociado' }} · pulsera {{ a.wearableId }} ·
+            {{ hhmm(a.detectedAt) }} ({{ ago(a.detectedAt) }})
+          </small>
+        </div>
+        <button
+          mat-flat-button
+          type="button"
+          class="ack"
+          [disabled]="store.isAcking(a.id)"
+          (click)="acknowledge(a)"
+        >
+          Reconocer
+        </button>
+      </li>
+    } @empty {
+      <li class="empty">
+        <svg lucideCircleCheck [size]="28"></svg>
+        <strong>Sin alertas activas</strong>
+        <span
+          >Cuando una pulsera detecte una caída o un signo vital crítico, va a aparecer acá al instante.</span
+        >
+      </li>
+    }
+  </ul>
+} @else {
+  @if (history() === null) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <ul class="list">
+    @for (a of history() ?? []; track a.id) {
+      <li class="item" [class.active]="a.status === 'ACTIVE'">
+        <span class="icon"><vt-alert-kind-icon [kind]="a.kind" [size]="22" /></span>
+        <div class="body">
+          <strong>{{ kindLabels[a.kind] }}{{ a.ticketCode ? ' · ' + a.ticketCode : '' }}</strong>
+          <span>{{ a.message }}</span>
+          <small>
+            {{ a.patientDisplayName ?? 'Sin turno asociado' }} · pulsera {{ a.wearableId }} ·
+            {{ hhmm(a.detectedAt) }}
+          </small>
+        </div>
+        <div class="state">
+          <span class="chip" [class]="'chip ' + a.status.toLowerCase()">{{ statusLabels[a.status] }}</span>
+          @if (a.acknowledgedBy) {
+            <small>{{ a.acknowledgedBy.fullName }} · {{ hhmm(a.acknowledgedAt) }}</small>
+          }
+        </div>
+      </li>
+    } @empty {
+      @if (history() !== null) {
+        <li class="empty"><span>Todavía no hubo alertas.</span></li>
+      }
+    }
+  </ul>
+}

@@ -1,0 +1,75 @@
+@if (main(); as a) {
+  <div class="backdrop">
+    <section
+      tabindex="-1"
+      (keydown.escape)="minimize()"
+      class="card"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="alert-title"
+      aria-describedby="alert-desc"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+    >
+      <header>
+        <span class="siren" aria-hidden="true"><svg lucideSiren [size]="30"></svg></span>
+        <div>
+          <span class="eyebrow">Alerta crítica · {{ hhmm(a.detectedAt) }} ({{ ago(a) }})</span>
+          <h2 id="alert-title">
+            <vt-alert-kind-icon [kind]="a.kind" [size]="26" />
+            {{ kindLabels[a.kind] }}
+            @if (a.ticketCode) {
+              · {{ a.ticketCode }}
+            }
+          </h2>
+        </div>
+      </header>
+
+      <p id="alert-desc" class="desc">
+        <strong>{{ a.message }}</strong>
+        <span>
+          {{ a.patientDisplayName ?? 'Paciente sin turno asociado' }} · pulsera {{ a.wearableId }}
+        </span>
+      </p>
+
+      @if (alarm.needsUnlock() && !alarm.muted()) {
+        <button type="button" class="sound" (click)="alarm.unlock()">
+          <svg lucideVolume2 [size]="16"></svg>
+          El navegador bloqueó el sonido: tocá acá para activarlo
+        </button>
+      }
+
+      <div class="actions">
+        <button
+          mat-flat-button
+          type="button"
+          class="ack"
+          cdkFocusInitial
+          [disabled]="store.isAcking(a.id)"
+          (click)="acknowledge(a)"
+        >
+          {{ store.isAcking(a.id) ? 'Reconociendo…' : 'Reconocer alerta' }}
+        </button>
+        <button mat-stroked-button type="button" class="ghost" (click)="viewAll()">Ver alertas</button>
+        <button mat-button type="button" class="ghost" (click)="minimize()">Minimizar</button>
+      </div>
+
+      @if (others().length) {
+        <ul class="others" aria-label="Otras alertas pendientes">
+          @for (o of others(); track o.id) {
+            <li>
+              <vt-alert-kind-icon [kind]="o.kind" [size]="18" />
+              <span>
+                <strong>{{ kindLabels[o.kind] }}{{ o.ticketCode ? ' · ' + o.ticketCode : '' }}</strong>
+                <small>{{ o.message }} · {{ ago(o) }}</small>
+              </span>
+              <button type="button" [disabled]="store.isAcking(o.id)" (click)="acknowledge(o)">
+                Reconocer
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+}

@@ -1,71 +1,78 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  LucideActivity,
+  LucideBellRing,
+  LucideListOrdered,
+  LucideLogOut,
+  LucideVolume2,
+  LucideVolumeX,
+  LucideWatch,
+} from '@lucide/angular';
 import { Logo, ThemeToggle } from '@vitalia/ui';
+import { AlertOverlay } from '../../features/alerts/alert-overlay';
+import { HealthApi } from '../api/health.api';
+import { AuthService } from '../auth/auth.service';
+import { AlertsStore } from '../live/alerts.store';
+import { QueueStore } from '../live/queue.store';
+import { WearablesStore } from '../live/wearables.store';
+import { RealtimeService } from '../realtime/realtime.service';
+import { AlarmService } from '../sound/alarm.service';
 
+const CONNECTION_LABELS = { live: 'En vivo', connecting: 'Reconectando…', offline: 'Sin conexión' } as const;
+
+/**
+ * Layout del personal: navegación, estado de la conexión en vivo, sonido, usuario y el aviso
+ * de alertas. Mientras existe (hay sesión), mantiene vivos los stores de fila, pulseras y alertas.
+ */
 @Component({
   selector: 'vt-shell',
-  imports: [RouterOutlet, Logo, ThemeToggle],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatButtonModule,
+    MatMenuModule,
+    MatTooltipModule,
+    Logo,
+    ThemeToggle,
+    AlertOverlay,
+    LucideActivity,
+    LucideBellRing,
+    LucideListOrdered,
+    LucideLogOut,
+    LucideVolume2,
+    LucideVolumeX,
+    LucideWatch,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <header class="topbar">
-      <div class="brand">
-        <vt-logo [size]="38" />
-        <span class="badge">Backoffice</span>
-      </div>
-      <vt-theme-toggle />
-    </header>
-    <main class="content">
-      <router-outlet />
-    </main>
-    <footer class="footer">© 2026 Vitalia · Ecosistema Digital Hospitalario · PTI UBP</footer>
-  `,
-  styles: `
-    :host {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px clamp(16px, 4vw, 40px);
-      background: color-mix(in srgb, var(--vt-bg) 88%, transparent);
-      border-bottom: 1px solid var(--vt-stroke);
-      backdrop-filter: blur(14px);
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .badge {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 999px;
-      color: var(--vt-primary);
-      border: 1px solid var(--vt-stroke-2);
-      background: var(--vt-surface-2);
-    }
-    .content {
-      flex: 1;
-      width: 100%;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px);
-    }
-    .footer {
-      padding: 20px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--vt-muted-2);
-    }
-  `,
+  templateUrl: './shell.html',
+  styleUrl: './shell.scss',
 })
-export class Shell {}
+export class Shell {
+  protected readonly auth = inject(AuthService);
+  protected readonly realtime = inject(RealtimeService);
+  protected readonly alarm = inject(AlarmService);
+  protected readonly alerts = inject(AlertsStore);
+  protected readonly health = inject(HealthApi).health;
+
+  protected readonly connectionLabel = computed(() => CONNECTION_LABELS[this.realtime.state()]);
+  protected readonly initials = computed(() =>
+    (this.auth.user()?.fullName ?? '')
+      .replace(/^(Dra?\.|Lic\.)\s*/i, '')
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w.charAt(0).toUpperCase())
+      .join(''),
+  );
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    inject(QueueStore).start(destroyRef);
+    inject(WearablesStore).start(destroyRef);
+    this.alerts.start(destroyRef);
+  }
+}

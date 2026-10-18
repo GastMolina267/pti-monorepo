@@ -1,0 +1,79 @@
+<header class="head">
+  <div>
+    <span class="vt-eyebrow">IoMT</span>
+    <h1>Pulseras</h1>
+    <p class="sub">{{ store.onlineCount() }} en línea de {{ store.wearables().length }}</p>
+  </div>
+  @if (canManage) {
+    <button mat-flat-button type="button" class="new" (click)="create()">
+      <svg lucidePlus [size]="18"></svg>
+      Dar de alta
+    </button>
+  }
+</header>
+
+@if (store.loading() && !store.wearables().length) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (store.error(); as msg) {
+  <p class="error" role="alert">{{ msg }}</p>
+}
+
+<section class="grid">
+  @for (w of store.wearables(); track w.id) {
+    <article class="card" [class.offline]="!w.online" [class.critical]="w.assessment?.level === 'CRITICAL'">
+      <header>
+        <span class="num" aria-label="Número de pulsera">{{ pad(w.number) }}</span>
+        <div class="id">
+          <strong>{{ w.label ?? 'Pulsera ' + pad(w.number) }}</strong>
+          <code>{{ w.code }}</code>
+        </div>
+        <span class="status" [class]="'status ' + w.status.toLowerCase()">{{ statusLabels[w.status] }}</span>
+      </header>
+
+      <p class="conn" [class.on]="w.online">
+        <span class="dot"></span>
+        {{ seen(w) }}
+        @if (w.room) {
+          <span class="room"><svg lucideRadio [size]="12"></svg>{{ w.room }}</span>
+        }
+      </p>
+
+      <div class="ticket">
+        @if (w.ticket; as t) {
+          <strong>{{ t.code }}</strong>
+          <span>{{ t.patientDisplayName }}</span>
+        } @else {
+          <span class="free">Sin asignar</span>
+        }
+      </div>
+
+      <div class="reading">
+        <vt-vitals [reading]="w.lastReading" />
+        @if (w.assessment; as a) {
+          <div class="lvl">
+            <vt-level-pill [level]="a.level" />
+            @if (a.reasons.length) {
+              <small>{{ a.reasons[0] }}</small>
+            }
+          </div>
+        }
+      </div>
+
+      <footer>
+        @if (w.ticket) {
+          <button mat-stroked-button type="button" (click)="release(w)">
+            <svg lucideUnlink [size]="16"></svg>
+            Liberar
+          </button>
+        } @else if (w.status !== 'MAINTENANCE') {
+          <button mat-flat-button type="button" (click)="assign(w)">Asignar a un turno</button>
+        }
+      </footer>
+    </article>
+  } @empty {
+    @if (!store.loading()) {
+      <p class="empty">No hay pulseras dadas de alta.</p>
+    }
+  }
+</section>
