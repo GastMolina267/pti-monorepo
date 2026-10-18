@@ -91,6 +91,9 @@ importers:
       socket.io:
         specifier: ^4.8.4
         version: 4.8.4
+      socket.io-client:
+        specifier: ^4.8.4
+        version: 4.8.4
       typeorm:
         specifier: ^1.1.1
         version: 1.1.1(babel-plugin-macros@3.1.0)(pg@8.23.1)(ts-node@10.9.1(@swc/core@1.15.8(@swc/helpers@0.5.18))(@types/node@24.19.1)(typescript@6.0.3))
@@ -263,9 +266,6 @@ importers:
       prettier:
         specifier: ^3.8.1
         version: 3.9.9
-      socket.io-client:
-        specifier: ^4.8.4
-        version: 4.8.4
       supertest:
         specifier: ^7.1.4
         version: 7.3.1

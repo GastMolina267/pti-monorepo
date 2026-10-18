@@ -1,0 +1,133 @@
+<header class="head">
+  <div>
+    <span class="vt-eyebrow">Sala de espera</span>
+    <h1>Fila de triaje</h1>
+  </div>
+  @if (services().length > 1) {
+    <div class="filters" role="group" aria-label="Filtrar por servicio">
+      <button type="button" [class.on]="!service()" (click)="service.set(null)">Todos</button>
+      @for (s of services(); track s.code) {
+        <button type="button" [class.on]="service() === s.code" (click)="service.set(s.code)">
+          {{ s.name }}
+        </button>
+      }
+    </div>
+  }
+</header>
+
+<section class="kpis" aria-label="Resumen">
+  <article class="kpi">
+    <span class="vt-tile vt-tile--teal"><svg lucideUsers [size]="18"></svg></span>
+    <div>
+      <strong>{{ queue.waiting().length }}</strong>
+      <small>En espera</small>
+    </div>
+  </article>
+  <article class="kpi" [class.hot]="queue.criticalCount() > 0">
+    <span class="vt-tile vt-tile--rose"><svg lucideTriangleAlert [size]="18"></svg></span>
+    <div>
+      <strong>{{ queue.criticalCount() }}</strong>
+      <small>Críticos</small>
+    </div>
+  </article>
+  <a class="kpi" routerLink="/alertas" [class.hot]="alerts.count() > 0">
+    <span class="vt-tile vt-tile--amber"><svg lucideBellRing [size]="18"></svg></span>
+    <div>
+      <strong>{{ alerts.count() }}</strong>
+      <small>Alertas activas</small>
+    </div>
+  </a>
+  <a class="kpi" routerLink="/pulseras">
+    <span class="vt-tile vt-tile--indigo"><svg lucideWatch [size]="18"></svg></span>
+    <div>
+      <strong
+        >{{ wearables.onlineCount() }}<span class="of">/{{ wearables.wearables().length }}</span></strong
+      >
+      <small>Pulseras en línea</small>
+    </div>
+  </a>
+</section>
+
+@if (queue.loading() && !queue.tickets().length) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (queue.error(); as msg) {
+  <p class="banner error" role="alert">
+    <svg lucideTriangleAlert [size]="16"></svg>
+    {{ msg }}
+    <button type="button" (click)="queue.reload()"><svg lucideRefreshCw [size]="14"></svg>Reintentar</button>
+  </p>
+}
+
+<section class="block" aria-labelledby="waiting-title">
+  <h2 id="waiting-title">
+    En espera <span class="n">{{ waiting().length }}</span>
+  </h2>
+  <ul class="rows">
+    @for (row of waiting(); track row.ticket.id; let i = $index) {
+      <li class="row" [class]="'row lvl-' + row.ticket.triageLevel.toLowerCase()">
+        <span class="pos" aria-label="Posición">{{ i + 1 }}</span>
+        <span class="code">{{ row.ticket.code }}</span>
+        <span class="who">
+          <strong>{{ row.ticket.patient.displayName }}</strong>
+          <small>
+            {{ row.ticket.service.name }} · <svg lucideClock [size]="12"></svg> espera
+            {{ wait(row.ticket) }} min
+            @if (row.ticket.reason) {
+              · {{ row.ticket.reason }}
+            }
+          </small>
+        </span>
+        <span class="clin">
+          @if (row.wearable; as w) {
+            <vt-vitals [reading]="w.lastReading" />
+            <small class="device" [class.off]="!w.online">
+              {{ w.code }} ·
+              {{ w.online ? 'en línea' : w.lastSeenAt ? 'sin señal ' + seen(w) : 'nunca se conectó' }}
+            </small>
+          } @else {
+            <vt-vitals emptyText="Sin pulsera asignada" />
+          }
+          @if (row.reason) {
+            <small class="reason">{{ row.reason }}</small>
+          }
+        </span>
+        <vt-level-pill [level]="row.ticket.triageLevel" />
+        <vt-ticket-actions [ticket]="row.ticket" />
+      </li>
+    } @empty {
+      <li class="empty">No hay pacientes en espera{{ service() ? ' en este servicio' : '' }}.</li>
+    }
+  </ul>
+</section>
+
+<section class="block" aria-labelledby="care-title">
+  <h2 id="care-title">
+    Llamados y en atención <span class="n">{{ inCare().length }}</span>
+  </h2>
+  <ul class="rows">
+    @for (row of inCare(); track row.ticket.id) {
+      <li class="row care" [class]="'row care lvl-' + row.ticket.triageLevel.toLowerCase()">
+        <span class="status" [class.progress]="row.ticket.status === 'IN_PROGRESS'">
+          {{ statusLabels[row.ticket.status] }}
+        </span>
+        <span class="code">{{ row.ticket.code }}</span>
+        <span class="who">
+          <strong>{{ row.ticket.patient.displayName }}</strong>
+          <small
+            >{{ row.ticket.consultingRoom?.name ?? '—' }} · llamado {{ hhmm(row.ticket.calledAt) }}</small
+          >
+        </span>
+        <span class="clin">
+          @if (row.wearable; as w) {
+            <vt-vitals [reading]="w.lastReading" />
+          }
+        </span>
+        <vt-level-pill [level]="row.ticket.triageLevel" />
+        <vt-ticket-actions [ticket]="row.ticket" />
+      </li>
+    } @empty {
+      <li class="empty">Ningún turno llamado todavía.</li>
+    }
+  </ul>
+</section>
