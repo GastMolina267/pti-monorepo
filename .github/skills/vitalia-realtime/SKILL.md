@@ -14,38 +14,22 @@ Los eventos y salas están en `@vitalia/contracts` → `REALTIME_EVENTS`, `REALT
 | Evento | Emisor → Sala | Payload |
 | --- | --- | --- |
 | `ticket:called` | API → `tv`, `staff`, `patient:<ticketId>` | `TicketCalledEvent` |
-| `queue:updated` | API → `staff`, `tv` | resumen de la fila |
-| `telemetry:reading` | API → `staff` | lectura + `assessVitals()` |
+| `queue:updated` | API → `staff`, `tv` | `QueueUpdatedEvent` (aviso sin triaje: re-consultar la fila) |
+| `telemetry:reading` | API → `staff` | `TelemetryReadingEvent` (lectura + `assessment`) |
 | `alert:emergency` | API → `staff` | `AlertEmergencyEvent` |
-| `alert:acknowledged` | API → `staff` | `{ alertId, by, at }` |
+| `alert:acknowledged` | API → `staff` | `AlertAcknowledgedEvent { alertId, by: { id, fullName }, at }` |
+| `realtime:ready` / `realtime:error` | API → el cliente que se conecta | `{ room }` / `{ message }` (y se desconecta) |
 
-## Backend (Fase 2)
+Handshake (`RealtimeHandshakeAuth`): `{ token }` → `staff` · `{ role: 'tv' }` → `tv` · `{ ticketId }` → `patient:<ticketId>`.
 
-```bash
-pnpm add @nestjs/websockets@^11 @nestjs/platform-socket.io@^11 socket.io
-```
+## Backend (✅ Fase 2): `apps/api/src/modules/realtime/`
 
-```ts
-// apps/api/src/modules/realtime/realtime.gateway.ts
-@WebSocketGateway({ cors: { origin: true, credentials: true } })
-export class RealtimeGateway implements OnGatewayConnection {
-  @WebSocketServer() private server!: Server;
-
-  handleConnection(client: Socket) {
-    const role = client.handshake.auth?.['role']; // 'staff' (JWT) | 'tv' | 'patient'
-    if (role === 'tv') void client.join(REALTIME_ROOMS.TV);
-    // staff: validar JWT antes de unir a REALTIME_ROOMS.STAFF
-  }
-
-  emitTicketCalled(e: TicketCalledEvent) {
-    this.server.to([REALTIME_ROOMS.TV, REALTIME_ROOMS.STAFF, REALTIME_ROOMS.patient(e.ticketId)])
-      .emit(REALTIME_EVENTS.TICKET_CALLED, e);
-  }
-}
-```
-
-- `RealtimeModule` exporta el gateway. Los services de dominio lo inyectan para emitir. **El gateway no tiene lógica de negocio.**
+- `realtime.gateway.ts`: valida el JWT del handshake con `JwtService` (global), une a la sala, emite `realtime:ready`. Métodos `emitTicketCalled`, `emitQueueUpdated`, `emitTelemetryReading`, `emitAlertEmergency`, `emitAlertAcknowledged`: eligen la sala y **nunca lanzan** (sin servidor o con error, solo loguean).
+- `realtime.module.ts` es `@Global()`: los services inyectan `RealtimeGateway` sin importar el módulo. **El gateway no tiene lógica de negocio.**
+- `realtime-io.adapter.ts`: CORS de Socket.IO = `CORS_ORIGINS` (se registra en `main.ts`).
+- Quién emite: `TicketsService` (`ticket:called` en el llamado; `queue:updated` en check-in, llamado, estado y triaje), `TelemetryService` (`telemetry:reading`), `AlertsService` (`alert:emergency`, `alert:acknowledged`).
 - Path por defecto `/socket.io` (los proxies dev de Angular ya lo redirigen a :3000).
+- Evento nuevo: agregalo a `REALTIME_EVENTS` (contracts), un método `emit*` en el gateway con su sala, test en `realtime.gateway.spec.ts` y la tabla de `docs/04-contratos.md`.
 
 ## Cliente Angular (Fase 3)
 
@@ -57,6 +41,7 @@ pnpm add socket.io-client
 // apps/<app>/src/app/core/realtime/realtime.service.ts
 @Injectable({ providedIn: 'root' })
 export class RealtimeService {
+  // Backoffice: auth: { token } (JWT del login). Si cambia el token, reconectar con el nuevo.
   private readonly socket = io({ path: '/socket.io', auth: { role: 'tv' }, reconnection: true });
   readonly connected = signal(false);
 
@@ -80,4 +65,5 @@ export class RealtimeService {
 - La TV no se autentica, pero solo recibe eventos públicos (sin datos clínicos).
 - **Nunca** mandes signos vitales a salas de paciente o TV, solo a `staff`.
 - Medí la latencia: incluí `detectedAt`/`calledAt` en los payloads y registrá la diferencia en el cliente (para la validación de la Fase 5).
-- Tests: gateway con mock de `Server`, y en el cliente mock de `socket.io-client`.
+- Esperá `realtime:ready` antes de dar la conexión por buena; ante `realtime:error` (token vencido) volvé al login.
+- Tests: gateway con mock de `Server` (`realtime.gateway.spec.ts`), integración con `socket.io-client` real en `app.int.spec.ts`, y en el cliente Angular mock de `socket.io-client`.

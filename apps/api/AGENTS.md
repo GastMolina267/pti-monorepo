@@ -6,7 +6,7 @@ Backend **único** del Edge Gateway (monolito modular). Sirve REST a Backoffice,
 
 ```
 src/
-  main.ts                    # bootstrap: /api, CORS, ValidationPipe (common/validation.ts), Swagger /api/docs
+  main.ts                    # bootstrap: /api, CORS, ValidationPipe, Swagger /api/docs, adapter Socket.IO
   app/app.module.ts          # Config global, Throttler, Database y módulos de dominio
   config/env.schema.ts       # zod: TODAS las variables de entorno (fail fast)
   common/
@@ -21,14 +21,19 @@ src/
     migrations/              # migraciones + index.ts (REGISTRO, en orden)
     seeds/                   # seed.ts (idempotente, datos simulados) + run-seed.ts
   modules/
-    health/                  # GET /health (+ check de PostgreSQL)              ✅ F0–F1
+    health/                  # GET /health (PostgreSQL + MQTT)                  ✅ F0–F2
     auth/                    # login JWT, /auth/me, entidad StaffUser           ✅ F1
     catalog/                 # servicios y consultorios                         ✅ F1
-    tickets/                 # pacientes, turnos, fila, llamado, estados        ✅ F1
+    tickets/                 # turnos, fila, llamado, estados; emite ticket:called/queue:updated ✅ F1–F2
     check-in/                # POST /check-in público (rate limit)              ✅ F1
-    iomt/entities/           # Wearable, TelemetryReading, Alert (tablas listas para la F2)
-    # Fase 2: realtime (Socket.IO), telemetry (MQTT + AES-GCM), alerts, wearables
-  app.int.spec.ts            # integración contra PostgreSQL (requiere TEST_DATABASE_URL)
+    realtime/                # gateway Socket.IO (global): salas staff/tv/patient, emit*()     ✅ F2
+    mqtt/                    # cliente MQTT único (global): subscribe/publishJson/status     ✅ F2
+    telemetry/               # ingesta: sobre AES-GCM → zod → dedupe → WS → persistencia    ✅ F2
+    alerts/                  # alertas CRÍTICAS, GET /alerts, POST /alerts/:id/ack          ✅ F2
+    wearables/               # alta, asignar/liberar, última lectura, SHOW_TICKET a .../cmd ✅ F2
+    iomt/entities/           # Wearable, TelemetryReading, Alert (compartidas por los módulos IoMT)
+  testing/                   # helpers SOLO para specs (sobres cifrados de prueba)
+  app.int.spec.ts            # integración: PostgreSQL real + broker aedes + Socket.IO (requiere TEST_DATABASE_URL)
 ```
 
 Cada módulo de dominio sigue esta forma (skill `vitalia-nest-module`):
@@ -51,9 +56,12 @@ modules/<dominio>/
 - **Contratos:** los DTOs hacen `implements` de `@vitalia/contracts`. Eventos, tópicos y reglas (transiciones, orden de fila) se importan de ahí, sin duplicarlos.
 - **Validación:** `ValidationPipe` global con `whitelist` y `forbidNonWhitelisted`. Los mensajes van en español en cada decorador (el portal los muestra tal cual).
 - **Rate limit:** `ThrottlerGuard` global (300/min). Endpoints sensibles con `@Throttle` (login 5/min, check-in 10/min).
-- **Latencia:** REST de turnos < 50 ms (hoy ~5 ms p50). En la Fase 2, nada bloqueante en el camino MQTT → WS.
+- **Latencia:** REST de turnos < 50 ms (hoy ~5 ms p50). Camino MQTT → WS sin bloqueos: se emite **antes** de persistir (caída → `alert:emergency` ≈ 8–15 ms).
+- **Tiempo real:** los services inyectan `RealtimeGateway` (módulo global) y llaman a `emit*()`; el gateway elige la sala y nunca lanza. Signos vitales y alertas, solo a `staff`.
+- **MQTT:** un solo cliente (`MqttService`, global). Sin `MQTT_URL` queda deshabilitado y el health marca `degraded`; un broker caído nunca rompe un endpoint (`publishJson` devuelve `false`).
+- **Dependencias entre módulos:** `telemetry` → `tickets` → `wearables`; `telemetry` → `alerts`. `wearables` y `alerts` no importan `tickets` (usan repositorios), así no hay ciclos.
 - **Errores:** excepciones de Nest con mensaje en español (`NotFoundException('Turno no encontrado')`, `ConflictException` para transiciones inválidas).
-- **Tests:** jest. Unitarios con mocks. El flujo completo va en `app.int.spec.ts` contra PostgreSQL real (CI con service container). ⚠️ Jest corre en CommonJS: **no uses dependencias solo-ESM** en código que se testea (ej. `@faker-js/faker` v10).
+- **Tests:** jest. Unitarios con mocks. El flujo completo va en `app.int.spec.ts` contra PostgreSQL real (CI con service container), con un broker MQTT en proceso (`aedes` 0.51, la última versión CommonJS) y clientes `socket.io-client`. El descifrado se prueba con `GCM_TEST_VECTORS` de `@vitalia/contracts/testing`. ⚠️ Jest corre en CommonJS: **no uses dependencias solo-ESM** en código que se testea (ej. `@faker-js/faker` v10).
 - **Los tests no pueden depender del `.env`.** Nx carga el `.env` de la raíz en cada tarea local, pero en CI no existe. En los unitarios usá un `ConfigService` simulado (`{ provide: ConfigService, useValue: { get } }`), no `ConfigModule.forRoot({ load })`: la validación de `@nestjs/config` mira las variables de entorno y no los valores de `load`. Para reproducir la CI: `mv .env .env.bak && pnpm nx test api`.
 
 ## Comandos

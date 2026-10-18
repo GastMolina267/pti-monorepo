@@ -1,10 +1,8 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { WEARABLE_STATUSES, type WearableStatus } from '@vitalia/contracts';
 import { TicketEntity } from '../../tickets/entities/ticket.entity';
 
-export const WEARABLE_STATUSES = ['AVAILABLE', 'ASSIGNED', 'OFFLINE', 'MAINTENANCE'] as const;
-export type WearableStatus = (typeof WEARABLE_STATUSES)[number];
-
-/** Pulsera IoMT (se usa desde la Fase 2). */
+/** Pulsera IoMT. */
 @Entity({ name: 'wearables' })
 export class WearableEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -30,6 +28,10 @@ export class WearableEntity {
 
   @Column({ name: 'last_seen_at', type: 'timestamptz', nullable: true })
   lastSeenAt!: Date | null;
+
+  /** `<sala>` del tópico de la última lectura: a dónde se publican los comandos (`.../cmd`). */
+  @Column({ name: 'last_room', type: 'varchar', length: 40, nullable: true })
+  lastRoom!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

@@ -29,8 +29,9 @@ Versiones fijadas al crear el monorepo (octubre 2026). Las de Angular y NestJS s
 | @nestjs/jwt + bcryptjs                         | 11 / 3       | Login del personal (JWT) y hash de contraseñas                   |
 | @nestjs/throttler                              | 6            | Rate limit (login, check-in)                                     |
 | tsx                                            | 4            | CLI de migraciones y seed                                        |
-| **Fase 2:** @nestjs/websockets + socket.io     |              | Tiempo real ([ADR 0007](adr/0007-tiempo-real-socket-io.md))      |
-| **Fase 2:** mqtt.js                            |              | Cliente MQTT                                                     |
+| @nestjs/websockets + socket.io                 | 11 / 4       | Tiempo real ([ADR 0007](adr/0007-tiempo-real-socket-io.md))      |
+| mqtt.js                                        | 5            | Cliente MQTT (ingesta y comandos al wearable)                    |
+| aedes (solo tests)                             | 0.51         | Broker MQTT en proceso para el test de integración               |
 
 ## Frontend (`apps/backoffice`, `apps/tv-display`, `libs/shared/ui`)
 

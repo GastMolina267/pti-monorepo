@@ -8,7 +8,7 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 ## Contrato (en `@vitalia/contracts`)
 
 - Tópico de datos: `MQTT_TOPICS.wearableData(room, id)` → `hospital/<sala>/wearable/<id>/data`. Suscripción: `MQTT_TOPICS.allWearableData`.
-- Comandos al wearable (OLED): `MQTT_TOPICS.wearableCommand(room, id)` → `.../cmd`.
+- Comandos al wearable (OLED): `MQTT_TOPICS.wearableCommand(room, id)` → `.../cmd`, payload `WearableCommand` (hoy `SHOW_TICKET { ticketCode, consultingRoom }`), JSON en claro, QoS 1, sin retain. Sala = `wearables.last_room` o `DEFAULT_WEARABLE_ROOM`.
 - QoS: `MQTT_QOS = 1`.
 - Payload publicado: `EncryptedEnvelope { v: 1, iv, ct, tag }` (base64). Descifrado: `TelemetryReading { wearableId, seq, ts, hr?, spo2?, temp?, accPeakG?, fall? }`.
 - `seq = arranque × 2^24 + contador` (`composeSeq`/`splitSeq`): salta de bloque cuando el wearable reinicia. Deduplicá por `(wearableId, seq)` y usá `splitSeq` para distinguir un reinicio de una pérdida. El simulador arma `seq` igual.
@@ -33,18 +33,25 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
   ```
 - Si el tag es inválido, se **descarta** el mensaje y se registra un warning (sin loguear el contenido).
 
-## Backend (Fase 2): `apps/api/src/modules/telemetry/`
+## Backend (✅ Fase 2)
 
-```bash
-pnpm add mqtt
-```
+| Módulo | Archivos | Qué hace |
+| --- | --- | --- |
+| `mqtt/` (global) | `mqtt.service.ts`, `topic-match.ts` | Cliente único: `subscribe(filtro, handler)` (se rehace en cada reconexión), `publishJson()` (devuelve `false` sin broker, nunca lanza), `status()` para el health. Sin `MQTT_URL` queda deshabilitado. |
+| `telemetry/` | `envelope.ts` (`openEnvelope`, `decryptGcm`), `reading.schema.ts` (zod estricto), `data-topic.ts`, `seq-deduper.ts`, `telemetry.service.ts` | Pipeline de ingesta (abajo). Sin `TELEMETRY_AES_KEY` no se suscribe. |
+| `alerts/` | `alerts.service.ts`, controller, mapper | `raise()`: una alerta por hallazgo CRÍTICO, sin repetir la `ACTIVE` del mismo `kind` y pulsera (set en memoria); emite **antes** de insertar (id con `randomUUID()`). `GET /api/alerts`, `POST /api/alerts/:id/ack`. |
+| `wearables/` | `wearables.service.ts`, controller, mapper | Alta (formato + número sin repetir), asignar/liberar, última lectura (`DISTINCT ON`), `findForIngest()`, `touch()` (`last_seen_at`, `last_room`), `showTicket()` → `SHOW_TICKET`. |
 
-1. `MqttClientService` (OnModuleInit/OnModuleDestroy): conecta a `MQTT_URL` con reconexión y se suscribe con QoS 1.
-2. Por cada mensaje: parsear el sobre → descifrar → validar rangos (zod) → descartar duplicados por `(wearableId, seq)`.
-3. `assessVitals(reading)` (contracts) → nivel y motivos.
-4. Persistir la lectura (Fase 1: tabla `telemetry_readings`, indexada por `wearable_id, ts`).
-5. Emitir `telemetry:reading` a `staff`. Si `level === 'CRITICAL'`, crear `Alert` y emitir `alert:emergency` (skill `vitalia-realtime`).
-6. **Camino crítico sin bloqueos:** la emisión WS va antes de la persistencia o en paralelo. La persistencia nunca demora la alerta.
+Pipeline de `TelemetryService.ingest(topic, payload)` (nunca lanza, devuelve `IngestOutcome`):
+
+1. `parseDataTopic` → `openEnvelope` (base64 estricto, largos de IV/tag, GCM) → `parseReading` (zod) → `wearableId` = tópico.
+2. `findForIngest(code)`: si no existe en `wearables`, se descarta. `SeqDeduper` (últimos 64 seq por pulsera) descarta reenvíos.
+3. `vitalsFindings()` (contracts) → hallazgos con `kind`; el nivel y los motivos salen de ahí (misma regla que `assessVitals()`).
+4. **Emisión primero:** `telemetry:reading` a `staff` y `AlertsService.raise()` con los hallazgos CRÍTICOS.
+5. Persistencia en segundo plano (`idle()` la espera en tests): `INSERT … ON CONFLICT DO NOTHING` (índice único `(wearable_id, seq)`), `touch()` y `TicketsService.escalateTriage()` (solo sube, emite `queue:updated`).
+6. Descartes con `warnOnce` (un log por motivo cada 30 s, sin el contenido de la lectura).
+
+Desarrollo local sin Docker: cualquier broker en :1883 sirve; con `pnpm infra:up` es Mosquitto. Con la API corriendo, `pnpm sim:wearables --inject=fall:3@4` tiene que producir `alert:emergency` en la sala `staff` en milisegundos.
 
 ## Simulador de wearables (`tools/wearable-simulator/`, `pnpm sim:wearables`)
 
@@ -69,4 +76,4 @@ pnpm sim:wearables --help
 - Los umbrales salen de `CLINICAL_THRESHOLDS` y la clasificación de `assessVitals()`. **No dupliques reglas.**
 - La red IoMT (VLAN 10) solo llega a Mosquitto :1883. El wearable nunca habla HTTP con la API.
 - Fase 4: usuario = código del wearable y contraseña con `mosquitto_passwd` (se carga a mano en el `secrets.h` de cada pulsera) + ACL con `%u` en Mosquitto (`infra/mosquitto/`).
-- Tests: `decryptEnvelope` con vectores conocidos (cifrar y descifrar), descarte por tag inválido y deduplicación por `seq`.
+- Tests: `envelope.spec.ts` (los tres `GCM_TEST_VECTORS` + sobres malformados), `reading.schema.spec.ts` (rangos, topic, dedupe), `telemetry.service.spec.ts` (pipeline con mocks: spoof, tag alterado, duplicado, emite antes de persistir), `alerts.service.spec.ts` y el E2E de `app.int.spec.ts` (broker `aedes` en proceso). Helper de sobres para specs: `apps/api/src/testing/telemetry.ts`.

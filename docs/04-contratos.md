@@ -10,7 +10,7 @@ Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint sa
 
 | Método | Ruta                                | Acceso                       | Descripción                                                                             | Estado |
 | ------ | ----------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------- | ------ |
-| GET    | `/api/health`                       | público                      | Estado del gateway y de PostgreSQL (`HealthResponse`)                                   | ✅     |
+| GET    | `/api/health`                       | público                      | Estado del gateway, PostgreSQL y MQTT (`HealthResponse`)                                | ✅ F2  |
 | POST   | `/api/auth/login`                   | público (5/min por IP)       | Login del personal → `LoginResponse` (JWT de 8 h)                                       | ✅ F1  |
 | GET    | `/api/auth/me`                      | staff                        | Usuario autenticado (`StaffUser`)                                                       | ✅ F1  |
 | GET    | `/api/services`                     | público                      | Servicios de atención (`ServiceArea[]`) para elegir en el check-in                      | ✅ F1  |
@@ -22,10 +22,13 @@ Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint sa
 | POST   | `/api/tickets/:id/call`             | `DOCTOR` · `NURSE` · `ADMIN` | Llamar a un consultorio (`CallTicketRequest`)                                           | ✅ F1  |
 | PATCH  | `/api/tickets/:id/status`           | staff                        | Cambiar el estado (`UpdateTicketStatusRequest`) según las transiciones permitidas       | ✅ F1  |
 | PATCH  | `/api/tickets/:id/triage`           | `NURSE` · `DOCTOR` · `ADMIN` | Triaje manual (`UpdateTriageRequest`)                                                   | ✅ F1  |
-| GET    | `/api/wearables`                    | staff                        | Wearables y su última lectura                                                           | Fase 2 |
-| POST   | `/api/wearables/:id/assign`         | staff                        | Asignar un wearable a un turno                                                          | Fase 2 |
-| GET    | `/api/alerts?active=true`           | staff                        | Alertas activas                                                                         | Fase 2 |
-| POST   | `/api/alerts/:id/ack`               | staff                        | Reconocer una alerta                                                                    | Fase 2 |
+| GET    | `/api/wearables`                    | staff                        | Pulseras con turno, conexión (`online`), sala y última lectura (`Wearable[]`)           | ✅ F2  |
+| GET    | `/api/wearables/:id`                | staff                        | Detalle de una pulsera (`Wearable`)                                                     | ✅ F2  |
+| POST   | `/api/wearables`                    | `ADMIN` · `NURSE`            | Alta (`CreateWearableRequest`): código `wb-<NN>-<mac>` y número sin repetir → 409       | ✅ F2  |
+| POST   | `/api/wearables/:id/assign`         | staff                        | Asignar a un turno abierto (`AssignWearableRequest`). Si ya lo llamaron, va al OLED     | ✅ F2  |
+| POST   | `/api/wearables/:id/release`        | staff                        | Liberar la pulsera (también se libera sola al finalizar o cancelar el turno)            | ✅ F2  |
+| GET    | `/api/alerts?active=true`           | staff                        | Alertas activas (`active=false`: las últimas 100 de cualquier estado) (`Alert[]`)       | ✅ F2  |
+| POST   | `/api/alerts/:id/ack`               | staff                        | Reconocer una alerta → `Alert` y `alert:acknowledged`. Ya reconocida → 409              | ✅ F2  |
 
 ### Ciclo de vida del turno
 
@@ -74,24 +77,57 @@ POST /api/check-in
   "timestamp": "2026-10-03T22:00:00.000Z",
   "checks": [
     { "name": "process", "status": "ok" },
-    { "name": "database", "status": "ok" }
+    { "name": "database", "status": "ok" },
+    { "name": "mqtt", "status": "ok" }
   ]
 }
 ```
 
+- `database` caída → `down`.
+- `mqtt` sin `MQTT_URL`, sin conexión o sin `TELEMETRY_AES_KEY` → `degraded` con `detail`: los turnos siguen funcionando, pero no entran lecturas ni alertas.
+
 ## Tiempo real (Socket.IO, path `/socket.io`)
 
-Constantes: `REALTIME_EVENTS`, `REALTIME_ROOMS`.
+Constantes: `REALTIME_EVENTS`, `REALTIME_ROOMS`, `REALTIME_READY_EVENT`, `REALTIME_ERROR_EVENT`.
 
-| Evento               | Salas                               | Payload                                                                                                  | Fase |
-| -------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------- | ---- |
-| `ticket:called`      | `tv`, `staff`, `patient:<ticketId>` | `TicketCalledEvent { ticketId, ticketCode, consultingRoom, professionalName?, calledAt }`                | 2–3  |
-| `queue:updated`      | `staff`, `tv`                       | resumen de la fila                                                                                       | 2–3  |
-| `telemetry:reading`  | `staff`                             | `TelemetryReading` + nivel                                                                               | 2    |
-| `alert:emergency`    | `staff`                             | `AlertEmergencyEvent { alertId, wearableId, patientId?, ticketCode?, kind, level, message, detectedAt }` | 2    |
-| `alert:acknowledged` | `staff`                             | `{ alertId, by, at }`                                                                                    | 2    |
+### Conexión (`RealtimeHandshakeAuth`)
 
-Los signos vitales **solo** se emiten a la sala `staff`.
+La sala se elige con el `auth` del handshake:
+
+```ts
+io({ path: '/socket.io', auth: { token: accessToken } }); // personal → sala staff
+io({ path: '/socket.io', auth: { role: 'tv' } }); // pantalla llamadora → sala tv
+io({ path: '/socket.io', auth: { ticketId } }); // paciente → sala patient:<ticketId>
+```
+
+- Al unirse, el servidor emite `realtime:ready` `{ room }`. Recién ahí empiezan a llegar eventos.
+- Un token inválido o un `auth` sin ninguno de esos campos recibe `realtime:error` `{ message }` y se desconecta.
+- CORS: los mismos orígenes que la API REST (`CORS_ORIGINS`).
+
+### Eventos
+
+| Evento               | Salas                               | Payload                                                                                                              | Estado |
+| -------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
+| `ticket:called`      | `tv`, `staff`, `patient:<ticketId>` | `TicketCalledEvent { ticketId, ticketCode, consultingRoom, professionalName?, calledAt }`                            | ✅ F2  |
+| `queue:updated`      | `staff`, `tv`                       | `QueueUpdatedEvent { change, ticketId, ticketCode, serviceCode, status, waitingCount, at }`: aviso para re-consultar | ✅ F2  |
+| `telemetry:reading`  | `staff`                             | `TelemetryReadingEvent { wearableId, ticketId, ticketCode, reading, assessment, receivedAt }`                        | ✅ F2  |
+| `alert:emergency`    | `staff`                             | `AlertEmergencyEvent { alertId, wearableId, ticketId?, patientId?, ticketCode?, kind, level, message, detectedAt }`  | ✅ F2  |
+| `alert:acknowledged` | `staff`                             | `AlertAcknowledgedEvent { alertId, by: { id, fullName }, at }`                                                       | ✅ F2  |
+
+- Los signos vitales **solo** se emiten a la sala `staff`. `queue:updated` no lleva triaje ni datos del paciente (lo ve la TV).
+- `change` de `queue:updated`: `CHECK_IN`, `CALLED`, `STATUS` o `TRIAGE` (manual o escalado por la telemetría).
+- `detectedAt` de una alerta es la hora del wearable (`reading.ts`): la latencia de punta a punta se mide contra ese valor.
+
+### Ingesta y alertas
+
+1. Sobre → AES-256-GCM → validación → `wearableId` = `<id>` del tópico → pulsera dada de alta → deduplicación por `seq`.
+2. `vitalsFindings()` (contracts) da los hallazgos con su tipo; `assessVitals()` los resume en nivel y motivos.
+3. Se emite `telemetry:reading` y, por cada hallazgo **CRÍTICO**, `alert:emergency`, **antes** de escribir en la base.
+4. Se persisten la lectura (`ON CONFLICT DO NOTHING`), la alerta, `last_seen_at`/`last_room` de la pulsera y, si corresponde, el triaje del turno.
+
+- Una alerta del mismo tipo (`kind`) para la misma pulsera no se repite mientras siga `ACTIVE`. Al reconocerla, el próximo hallazgo abre una nueva.
+- El triaje del turno **solo sube** por la telemetría. Bajarlo es decisión del personal (`PATCH /api/tickets/:id/triage`).
+- Se descartan, con un warning en el log (sin el contenido): tag inválido, JSON o campos fuera del contrato, rangos imposibles, `wearableId` distinto del tópico y códigos que no existen en `wearables`.
 
 ## MQTT (Mosquitto, puerto 1883, QoS 1)
 
@@ -177,11 +213,16 @@ Los signos vitales **solo** se emiten a la sala `staff`.
 
 Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSION`, `TELEMETRY_CIPHER`, `SEQ_BOOT_SHIFT`, el rango del número de wearable y `CLINICAL_THRESHOLDS`) se genera en `apps/wearable-firmware-poc/include/vitalia_contracts.h` con `pnpm fw:codegen`. La CI verifica que esté al día.
 
-### Comando al wearable (propuesta, Fase 2)
+### Comando al wearable (`WearableCommand`)
 
 ```json
-{ "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Cons. 4" }
+{ "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
 ```
+
+- La API lo publica en `hospital/<sala>/wearable/<id>/cmd` con QoS 1 y sin retain al llamar el turno que tiene la pulsera, o al asignar la pulsera a un turno ya llamado.
+- `<sala>` es la de la última lectura recibida (`wearables.last_room`). Si nunca publicó, se usa `DEFAULT_WEARABLE_ROOM` (`sala1`).
+- Va **en claro**: no lleva signos vitales ni datos personales, solo lo que ya muestra la TV. En la Fase 4 la ACL de Mosquitto limita quién publica en `cmd`.
+- Si no hay conexión con el broker, el llamado sigue igual (el OLED no se entera).
 
 ## Portal cautivo ↔ API (Fase 4)
 

@@ -66,12 +66,13 @@ erDiagram
     wearable_status status
     uuid ticket_id FK,UK
     timestamptz last_seen_at
+    varchar last_room "sala del tópico (comandos)"
   }
   telemetry_readings {
     bigint id PK
     uuid wearable_id FK
     uuid ticket_id FK
-    int seq
+    bigint seq "UK con wearable_id"
     timestamptz measured_at
     smallint heart_rate
     smallint spo2
@@ -101,6 +102,9 @@ erDiagram
 | Una pulsera se asigna a un solo turno a la vez                                    | `wearables.ticket_id UNIQUE`                                                             |
 | La fila se consulta por estado, triaje y llegada                                  | Índice `ix_tickets_queue (status, triage_level, checked_in_at)`                          |
 | La telemetría se consulta por pulsera o turno en el tiempo                        | Índices `(wearable_id, measured_at)` y `(ticket_id, measured_at)`                        |
+| Una lectura no se guarda dos veces (reenvíos de QoS 1)                            | `UNIQUE (wearable_id, seq)` + `INSERT … ON CONFLICT DO NOTHING`                          |
+| `seq` = arranque × 2^24 + contador                                                | `bigint` (supera int32 desde el arranque 128); TypeORM lo convierte a `number`           |
+| No se abre una alerta igual a una activa                                          | Índice `(wearable_id, status)` + control en memoria en `AlertsService`                   |
 | Datos mínimos del paciente (Ley 25.326)                                           | Solo nombre, apellido y DNI opcional. Las respuestas muestran `displayName` ("Lucía G.") |
 | Contraseñas                                                                       | Hash bcrypt (`password_hash`, `select: false`)                                           |
 | IDs                                                                               | `uuid` con `gen_random_uuid()`. Las lecturas usan `bigint` autoincremental por volumen   |
@@ -109,10 +113,10 @@ Los enums de PostgreSQL (`staff_role`, `ticket_status`, `triage_level`, `check_i
 
 ## Tablas por fase
 
-| Tabla                                                                     | Se usa desde                                   |
-| ------------------------------------------------------------------------- | ---------------------------------------------- |
-| `staff_users`, `service_areas`, `consulting_rooms`, `patients`, `tickets` | Fase 1 ✅                                      |
-| `wearables`, `telemetry_readings`, `alerts`                               | Fase 2 (ya creadas; el seed asigna 4 pulseras) |
+| Tabla                                                                     | Se usa desde                          |
+| ------------------------------------------------------------------------- | ------------------------------------- |
+| `staff_users`, `service_areas`, `consulting_rooms`, `patients`, `tickets` | Fase 1 ✅                             |
+| `wearables`, `telemetry_readings`, `alerts`                               | Fase 2 ✅ (el seed asigna 4 pulseras) |
 
 ## Comandos
 

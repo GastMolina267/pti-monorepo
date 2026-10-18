@@ -1,6 +1,6 @@
 # 0006. AES-256-GCM para la telemetría del wearable
 
-- Estado: **Propuesto** (validar con el firmware en la Fase 2)
+- Estado: Aceptado (18/10/2026: implementado en el firmware y en la API con los mismos vectores, `GCM_TEST_VECTORS`)
 - Fecha: 2026-10-03
 
 ## Contexto

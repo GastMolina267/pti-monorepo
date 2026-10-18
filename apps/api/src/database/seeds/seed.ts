@@ -182,11 +182,16 @@ export async function seed(
     for (const [serviceCode, status, triageLevel, minutesAgo] of DEMO_TICKETS) {
       const service = services.get(serviceCode);
       if (!service) continue;
-      const patient = await ds.getRepository(PatientEntity).save({
+      // El rng es determinístico: otro día genera los mismos DNI, así que se reusa el paciente.
+      const candidate = {
         firstName: random.pick(FIRST_NAMES),
         lastName: random.pick(LAST_NAMES),
         documentNumber: random.digits(8),
-      });
+      };
+      const patientRepo = ds.getRepository(PatientEntity);
+      const patient =
+        (await patientRepo.findOneBy({ documentNumber: candidate.documentNumber })) ??
+        (await patientRepo.save(candidate));
       const number = (counters.get(serviceCode) ?? 0) + 1;
       counters.set(serviceCode, number);
       const checkedInAt = new Date(now - minutesAgo * 60_000);
@@ -218,6 +223,13 @@ export async function seed(
     }
 
     // Pulseras asignadas a los primeros cuatro pacientes en espera (para la Fase 2).
+    // Las que quedaron en turnos de días anteriores se liberan primero.
+    await wearableRepo
+      .createQueryBuilder()
+      .update()
+      .set({ ticketId: null, status: 'AVAILABLE' })
+      .where('ticket_id IS NOT NULL')
+      .execute();
     const waiting = await ticketRepo.find({
       where: { dayKey, status: 'WAITING' },
       order: { checkedInAt: 'ASC' },
