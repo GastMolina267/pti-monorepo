@@ -7,6 +7,20 @@
   "implicitDependencies": ["contracts"],
   "// targets": "PlatformIO (pio) tiene que estar en el PATH. Sin caché: secrets.h no se versiona y Nx no lo puede hashear.",
   "targets": {
+    "pio-check-docker": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "docker build --progress=plain -f apps/wearable-firmware-poc/Dockerfile.check --target check -t vitalia-firmware-check:local ."
+      }
+    },
+    "pio-toolchain-docker": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "docker build --progress=plain -f apps/wearable-firmware-poc/Dockerfile.check --target toolchain -t vitalia-firmware-toolchain:local ."
+      }
+    },
     "pio-build": {
       "executor": "nx:run-commands",
       "cache": false,

@@ -5,15 +5,15 @@
 
 ## Resumen
 
-| Fase | Objetivo                                  | Fechas    | Resp.  | Estado               |
-| ---- | ----------------------------------------- | --------- | ------ | -------------------- |
-| 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa          |
-| 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa          |
-| 2    | Telemetría MQTT, alertas y tiempo real    | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F) |
-| 3    | Backoffice y llamador TV funcionales      | 12–18 oct | G (T)  | ✅ Completa          |
-| 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente            |
-| 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente            |
-| 6    | Landing, memoria y defensa (**Hito 4**)   | nov       | Eq     | Pendiente            |
+| Fase | Objetivo                                | Fechas    | Resp.  | Estado                 |
+| ---- | --------------------------------------- | --------- | ------ | ---------------------- |
+| 0    | Fundaciones del monorepo                | 3 oct     | G      | ✅ Completa            |
+| 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa            |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ Software · ⏳ placa |
+| 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa            |
+| 4    | Despliegue e integración del software   | 18 oct    | G      | ✅ Software completo   |
+| 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente              |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente              |
 
 ```mermaid
 gantt
@@ -25,7 +25,7 @@ gantt
   section Frontend
   F3 Backoffice y TV       :done, f3, 2026-10-12, 7d
   section Equipo
-  F4 Integración (Hito 3)  :crit, f4, 2026-10-26, 6d
+  F4 Integración software :done, f4, 2026-10-18, 1d
   F5 Validación            :f5, 2026-11-01, 15d
   F6 Cierre y defensa      :f6, 2026-11-15, 10d
 ```
@@ -76,7 +76,7 @@ gantt
 - [x] Firmware: hora por NTP (`configTime` con `NTP_SERVER`); en desarrollo, NTP público (red única con internet) (F)
 - [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
 - [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
-- [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
+- [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c, pendiente validación física (G; F: placa)
 - [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — falta calibrar con caídas controladas en la placa (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
@@ -93,7 +93,7 @@ gantt
 - [x] Check de MQTT en `/api/health` (`degraded` si no está configurado o no conecta: los turnos siguen) (G)
 - [x] Test de integración de punta a punta con broker en proceso (aedes) y Socket.IO real: caída → `alert:emergency`, dedupe, spoof, tag alterado, `ack`, llamado → TV/paciente/`SHOW_TICKET`, alta y asignación de pulseras (G)
 
-**Terminado ✅ (lado API, 18/10):** con `pnpm sim:wearables --inject=fall:3@4` y la API corriendo, la caída llega a la sala `staff` como `alert:emergency` **~8 ms** después del `ts` del wearable y queda persistida; el test de integración mide ~15 ms entre publicar y recibir (objetivo < 500 ms). El simulador confirma el descarte de `tamper` y `spoof` y la deduplicación de `duplicate`. Queda del lado del firmware mostrar `SHOW_TICKET` en el OLED (F).
+**Terminado ✅ (lado API, 18/10):** con `pnpm sim:wearables --inject=fall:3@4` y la API corriendo, la caída llega a la sala `staff` como `alert:emergency` **~8 ms** después del `ts` del wearable y queda persistida; el test de integración mide ~15 ms entre publicar y recibir (objetivo < 500 ms). El simulador confirma el descarte de `tamper` y `spoof` y la deduplicación de `duplicate`. El receptor y estado de `SHOW_TICKET` en el firmware se completaron como software en 4c; la validación en placa sigue fuera de este cierre.
 
 ## Fase 3 · Backoffice y llamador TV ✅
 
@@ -114,16 +114,56 @@ gantt
 
 **Terminado ✅ (18/10):** probado en Chromium con la API, el broker y el simulador corriendo. Una caída simulada abre el aviso rojo en el Backoffice (~3 s desde lanzar el simulador, que tarda en arrancar; la API la emite en milisegundos) y un llamado aparece en la TV **113 ms** después del click en "Llamar".
 
-## Fase 4 · Integración de punta a punta — Hito 3 (Eq)
+## Fase 4 · Despliegue e integración del software (G) ✅
 
-- [ ] Portal cautivo → check-in y estado del turno contra la API (repo `pti-captive-portal`, `VITE_BASE_URL` al gateway)
-- [ ] Wearable real publicando cifrado en Mosquitto (F) y recibiendo el turno en el OLED
-- [ ] Dockerfile multi-stage de la API + Nginx (Backoffice, TV, portal, proxy `/api` y `/socket.io`) en `docker-compose`
-- [ ] Mosquitto con usuario/contraseña y ACL por wearable: usuario = código `wb-<NN>-<mac>`, contraseña con `mosquitto_passwd` cargada **a mano** en el `secrets.h` de cada pulsera; ACL `pattern write hospital/+/wearable/%u/data` y `pattern read hospital/+/wearable/%u/cmd`. **La API también necesita su usuario** (`read hospital/+/wearable/+/data`, `write hospital/+/wearable/+/cmd`); si no, deja de recibir telemetría
-- [ ] RUT956: VLANs 10/20/30/40 apuntando al gateway; portal cautivo con walled garden; **servidor NTP local** para la VLAN 10 (sin internet) y `NTP_SERVER` del firmware apuntando a él (F)
-- [ ] Guion de demo E2E documentado
+> Alcance acordado el 18/10: desarrollo del monorepo y validación con simuladores. Portal cautivo, router, VLANs, walled garden, servicio NTP de la red, montaje y calibración física quedan fuera de esta fase de desarrollo. El firmware entra como código, compilación y tests sin placa. La demo física completa del Hito 3 conserva esas dependencias externas; no se las acredita con una prueba de software.
 
-**Terminado (Hito 3) cuando:** el llamado emitido desde el Backoffice se ve al instante en la TV, en el portal del paciente y en el OLED del wearable.
+### 4a · Despliegue reproducible del gateway — completo (18/10)
+
+- [x] Imágenes multi-stage: API con dependencias de producción, Backoffice y TV estáticos con Nginx; proxies `/api` y `/socket.io`.
+- [x] Compose independiente del entorno dev, migraciones al arrancar, volúmenes y healthchecks.
+- [x] Configuración local con credenciales aleatorias, sin sobrescribir secretos existentes; seed simulado explícito.
+- [x] Smoke de ambos orígenes: HTML, rutas SPA, health, PostgreSQL, MQTT y Socket.IO (WebSocket y polling); guía y job CI definido.
+
+**Verificado localmente (18/10):** imágenes construidas desde cero, migraciones aplicadas y seed dentro de la imagen final (3 servicios, 5 consultorios, 5 usuarios, 8 pulseras y 14 turnos). Smoke OK en `localhost:8080` y `localhost:8081`; 2 tests del inicializador y `pnpm affected` en verde (7 proyectos, 16 tareas). El job CI está configurado; su ejecución remota no se acredita en esta validación local.
+
+También se verificó parada y recreación del stack sin borrar volúmenes: usuarios, IDs de turnos y credenciales se conservan; login y smoke pasan después del segundo arranque.
+
+### 4b · Seguridad MQTT — completo (18/10)
+
+- [x] Usuarios y ACL por wearable, usuario propio de la API y cuenta de health restringida, con aprovisionamiento reproducible sin versionar secretos; altas, rotación y bajas explícitas ([ADR 0014](adr/0014-identidades-y-acl-mqtt.md)).
+- [x] Pruebas contra Mosquitto real: anónimos y contraseña incorrecta rechazados, escrituras cruzadas denegadas con PUBACK `0x87` y aislamiento de entregas aun con filtros amplios; simulador con credenciales por pulsera (`--gateway`).
+
+**Verificado localmente (18/10):** actualización del stack 4a sin borrar volúmenes, broker autenticado y health OK; se conservan los 14 turnos del seed. Dos pulseras enviaron 7 lecturas cifradas, confirmadas por QoS 1 y persistidas en PostgreSQL. Smoke de Backoffice/TV y Socket.IO en verde. Los tests del aprovisionador cubren idempotencia, conservación de secretos, altas y revocación; CI incorpora el check MQTT real. El transporte sigue siendo TCP en loopback, sin TLS ni validación física o de red.
+
+Segundo arranque verificado: archivos de credenciales idénticos, MQTT y smoke otra vez en verde. `pnpm affected` pasó sus 16 tareas de lint/test/build en 7 proyectos; los 7 tests operativos de inicialización, entorno y aprovisionamiento también pasaron. La ejecución remota del job CI queda pendiente; este cierre acredita las comprobaciones locales.
+
+### 4c · Comandos en el firmware — completo como software (18/10)
+
+- [x] Suscripción QoS 1 al código propio en cualquier sala, validación y reensamblado acotado de `SHOW_TICKET`, estado del llamado en OLED y resuscripción al reconectar. Cola FreeRTOS hacia el `loop()`, sin acceso a I²C desde MQTT ([ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md)).
+- [x] Tests native de parser, fragmentos, estado, scroll/UTF-8 y adaptador MQTT real con SDK de prueba; compilación con SDK ESP32-C3 sin exigir placa, flasheo ni calibración. MAX30102 no bloquea este cierre: el simulador aporta `hr` y `spo2`.
+
+**Verificado localmente (18/10):** `pio-check-docker` ejecutó 43 tests native (11 nuevos) y compiló el firmware ESP32-C3 con la plantilla de secretos. También compiló los tests de cifrado de placa sin subirlos ni ejecutarlos. `pnpm affected` pasó 16 tareas en 7 proyectos y los headers generados están al día. El llamado se conserva en RAM hasta reemplazo o reinicio, con indicador sin red y prioridad temporal de caída local; no hay limpieza automática al finalizar ni recuperación de comandos perdidos durante cortes. El E2E sobre Docker corresponde a 4d y la ejecución física sigue pendiente.
+
+### 4d · Pruebas integradas de software — completo (18/10)
+
+- [x] Check-in por API → asignación de pulsera simulada desde UI → telemetría AES-GCM por Mosquitto autenticado y persistencia → caída y reconocimiento en Backoffice → llamado desde UI en TV y recepción de `SHOW_TICKET` por un cliente MQTT.
+- [x] Resincronización sin recargar Backoffice/TV tras cortes de sus conexiones: recuperar turnos, signos vitales, alertas nuevas y último llamado; quitar una alerta reconocida desde otro cliente durante el corte. Reconexión del cliente MQTT antes del segundo comando.
+
+**Verificado localmente (18/10):** `pnpm gateway:e2e` pasó un escenario de ocho pasos en Chromium contra los builds reales de Docker (9,7 s de recorrido). No usa mocks de negocio ni borra la base: crea fixtures simulados sin DNI y cierra sus turnos/reconoce sus alertas; los 14 turnos originales del seed se conservaron. El E2E reprodujo una alerta reconocida que quedaba activa al reconectar; se corrigió la conciliación por IDs y versiones de consulta, con cuatro regresiones nuevas. Los 30 tests del Backoffice, el typecheck E2E, las 16 tareas de `pnpm affected`, smoke y ACL MQTT pasaron. [ADR 0016](adr/0016-validar-gateway-con-navegadores-reales.md).
+
+El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remota no se acredita con estas pruebas locales. Los cortes simulados afectan a los navegadores, no al gateway ni a la WAN; el receptor MQTT es un cliente de prueba, sin placa ni OLED físico.
+
+### 4e · Operación y demo — completo (18/10)
+
+- [x] Demo visible con pausas y guion: reutiliza el recorrido 4d con pacientes simulados sin DNI. `gateway:verify` unifica tests operativos, typecheck, smoke, ACL y E2E.
+- [x] Diarios locales por UUID y recuperación idempotente de corridas interrumpidas; consulta por marcador para respuestas HTTP perdidas y validación de pertenencia antes de modificar. Bloqueo exclusivo entre operaciones de demo/pruebas/recuperación/respaldo.
+- [x] Tests reales de parada/recreación con persistencia de turno, asignación, lectura y credenciales; reconexión de Backoffice/TV sin recarga; reinicio del broker con nueva ingesta y comando MQTT.
+- [x] Respaldo conjunto de PostgreSQL/configuración/diarios con hashes y restauración automática en PostgreSQL efímero aislado. Guía de arranque, parada, diagnóstico, recuperación y restauración real; [ADR 0017](adr/0017-operar-y-recuperar-el-gateway.md).
+
+**Verificado localmente (18/10):** 11 tests operativos unitarios (4 nuevos), suite operativa de cuatro pasos (~36 s de recorrido), demo con pausas (~38 s), `gateway:verify`, comandos públicos de respaldo/restauración/recuperación y las 16 tareas de `pnpm affected` en siete proyectos en verde. Se ensayó además una copia de fuentes sin `.env`, `node_modules` ni volúmenes previos: instalación congelada usando caché local, construcción de imágenes, credenciales nuevas, puertos separados, seed de 14 turnos y `gateway:verify` completo con el E2E de 4d. Chromium ya estaba instalado en el host. La copia no reutilizó secretos ni datos de la instalación habitual.
+
+**Cierre de software acreditado:** desde una copia limpia se levanta el gateway Docker y se completa el recorrido de 4d con checks en verde, sin depender del portal, router ni hardware físico. La restauración se probó en una base aislada; no se acredita un traslado completo a otra máquina. CI incorpora verificación y prueba operativa, con ejecución remota todavía pendiente. La prueba WAN de 24 h, carga, latencias y sincronización Cloud continúan en Fase 5. Guía: [09-despliegue-gateway.md](09-despliegue-gateway.md).
 
 ## Fase 5 · Resiliencia, carga y validación (Eq)
 

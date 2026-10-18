@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "clock.h"
+#include "command.h"
 #include "config.h"
 #include "envelope.h"
 #include "gcm.h"
@@ -71,6 +72,7 @@ ui::StatusLed led(PIN_LED);
 telemetry::PeakTracker accPeak;
 fall_detection::FallDetector fall(fallParams());
 net::MqttLink mqtt;
+commands::CallState callState;  // solo se lee/escribe desde loop()
 
 // ---------------- Estado ----------------
 char deviceId[telemetry::WEARABLE_ID_LEN] = "wb-00-000000";
@@ -82,6 +84,7 @@ bool hasReading = false;
 uint8_t aesKey[vitalia::CIPHER_KEY_BYTES];
 bool aesKeyOk = false;  // sin clave válida no se publica nada (nunca en claro por accidente)
 char dataTopic[80] = {0};
+char commandFilter[128] = {0};
 char plainTopic[88] = {0};
 uint32_t publishedCount = 0;   // lecturas encoladas en MQTT desde el arranque
 uint32_t droppedCount = 0;     // lecturas que no se pudieron encolar
@@ -168,6 +171,8 @@ static bool provideStatus(String& out) {
   JsonObject m = doc["mqtt"].to<JsonObject>();
   m["topic"] = dataTopic;
   m["connected"] = mqtt.connected();
+  m["command_filter"] = commandFilter;
+  m["commands_ready"] = mqtt.commandsReady();
   m["aes_key"] = aesKeyOk;
   m["published"] = publishedCount;
   m["acked"] = mqtt.acked();
@@ -180,6 +185,12 @@ static bool provideStatus(String& out) {
 
 // ---------------- OLED ----------------
 static void renderOled(uint32_t now) {
+  // Una caída reciente conserva prioridad local; después vuelve el último llamado.
+  if (callState.active() && !fall.recentFall(now, FALL_DISPLAY_MS)) {
+    const auto frame = callState.frame(now, mqtt.connected(), CALL_SCROLL_MS);
+    oled.show(frame.title, frame.ticket, frame.room);
+    return;
+  }
   char line0[24], line1[24], line2[24];
 
   if (wifi.connected()) snprintf(line0, sizeof(line0), "%s", WiFi.localIP().toString().c_str());
@@ -231,7 +242,11 @@ void setup() {
   }
   snprintf(dataTopic, sizeof(dataTopic), vitalia::MQTT_TOPIC_DATA_FMT, MQTT_SALA, deviceId);
   snprintf(plainTopic, sizeof(plainTopic), "%s/plain", dataTopic);
-  mqtt.begin(MQTT_BROKER, MQTT_PORT, deviceId, MQTT_USER, MQTT_PASS);
+  // Cubre también sala1 antes de la primera lectura y cambios de sala: el ID siempre es propio.
+  snprintf(commandFilter, sizeof(commandFilter), vitalia::MQTT_TOPIC_CMD_FMT, "+", deviceId);
+  if (!mqtt.begin(MQTT_BROKER, MQTT_PORT, deviceId, MQTT_USER, MQTT_PASS, commandFilter)) {
+    Serial.println(F(" ERROR: no se pudo inicializar MQTT y la recepción de comandos"));
+  }
   Serial.printf(" MQTT: mqtt://%s:%d  tópico %s%s\n", MQTT_BROKER, MQTT_PORT, dataTopic,
                 MQTT_DEBUG_PLAINTEXT ? "  (+ /plain EN CLARO, solo desarrollo)" : "");
 
@@ -272,6 +287,8 @@ void loop() {
   }
 
   http_demo::loop();
+  commands::ShowTicket command;
+  const bool callUpdated = mqtt.takeCommand(command) && callState.apply(command, now);
 
   // --- Sensores ---
   if (now - lastImu >= IMU_PERIOD_MS) {
@@ -307,7 +324,7 @@ void loop() {
   }
 
   // --- OLED ---
-  if (now - lastOled >= OLED_PERIOD_MS) {
+  if (callUpdated || now - lastOled >= OLED_PERIOD_MS) {
     lastOled = now;
     renderOled(now);
   }

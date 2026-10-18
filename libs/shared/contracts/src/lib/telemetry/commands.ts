@@ -9,6 +9,13 @@
 export const WEARABLE_COMMAND_TYPES = ['SHOW_TICKET'] as const;
 export type WearableCommandType = (typeof WEARABLE_COMMAND_TYPES)[number];
 
+/** Límites de recepción en bytes UTF-8, sin contar el terminador C. No cambian el payload. */
+export const WEARABLE_COMMAND_LIMITS = {
+  payloadBytes: 512,
+  ticketCodeBytes: 16,
+  consultingRoomBytes: 320, // hasta 80 caracteres de 4 bytes (columna de la API)
+} as const;
+
 /** Mostrar en el OLED que el turno fue llamado: `A-024 → Cons. 4`. */
 export interface ShowTicketCommand {
   type: 'SHOW_TICKET';

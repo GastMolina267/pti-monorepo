@@ -59,6 +59,7 @@ modules/<dominio>/
 - **Latencia:** REST de turnos < 50 ms (hoy ~5 ms p50). Camino MQTT → WS sin bloqueos: se emite **antes** de persistir (caída → `alert:emergency` ≈ 8–15 ms).
 - **Tiempo real:** los services inyectan `RealtimeGateway` (módulo global) y llaman a `emit*()`; el gateway elige la sala y nunca lanza. Signos vitales y alertas, solo a `staff`.
 - **MQTT:** un solo cliente (`MqttService`, global). Sin `MQTT_URL` queda deshabilitado y el health marca `degraded`; un broker caído nunca rompe un endpoint (`publishJson` devuelve `false`).
+- **Gateway MQTT (4b):** API y health tienen cuentas separadas, cada pulsera su código como usuario y ACL propia. `gateway:up` aprovisiona sin rotar secretos y recrea contenedores para aplicar bajas. Simulador con `--gateway`; detalles en `docs/09-despliegue-gateway.md`.
 - **Dependencias entre módulos:** `telemetry` → `tickets` → `wearables`; `telemetry` → `alerts`. `wearables` y `alerts` no importan `tickets` (usan repositorios), así no hay ciclos.
 - **Errores:** excepciones de Nest con mensaje en español (`NotFoundException('Turno no encontrado')`, `ConflictException` para transiciones inválidas).
 - **Tests:** jest. Unitarios con mocks. El flujo completo va en `app.int.spec.ts` contra PostgreSQL real (CI con service container), con un broker MQTT en proceso (`aedes` 0.51, la última versión CommonJS) y clientes `socket.io-client`. El descifrado se prueba con `GCM_TEST_VECTORS` de `@vitalia/contracts/testing`. ⚠️ Jest corre en CommonJS: **no uses dependencias solo-ESM** en código que se testea (ej. `@faker-js/faker` v10).
@@ -68,6 +69,10 @@ modules/<dominio>/
 
 ```bash
 pnpm nx serve api                 # http://localhost:3000/api · Swagger /api/docs
+pnpm gateway:up                   # imagen API + PostgreSQL/MQTT + Nginx/Backoffice/TV; docs/09-despliegue-gateway.md
+pnpm gateway:e2e                  # Playwright sobre Docker sembrado; browser: gateway:e2e-install
+pnpm gateway:verify               # suite unificada sin reinicios; gateway:demo para presentación visible
+pnpm gateway:operations           # interrumpe stack: reinicios, recuperación y respaldo/restauración aislada
 pnpm nx test api                  # + TEST_DATABASE_URL=... para la integración
 pnpm db:migrate | db:generate --name=X | db:revert | db:show | db:seed | db:reset
 ```

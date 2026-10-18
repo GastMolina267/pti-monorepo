@@ -5,6 +5,74 @@
   "projectType": "application",
   "tags": ["scope:api", "type:app"],
   "targets": {
+    "gateway-verify": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "pnpm nx run api:gateway-test",
+          "pnpm nx run api:gateway-e2e-typecheck",
+          "pnpm nx run api:gateway-smoke",
+          "pnpm nx run api:gateway-mqtt-check",
+          "pnpm nx run api:gateway-e2e"
+        ],
+        "parallel": false
+      }
+    },
+    "gateway-demo": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "playwright test --config tools/gateway-e2e/playwright.config.ts",
+        "env": { "GATEWAY_DEMO": "1" }
+      },
+      "configurations": { "ci": { "env": { "GATEWAY_DEMO": "1", "GATEWAY_DEMO_HEADLESS": "1" } } }
+    },
+    "gateway-operations": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "playwright test --config tools/gateway-e2e/playwright.config.ts",
+        "env": { "GATEWAY_OPERATIONS": "1" }
+      }
+    },
+    "gateway-backup": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-backup.mjs" }
+    },
+    "gateway-backup-check": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/scripts/gateway-backup.mjs --check=\"{args.backup}\"",
+        "forwardAllArgs": false
+      }
+    },
+    "gateway-recover": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "tsx --tsconfig tsconfig.base.json tools/scripts/gateway-recover.ts" }
+    },
+    "gateway-e2e": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "playwright test --config tools/gateway-e2e/playwright.config.ts" }
+    },
+    "gateway-e2e-install": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "playwright install chromium" },
+      "configurations": { "ci": { "command": "playwright install --with-deps chromium" } }
+    },
+    "gateway-e2e-typecheck": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p tools/gateway-e2e/tsconfig.json" }
+    },
     "prune-lockfile": {
       "dependsOn": ["build"],
       "cache": true,
@@ -111,6 +179,70 @@
         ],
         "parallel": false
       }
+    },
+    "docker:build": {
+      "cache": false,
+      "command": "docker build -f apps/api/Dockerfile --target api -t vitalia-api:local .",
+      "options": {
+        "cwd": "."
+      }
+    },
+    "gateway-init": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-init.mjs" }
+    },
+    "gateway-up": {
+      "cache": false,
+      "dependsOn": ["gateway-mqtt-config"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/scripts/gateway-compose.mjs up --build --force-recreate -d --wait --wait-timeout 180"
+      }
+    },
+    "gateway-down": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-compose.mjs down" }
+    },
+    "gateway-seed": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/scripts/gateway-compose.mjs run --rm -e SEED_ALLOW_PRODUCTION=true api node seed.js"
+      }
+    },
+    "gateway-smoke": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "tsx --tsconfig tsconfig.base.json tools/scripts/gateway-smoke.ts" }
+    },
+    "gateway-test": {
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/tools/scripts/gateway-*",
+        "{workspaceRoot}/tools/wearable-simulator/src/lib/**/*",
+        "^default"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node --test tools/scripts/gateway-init.spec.mjs tools/scripts/gateway-compose.spec.mjs tools/scripts/gateway-backup.spec.mjs tools/scripts/gateway-lock.spec.mjs",
+          "tsx --tsconfig tsconfig.base.json --test tools/scripts/gateway-mqtt-config.spec.ts tools/scripts/gateway-fixtures.spec.ts"
+        ],
+        "parallel": false
+      }
+    },
+    "gateway-mqtt-config": {
+      "cache": false,
+      "dependsOn": ["gateway-init"],
+      "executor": "nx:run-commands",
+      "options": { "command": "tsx --tsconfig tsconfig.base.json tools/scripts/gateway-mqtt-config-cli.ts" }
+    },
+    "gateway-mqtt-check": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "tsx --tsconfig tsconfig.base.json tools/scripts/gateway-mqtt-check.ts" }
     }
   }
 }

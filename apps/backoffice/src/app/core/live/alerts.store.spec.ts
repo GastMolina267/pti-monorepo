@@ -61,7 +61,7 @@ describe('AlertsStore', () => {
     store.start(TestBed.inject(DestroyRef));
     http.expectOne('/api/alerts?active=true').flush([] as Alert[]);
     const fire = (e: string, payload: unknown) => events.get(e)?.next(payload);
-    return { store, alarm, http, fire };
+    return { store, alarm, http, fire, ready: () => realtime.ready$.next() };
   }
 
   it('suma la alerta en vivo, enciende la alarma y la saca al reconocerla en otro puesto', () => {
@@ -85,6 +85,41 @@ describe('AlertsStore', () => {
     expect(store.count()).toBe(1);
     fire(REALTIME_EVENTS.ALERT_EMERGENCY, { ...EVENT, alertId: 'a2', kind: 'HYPOXIA' });
     expect(store.pending().map((a) => a.id)).toEqual(['a2']);
+  });
+
+  it('al reconectar descarta una alerta conocida que otro puesto reconoció durante el corte', () => {
+    const { store, http, fire, ready } = setup();
+    fire(REALTIME_EVENTS.ALERT_EMERGENCY, EVENT);
+    ready();
+    http.expectOne('/api/alerts?active=true').flush([]);
+    expect(store.count()).toBe(0);
+  });
+
+  it('conserva una alerta emitida después de iniciar la consulta, antes de su persistencia', () => {
+    const { store, http, fire } = setup();
+    store.reload();
+    fire(REALTIME_EVENTS.ALERT_EMERGENCY, EVENT);
+    http.expectOne('/api/alerts?active=true').flush([]);
+    expect(store.active().map((a) => a.id)).toEqual(['a1']);
+  });
+
+  it('una respuesta en vuelo no reactiva una alerta ya reconocida por un evento', () => {
+    const { store, http, fire } = setup();
+    fire(REALTIME_EVENTS.ALERT_EMERGENCY, EVENT);
+    store.reload();
+    fire(REALTIME_EVENTS.ALERT_ACKNOWLEDGED, { alertId: 'a1', by: { id: 'u', fullName: 'X' }, at: '' });
+    http.expectOne('/api/alerts?active=true').flush([alertFromEvent(EVENT, null)]);
+    expect(store.count()).toBe(0);
+  });
+
+  it('ignora respuestas antiguas que llegan después de una consulta más reciente', () => {
+    const { store, http } = setup();
+    store.reload();
+    const older = http.expectOne('/api/alerts?active=true');
+    store.reload();
+    http.expectOne('/api/alerts?active=true').flush([]);
+    older.flush([alertFromEvent(EVENT, null)]);
+    expect(store.count()).toBe(0);
   });
 
   it('reconocer: POST /ack y la saca; un 409 (ya reconocida) también la saca', async () => {

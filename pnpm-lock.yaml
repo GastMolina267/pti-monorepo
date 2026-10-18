@@ -94,6 +94,9 @@ importers:
       socket.io-client:
         specifier: ^4.8.4
         version: 4.8.4
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
       typeorm:
         specifier: ^1.1.1
         version: 1.1.1(babel-plugin-macros@3.1.0)(pg@8.23.1)(ts-node@10.9.1(@swc/core@1.15.8(@swc/helpers@0.5.18))(@types/node@24.19.1)(typescript@6.0.3))
@@ -188,6 +191,9 @@ importers:
       '@oxc-project/runtime':
         specifier: ^0.115.0
         version: 0.115.0
+      '@playwright/test':
+        specifier: ^1.64.1
+        version: 1.64.1
       '@schematics/angular':
         specifier: 22.1.6
         version: 22.1.6(chokidar@5.0.0)
@@ -275,9 +281,6 @@ importers:
       ts-node:
         specifier: 10.9.1
         version: 10.9.1(@swc/core@1.15.8(@swc/helpers@0.5.18))(@types/node@24.19.1)(typescript@6.0.3)
-      tslib:
-        specifier: ^2.3.0
-        version: 2.8.1
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -15565,6 +15568,27 @@ packages:
         integrity: sha512-Eky7p2Z1Ig3NnbfodSPoARCjKBSTFMnE/ACsP1L/XJEfY4SdOFce19BsUCWVwL6K5ABZFy5J3bjcMWffX+YM3Q==,
       }
 
+  '@playwright/test@1.64.1':
+    resolution:
+      integrity: sha512-IaYGml/nSOiZWROfPtuIL7neuu9qDOZ3TNvNljUIrhDMxiGTgPjzj/g9p9RxpS2tSepPDRY+UwAaEeiKtUvIAg==
+    engines:
+      node: '>=20'
+    hasBin: true
+
+  playwright@1.64.1:
+    resolution:
+      integrity: sha512-HCrVhHr5QQuwYoswEUGTb7gGp522yflbv/ST8nF4sFWGuLjQCt17Q/EubpGGSNKYn1tsTCPZxqHhHCfVURu7UA==
+    engines:
+      node: '>=20'
+    hasBin: true
+
+  playwright-core@1.64.1:
+    resolution:
+      integrity: sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==
+    engines:
+      node: '>=20'
+    hasBin: true
+
 snapshots:
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -26493,3 +26517,13 @@ snapshots:
 
   zone.js@0.16.2:
     optional: true
+
+  '@playwright/test@1.64.1':
+    dependencies:
+      playwright: 1.64.1
+
+  playwright@1.64.1:
+    dependencies:
+      playwright-core: 1.64.1
+
+  playwright-core@1.64.1: {}

@@ -33,10 +33,18 @@ Alias de import: `@vitalia/contracts`, `@vitalia/design-tokens`, `@vitalia/ui` (
 ```bash
 pnpm install              # Node >= 22.12, pnpm 10
 pnpm infra:up             # PostgreSQL 16 + Mosquitto 2 (Docker)
+pnpm gateway:up           # gateway Docker de software; gateway:init · gateway:seed · gateway:smoke · gateway:down
+pnpm gateway:mqtt-check   # autenticación y ACL reales; sim:wearables --gateway usa identidades individuales
+pnpm gateway:e2e          # recorrido UI/API/MQTT sobre Docker y reconexión; instalar browser con gateway:e2e-install
+pnpm gateway:verify       # tests operativos, typecheck, smoke, ACL y E2E secuenciales
+pnpm gateway:demo         # recorrido visible con pausas; gateway:recover --run=<UUID> para interrupciones
+pnpm gateway:operations   # reinicios reales + persistencia + recuperación + restauración aislada
+pnpm gateway:backup       # base + configuración; gateway:backup-check --backup=RUTA restaura en PostgreSQL aislado
 pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:revert · db:seed · db:reset
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv
 pnpm fw:build | fw:upload | fw:monitor   # firmware del wearable (requiere PlatformIO en el PATH)
+pnpm nx run wearable-firmware-poc:pio-check-docker # tests y compilación del firmware sin placa ni toolchain local
 pnpm sim:wearables        # pulseras simuladas por MQTT (--help para anomalías y carga)
 pnpm nx test <proyecto>   # vitest (front/libs) · jest (api)
 pnpm nx lint <proyecto>
@@ -83,19 +91,20 @@ Además están las skills oficiales de Nx (`nx-workspace`, `nx-generate`, `nx-ru
 
 ## Documentación
 
-| Doc                                                          | Contenido                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [`docs/00-vision.md`](docs/00-vision.md)                     | Problema, objetivos, alcance (incluye y excluye)             |
-| [`docs/01-arquitectura.md`](docs/01-arquitectura.md)         | Capas Edge/Fog/Cloud, red y VLANs, flujos, mapa del monorepo |
-| [`docs/02-stack.md`](docs/02-stack.md)                       | Tecnologías y versiones                                      |
-| [`docs/03-dominio.md`](docs/03-dominio.md)                   | Glosario, requerimientos RF/RNF, umbrales clínicos           |
-| [`docs/04-contratos.md`](docs/04-contratos.md)               | REST, eventos WebSocket, MQTT y cifrado                      |
-| [`docs/05-convenciones.md`](docs/05-convenciones.md)         | Código, estructura, Git, testing                             |
-| [`docs/06-identidad-visual.md`](docs/06-identidad-visual.md) | Marca Vitalia                                                |
-| [`docs/07-roadmap.md`](docs/07-roadmap.md)                   | Plan por fases e hitos                                       |
-| [`docs/08-modelo-datos.md`](docs/08-modelo-datos.md)         | Diagrama ER, reglas del modelo, migraciones y seed           |
-| [`docs/adr/`](docs/adr/)                                     | Registro de decisiones de arquitectura                       |
-| [`docs/guia-desarrollo.md`](docs/guia-desarrollo.md)         | Setup en Windows, flujo de trabajo con IA                    |
+| Doc                                                              | Contenido                                                    |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`docs/00-vision.md`](docs/00-vision.md)                         | Problema, objetivos, alcance (incluye y excluye)             |
+| [`docs/01-arquitectura.md`](docs/01-arquitectura.md)             | Capas Edge/Fog/Cloud, red y VLANs, flujos, mapa del monorepo |
+| [`docs/02-stack.md`](docs/02-stack.md)                           | Tecnologías y versiones                                      |
+| [`docs/03-dominio.md`](docs/03-dominio.md)                       | Glosario, requerimientos RF/RNF, umbrales clínicos           |
+| [`docs/04-contratos.md`](docs/04-contratos.md)                   | REST, eventos WebSocket, MQTT y cifrado                      |
+| [`docs/05-convenciones.md`](docs/05-convenciones.md)             | Código, estructura, Git, testing                             |
+| [`docs/06-identidad-visual.md`](docs/06-identidad-visual.md)     | Marca Vitalia                                                |
+| [`docs/07-roadmap.md`](docs/07-roadmap.md)                       | Plan por fases e hitos                                       |
+| [`docs/08-modelo-datos.md`](docs/08-modelo-datos.md)             | Diagrama ER, reglas del modelo, migraciones y seed           |
+| [`docs/09-despliegue-gateway.md`](docs/09-despliegue-gateway.md) | Compose de software, configuración, seed y smoke             |
+| [`docs/adr/`](docs/adr/)                                         | Registro de decisiones de arquitectura                       |
+| [`docs/guia-desarrollo.md`](docs/guia-desarrollo.md)             | Setup en Windows, flujo de trabajo con IA                    |
 
 ## Equipo
 

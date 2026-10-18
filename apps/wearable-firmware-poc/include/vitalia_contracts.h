@@ -13,6 +13,10 @@ constexpr uint8_t MQTT_QOS = 1;
 // snprintf(buf, len, FMT, sala, wearableId)
 constexpr const char* MQTT_TOPIC_DATA_FMT = "hospital/%s/wearable/%s/data";
 constexpr const char* MQTT_TOPIC_CMD_FMT = "hospital/%s/wearable/%s/cmd";
+constexpr const char* CMD_SHOW_TICKET = "SHOW_TICKET";
+constexpr uint16_t COMMAND_PAYLOAD_BYTES = 512;
+constexpr uint16_t COMMAND_TICKET_CODE_BYTES = 16;
+constexpr uint16_t COMMAND_CONSULTING_ROOM_BYTES = 320;
 
 // --- Sobre cifrado (ADR 0006) ---
 constexpr uint8_t ENVELOPE_VERSION = 1;

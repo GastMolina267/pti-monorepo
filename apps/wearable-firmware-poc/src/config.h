@@ -30,6 +30,7 @@ constexpr uint32_t OLED_PERIOD_MS = 500;
 constexpr uint32_t TELEMETRY_PERIOD_MS = 3000;  // una lectura cada 3 s (docs/03-dominio)
 constexpr uint32_t WIFI_RETRY_MS = 3000;
 constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una caída
+constexpr uint32_t CALL_SCROLL_MS = 500;       // avance del consultorio largo, sin delay()
 
 // --- Detección de caídas (Hito 8, lib/fall_detection) ---
 // Punto de partida del marco teórico: se calibran con caídas controladas (AGENTS.md §9).

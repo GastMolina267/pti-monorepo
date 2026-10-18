@@ -9,6 +9,9 @@
  */
 #include <mqtt_client.h>
 #include <stdint.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include "command.h"
 
 namespace net {
 
@@ -18,10 +21,15 @@ class MqttLink {
    * Configura el cliente. `user`/`pass` vacíos = conexión anónima (Mosquitto de desarrollo).
    * No conecta todavía: llamar a start() cuando haya Wi-Fi.
    */
-  bool begin(const char* host, uint16_t port, const char* clientId, const char* user, const char* pass);
+  bool begin(const char* host, uint16_t port, const char* clientId, const char* user, const char* pass,
+             const char* commandFilter);
   /** Arranca la conexión (idempotente). Después reconecta solo. */
   void start();
   bool connected() const { return connected_; }
+  /** SUBACK recibido para esta conexión; se vuelve a suscribir en cada reconexión. */
+  bool commandsReady() const { return commandsReady_; }
+  /** Solo el loop consume la cola: jamás se accede al OLED/I²C desde la tarea MQTT. */
+  bool takeCommand(commands::ShowTicket& out);
 
   /**
    * Encola el mensaje en el outbox y vuelve enseguida; lo envía la tarea de ESP-MQTT.
@@ -40,7 +48,12 @@ class MqttLink {
   esp_mqtt_client_handle_t client_ = nullptr;
   bool started_ = false;
   volatile bool connected_ = false;
+  volatile bool commandsReady_ = false;
   volatile uint32_t acked_ = 0;
+  int subscriptionId_ = -1;
+  QueueHandle_t commands_ = nullptr;
+  commands::CommandInbox inbox_;
+  char commandFilter_[128] = {};
   char uri_[64] = {0};
 };
 
