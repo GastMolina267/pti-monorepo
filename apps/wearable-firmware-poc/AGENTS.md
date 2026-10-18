@@ -194,7 +194,7 @@ pio device list
 - **Broker:** Mosquitto en el Edge Gateway, puerto **1883** (la VLAN 10 solo permite tráfico a ese puerto). En desarrollo, `pnpm infra:up` levanta Mosquitto en la notebook.
 - **Tópico de telemetría (publicación):** `hospital/<sala>/wearable/<id>/data` (`MQTT_TOPICS.wearableData`)
 - **Tópico de comandos (suscripción):** `hospital/<sala>/wearable/<id>/cmd` (`MQTT_TOPICS.wearableCommand`)
-- **No hay tópico de alertas.** Una caída viaja como `fall: true` dentro de `data`. La API la clasifica con `assessVitals()` y emite `alert:emergency`.
+- **No hay tópico de alertas.** Una caída viaja como `fall: true` dentro de `data`. La API la clasifica con `vitalsFindings()`/`assessVitals()` y emite `alert:emergency`.
 - **QoS 1**, sin `retain`.
 - **`<id>` / Client ID / `wearableId`:** `wb-<NN>-<mac>` ([ADR 0011](../../docs/adr/0011-identificador-del-wearable.md), `formatWearableCode` en contracts).
   - `NN` = número físico de la pulsera, `WEARABLE_NUMBER` en `secrets.h` (1–99, con `static_assert`).
@@ -249,11 +249,15 @@ El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes
 - Si el tag no valida, el gateway descarta el mensaje.
 - **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:codegen` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
 
-Comando recibido por `.../cmd` (propuesta Fase 2):
+Comando recibido por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); la API ya lo publica, falta mostrarlo en el OLED):
 
 ```json
-{ "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Cons. 4" }
+{ "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
 ```
+
+- JSON **en claro** (sin cifrar), QoS 1, sin retain. Llega al llamar el turno o al asignar la pulsera a un turno ya llamado.
+- La API lo publica en la `<sala>` de la última lectura que recibió de esa pulsera (`sala1` si nunca publicó).
+- Un `type` desconocido se ignora (a futuro puede haber otros comandos).
 
 > El botón de pánico y la batería no están en el contrato todavía. Para mandarlos, primero se agregan los campos a `TelemetryReading` en `@vitalia/contracts`.
 

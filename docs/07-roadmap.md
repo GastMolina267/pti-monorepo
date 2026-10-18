@@ -9,7 +9,7 @@
 | ---- | ----------------------------------------- | --------- | ------ | ----------------------- |
 | 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa             |
 | 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa             |
-| 2    | Telemetría MQTT, alertas y tiempo real    | 5–19 oct  | G (+F) | ⏳ En curso             |
+| 2    | Telemetría MQTT, alertas y tiempo real    | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F)    |
 | 3    | Backoffice y llamador TV funcionales      | 12–26 oct | T      | Pendiente (en paralelo) |
 | 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente               |
 | 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente               |
@@ -21,7 +21,7 @@ gantt
   axisFormat %d/%m
   section Backend
   F1 Datos y turnos        :done, f1, 2026-10-03, 2d
-  F2 Telemetría y RT       :f2, 2026-10-05, 15d
+  F2 Telemetría y RT       :done, f2, 2026-10-05, 14d
   section Frontend
   F3 Backoffice y TV       :f3, 2026-10-12, 15d
   section Equipo
@@ -80,18 +80,20 @@ gantt
 - [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — falta calibrar con caídas controladas en la placa (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
-- [ ] Emitir eventos de dominio desde `tickets` (hoy hay un `// Fase 2` en `TicketsService.call`)
-- [ ] Módulo `realtime`: gateway Socket.IO con salas `staff` / `tv` / `patient:<id>` — [ADR 0007](adr/0007-tiempo-real-socket-io.md)
-- [ ] `ticket:called` y `queue:updated` emitidos desde `tickets`
-- [ ] Módulo `telemetry`: cliente MQTT, suscripción `hospital/+/wearable/+/data`, QoS 1
-- [ ] Descifrado AES-256-GCM + tests con `GCM_TEST_VECTORS` (`@vitalia/contracts/testing`) + descartar si el `wearableId` descifrado no coincide con el del tópico — [ADR 0006](adr/0006-cifrado-aes-256-gcm.md) (F: mismos vectores en el firmware)
-- [ ] Validación (zod), deduplicación por `seq`, `assessVitals()`, persistencia sin bloquear la emisión
-- [ ] Módulo `alerts`: creación ante `CRITICAL`, `alert:emergency`, reconocimiento (`ack`)
-- [ ] Módulo `wearables`: alta, asignación a un turno, última lectura, comando al OLED (`.../cmd`). Al dar de alta, validar que el **número** de pulsera (`parseWearableCode`) no esté repetido (ADR 0011)
+- [x] Emitir eventos de dominio desde `tickets`: check-in, llamado, estado y triaje (G)
+- [x] Módulo `realtime`: gateway Socket.IO con salas `staff` (JWT en el handshake) / `tv` / `patient:<id>`, `realtime:ready` y `realtime:error` — [ADR 0007](adr/0007-tiempo-real-socket-io.md) (G)
+- [x] `ticket:called` y `queue:updated` emitidos desde `tickets`; al finalizar o cancelar un turno se libera la pulsera (G)
+- [x] Módulo `mqtt` (cliente único, reconexión, QoS 1) y módulo `telemetry`: suscripción `hospital/+/wearable/+/data` (G)
+- [x] Descifrado AES-256-GCM + tests con `GCM_TEST_VECTORS` (`@vitalia/contracts/testing`) + descartar si el `wearableId` descifrado no coincide con el del tópico — [ADR 0006](adr/0006-cifrado-aes-256-gcm.md) (G; F: mismos vectores en el firmware)
+- [x] Validación (zod), deduplicación por `seq` (memoria + índice único), pulseras no dadas de alta descartadas, `vitalsFindings()`/`assessVitals()`, persistencia en segundo plano después de emitir; el triaje del turno solo sube (G)
+- [x] Módulo `alerts`: una alerta por hallazgo CRÍTICO sin repetir la activa del mismo tipo, `alert:emergency` antes de persistir, `GET /api/alerts`, `POST /api/alerts/:id/ack` → `alert:acknowledged` (G)
+- [x] Módulo `wearables`: alta validando formato y **número** sin repetir (ADR 0011), asignar/liberar, última lectura, `online`, sala del tópico y `SHOW_TICKET` a `.../cmd` al llamar (G)
+- [x] Migración `Fase2Iomt`: `seq` a `bigint` (con el arranque en los bits altos superaba int32), índice único `(wearable_id, seq)`, `wearables.last_room` (G)
 - [x] `tools/wearable-simulator` (`pnpm sim:wearables`): N pulseras simuladas, anomalías inyectables (caída, hipoxia, taquicardia…), eventos de prueba (reinicio, duplicado, tag alterado, tópico ajeno) y cifrado real. Probado contra Mosquitto con `fw:mqtt-check` y con 50 pulseras (F)
-- [ ] Check de MQTT en `/api/health`
+- [x] Check de MQTT en `/api/health` (`degraded` si no está configurado o no conecta: los turnos siguen) (G)
+- [x] Test de integración de punta a punta con broker en proceso (aedes) y Socket.IO real: caída → `alert:emergency`, dedupe, spoof, tag alterado, `ack`, llamado → TV/paciente/`SHOW_TICKET`, alta y asignación de pulseras (G)
 
-**Terminado cuando:** con el simulador corriendo, una caída simulada genera `alert:emergency` en < 500 ms y queda persistida.
+**Terminado ✅ (lado API, 18/10):** con `pnpm sim:wearables --inject=fall:3@4` y la API corriendo, la caída llega a la sala `staff` como `alert:emergency` **~8 ms** después del `ts` del wearable y queda persistida; el test de integración mide ~15 ms entre publicar y recibir (objetivo < 500 ms). El simulador confirma el descarte de `tamper` y `spoof` y la deduplicación de `duplicate`. Queda del lado del firmware mostrar `SHOW_TICKET` en el OLED (F).
 
 ## Fase 3 · Backoffice y llamador TV (T, en paralelo desde el 12/10)
 
