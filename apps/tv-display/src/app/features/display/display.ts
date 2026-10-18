@@ -1,39 +1,84 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { LucideWifi } from '@lucide/angular';
-import { TicketCalledEvent } from '@vitalia/contracts';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { LucideVolume2, LucideWifi, LucideWifiOff } from '@lucide/angular';
+import { API_PREFIX, type RecentCallsResponse } from '@vitalia/contracts';
 import { Logo } from '@vitalia/ui';
+import { catchError, EMPTY, startWith, switchMap } from 'rxjs';
+import { RealtimeService } from '../../core/realtime/realtime.service';
+import { AnnouncerService } from '../../core/sound/announcer.service';
+import { applyCall, type CallBoard, EMPTY_BOARD, fromRecent } from './call-board';
+
+const BOARD_KEY = 'vitalia_tv_board';
+/** Cuánto dura el destello del llamado nuevo. */
+const HIGHLIGHT_MS = 8000;
+
+function readBoard(): CallBoard {
+  try {
+    const raw = localStorage.getItem(BOARD_KEY);
+    return raw ? (JSON.parse(raw) as CallBoard) : EMPTY_BOARD;
+  } catch {
+    return EMPTY_BOARD;
+  }
+}
 
 /**
- * Pantalla del llamador. En Fase 3 se suscribe al evento `ticket:called`
- * (REALTIME_EVENTS.TICKET_CALLED) vía Socket.IO; por ahora muestra datos de ejemplo.
+ * Llamador de la sala de espera (VLAN 40, kiosco). Muestra el llamado actual y los últimos,
+ * los anuncia con campanita y voz, y si se corta la conexión sigue mostrando el último estado
+ * (también guardado en el navegador por si se recarga la página).
  */
 @Component({
   selector: 'vt-display',
-  imports: [Logo, LucideWifi],
+  imports: [Logo, LucideWifi, LucideWifiOff, LucideVolume2],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './display.html',
   styleUrl: './display.scss',
 })
 export class Display {
+  protected readonly realtime = inject(RealtimeService);
+  protected readonly announcer = inject(AnnouncerService);
+  private readonly http = inject(HttpClient);
+
   protected readonly now = signal(new Date());
-
-  protected readonly current = signal<TicketCalledEvent>({
-    ticketId: 'demo-24',
-    ticketCode: 'A-024',
-    consultingRoom: 'Consultorio 4',
-    professionalName: 'Dra. Fernández',
-    calledAt: new Date().toISOString(),
-  });
-
-  protected readonly history = signal([
-    { code: 'A-023', room: 'Consultorio 2' },
-    { code: 'B-011', room: 'Guardia' },
-    { code: 'A-022', room: 'Consultorio 1' },
-  ]);
+  protected readonly board = signal<CallBoard>(readBoard());
+  protected readonly highlight = signal(false);
+  private highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
     const id = setInterval(() => this.now.set(new Date()), 1000);
-    inject(DestroyRef).onDestroy(() => clearInterval(id));
+    destroyRef.onDestroy(() => {
+      clearInterval(id);
+      clearTimeout(this.highlightTimer);
+    });
+
+    // Al arrancar y en cada reconexión, ponerse al día con lo que se llamó mientras tanto.
+    this.realtime.ready$
+      .pipe(
+        startWith(undefined),
+        switchMap(() =>
+          this.http
+            .get<RecentCallsResponse>(`/${API_PREFIX}/tickets/recent-calls`)
+            .pipe(catchError(() => EMPTY)),
+        ),
+        takeUntilDestroyed(destroyRef),
+      )
+      .subscribe((list) => this.board.set(fromRecent(list)));
+
+    this.realtime.ticketCalled$.pipe(takeUntilDestroyed(destroyRef)).subscribe((e) => {
+      this.board.update((b) => applyCall(b, e));
+      this.announcer.announce(e);
+      this.flash();
+    });
+
+    effect(() => {
+      const b = this.board();
+      try {
+        localStorage.setItem(BOARD_KEY, JSON.stringify(b));
+      } catch {
+        /* sin storage */
+      }
+    });
   }
 
   protected time(d: Date): string {
@@ -43,5 +88,17 @@ export class Display {
   protected date(d: Date): string {
     const s = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
     return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  protected calledAt(iso: string): string {
+    return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  private flash(): void {
+    // Reiniciar la animación aunque llegue otro llamado durante el destello.
+    this.highlight.set(false);
+    clearTimeout(this.highlightTimer);
+    requestAnimationFrame(() => this.highlight.set(true));
+    this.highlightTimer = setTimeout(() => this.highlight.set(false), HIGHLIGHT_MS);
   }
 }

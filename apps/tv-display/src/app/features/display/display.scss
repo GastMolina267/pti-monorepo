@@ -81,6 +81,34 @@
   color: #fff;
   letter-spacing: -0.02em;
 }
+.idle {
+  font-size: clamp(40px, 10vh, 120px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: #fff;
+  margin: 2vh 0 1vh;
+}
+
+.call.flash {
+  animation:
+    vt-reveal 0.6s var(--vt-ease) both,
+    call-flash 1s ease-in-out 0.2s 6;
+}
+@keyframes call-flash {
+  0%,
+  100% {
+    box-shadow: 0 30px 80px -30px rgba(2, 132, 199, 0.7);
+    filter: none;
+  }
+  50% {
+    box-shadow:
+      0 0 0 1.2vh rgba(255, 255, 255, 0.55),
+      0 30px 90px -20px rgba(2, 132, 199, 0.9);
+    filter: brightness(1.12);
+  }
+}
+
 .pro {
   font-size: clamp(18px, 3vh, 34px);
   font-weight: 600;
@@ -123,19 +151,81 @@
   letter-spacing: -0.03em;
 }
 .history li span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   font-size: clamp(14px, 2.4vh, 26px);
   color: var(--vt-muted);
   font-weight: 600;
+  text-align: right;
+}
+.history li small {
+  font-size: clamp(11px, 1.6vh, 18px);
+  color: var(--vt-muted-2);
+}
+.history li.empty {
+  justify-content: center;
+  color: var(--vt-muted-2);
+  font-size: clamp(14px, 2.2vh, 24px);
+  border-style: dashed;
 }
 
 .bottom {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 2vw;
   font-size: clamp(14px, 2.2vh, 24px);
   color: var(--vt-muted);
   strong {
     color: var(--vt-primary-light);
   }
+}
+.tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.6vh 1vw;
+  border-radius: 999px;
+  font-size: clamp(12px, 1.7vh, 18px);
+  font-weight: 700;
+  color: var(--vt-warning);
+  border: 1px solid var(--vt-stroke-2);
+  white-space: nowrap;
+  &.live {
+    color: var(--vt-muted);
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--vt-live);
+    animation: vt-pulse 2s infinite;
+  }
+}
+
+.unlock {
+  position: fixed;
+  inset: auto 0 12vh;
+  margin: 0 auto;
+  width: max-content;
+  max-width: 90vw;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2vh 3vw;
+  border-radius: 999px;
+  border: 1px solid var(--vt-stroke-2);
+  background: var(--vt-paper);
+  color: var(--vt-ink);
+  font: inherit;
+  font-size: clamp(16px, 2.4vh, 26px);
+  font-weight: 700;
+  box-shadow: var(--vt-shadow-float);
+  cursor: pointer;
 }
