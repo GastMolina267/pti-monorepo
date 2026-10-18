@@ -41,6 +41,8 @@ Despliegue del software en Docker (sin portal ni router): `pnpm gateway:up` y `p
 
 El broker del gateway usa usuarios y ACL por pulsera: verificalos con `pnpm gateway:mqtt-check` y enviá telemetría cifrada con `pnpm sim:wearables --gateway`.
 
+El firmware recibe `SHOW_TICKET` y muestra el llamado en el OLED. Podés verificar sus tests y compilación sin placa con `pnpm nx run wearable-firmware-poc:pio-check-docker`; usa solo Docker y la plantilla de secretos.
+
 | Script                                               | Acción                             |
 | ---------------------------------------------------- | ---------------------------------- |
 | `pnpm dev` / `dev:api` / `dev:backoffice` / `dev:tv` | Servidores de desarrollo           |

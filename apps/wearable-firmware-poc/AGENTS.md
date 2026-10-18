@@ -120,6 +120,7 @@ pnpm fw:build      # = pnpm nx run wearable-firmware-poc:pio-build  (pio run)
 pnpm fw:upload     # = ...:pio-upload                               (pio run -t upload)
 pnpm fw:monitor    # = ...:pio-monitor                              (pio device monitor)
 pnpm fw:test       # = ...:pio-test   tests native, sin placa       (pio test -e native)
+pnpm nx run wearable-firmware-poc:pio-check-docker # native + build ESP32 + compilar tests de placa, sin hardware
 pnpm fw:codegen    # regenera include/vitalia_contracts.h y test/fixtures/gcm_vectors.h
 pnpm fw:mqtt-check # escucha Mosquitto, descifra y valida cada lectura contra el contrato
 pnpm nx run wearable-firmware-poc:pio-test-device   # tests en la placa (lib/crypto + vectores GCM)
@@ -171,11 +172,13 @@ pio device list
   fall_detection/       // PURA: FallDetector (caída libre → impacto > 2,8 g → inmovilidad, Hito 8)
   sensors/              // Imu (MPU6050), SkinTemp (MLX90614); a futuro MAX30102
   envelope/             // PURA: base64, sobre { v, iv, ct, tag } del contrato, clave hex de secrets.h
-  net/                  // Wi-Fi con reintento, NTP, MqttLink (ESP-MQTT, QoS 1), código del dispositivo, arranques (NVS)
+  commands/             // PURA: parser SHOW_TICKET, fragmentos, estado del llamado y texto/scroll del OLED
+  net/                  // Wi-Fi, NTP, MqttLink (QoS 1 + comandos por cola FreeRTOS), identidad, arranques NVS
   ui/                   // Oled, StatusLed (a futuro buzzer)
   crypto/               // AES-256-GCM con mbedTLS (AES por hardware) y seal(): IV aleatorio + sobre
 /test
   native/test_*/        // tests Unity de las libs PURAS en la PC (pnpm fw:test, CI)
+  native/stubs/         // SDK mínimo SOLO de test para compilar el adaptador MQTT real en native
   esp32/test_crypto/    // tests EN LA PLACA de lib/crypto con los vectores compartidos (CI solo los compila)
   fixtures/gcm_vectors.h  // GENERADO: vectores GCM compartidos con la API
 ```
@@ -200,7 +203,7 @@ pio device list
   - `NN` = número físico de la pulsera, `WEARABLE_NUMBER` en `secrets.h` (1–99, con `static_assert`).
   - `mac` = últimos 3 bytes de la MAC Wi-Fi en hex minúscula. Sirve para cruzar con la tabla DHCP o ARP del router cuando hay problemas de red.
   - Ejemplo: la pulsera física actual es `wb-01-24d7cc`. Tiene que existir en `wearables.code` del gateway (el seed ya la trae).
-- **Credenciales MQTT:** `MQTT_USER` / `MQTT_PASS` en `secrets.h`. Vacíos = anónimo, como el Mosquitto de desarrollo. En la Fase 4 se cargan **a mano** por pulsera: usuario = código del wearable, contraseña generada con `mosquitto_passwd` en el gateway. El ACL limita cada usuario a sus propios tópicos (`%u`).
+- **Credenciales MQTT:** `MQTT_USER` / `MQTT_PASS` en `secrets.h`. Vacíos = anónimo, solo para el Mosquitto de desarrollo. Desde 4b el gateway exige usuario = código y contraseña individual de `.gateway/mqtt/devices.json`, copiada a mano. Usa ACL explícitas por usuario, sin patrones globales `%u` ([ADR 0014](../../docs/adr/0014-identidades-y-acl-mqtt.md)).
 
 Lectura en claro (`TelemetryReading`), antes de cifrar:
 
@@ -249,7 +252,7 @@ El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes
 - Si el tag no valida, el gateway descarta el mensaje.
 - **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:codegen` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
 
-Comando recibido por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); la API ya lo publica, falta mostrarlo en el OLED):
+Comando recibido por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); receptor implementado en 4c):
 
 ```json
 { "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
@@ -258,6 +261,10 @@ Comando recibido por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](.
 - JSON **en claro** (sin cifrar), QoS 1, sin retain. Llega al llamar el turno o al asignar la pulsera a un turno ya llamado.
 - La API lo publica en la `<sala>` de la última lectura que recibió de esa pulsera (`sala1` si nunca publicó).
 - Un `type` desconocido se ignora (a futuro puede haber otros comandos).
+- `MqttLink` se suscribe a `hospital/+/wearable/<id propio>/cmd` con QoS 1 en **cada** conexión y expone `commandsReady()` después del SUBACK correspondiente. El comodín de sala cubre `sala1` antes de la primera lectura; nunca acepta otro wearable.
+- `lib/commands` valida JSON, límites generados desde `WEARABLE_COMMAND_LIMITS`, UTF-8 y ausencia de controles. Reensambla fragmentos contiguos con un buffer acotado, descarta retenidos y reinicia la recepción al desconectar.
+- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState`. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
+- OLED: `TE LLAMAN`, código y consultorio; scroll de nombres largos, transliteración de tildes/ñ y `LLAMADO SIN RED` sin broker. Una caída reciente tiene prioridad durante `FALL_DISPLAY_MS`. El último llamado queda en RAM hasta reemplazo o reinicio; no hay limpieza al finalizar un turno ni recuperación de comandos perdidos sin conexión ([ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md)).
 
 > El botón de pánico y la batería no están en el contrato todavía. Para mandarlos, primero se agregan los campos a `TelemetryReading` en `@vitalia/contracts`.
 

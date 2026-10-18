@@ -9,9 +9,9 @@
 | ---- | --------------------------------------- | --------- | ------ | -------------------------- |
 | 0    | Fundaciones del monorepo                | 3 oct     | G      | ✅ Completa                |
 | 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa                |
-| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F)       |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ Software · ⏳ placa     |
 | 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa                |
-| 4    | Despliegue e integración del software   | 18–31 oct | G      | 4a–4b completas · sigue 4c |
+| 4    | Despliegue e integración del software   | 18–31 oct | G      | 4a–4c completas · sigue 4d |
 | 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente                  |
 | 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente                  |
 
@@ -76,7 +76,7 @@ gantt
 - [x] Firmware: hora por NTP (`configTime` con `NTP_SERVER`); en desarrollo, NTP público (red única con internet) (F)
 - [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
 - [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
-- [ ] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED (F)
+- [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c, pendiente validación física (G; F: placa)
 - [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — falta calibrar con caídas controladas en la placa (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
@@ -93,7 +93,7 @@ gantt
 - [x] Check de MQTT en `/api/health` (`degraded` si no está configurado o no conecta: los turnos siguen) (G)
 - [x] Test de integración de punta a punta con broker en proceso (aedes) y Socket.IO real: caída → `alert:emergency`, dedupe, spoof, tag alterado, `ack`, llamado → TV/paciente/`SHOW_TICKET`, alta y asignación de pulseras (G)
 
-**Terminado ✅ (lado API, 18/10):** con `pnpm sim:wearables --inject=fall:3@4` y la API corriendo, la caída llega a la sala `staff` como `alert:emergency` **~8 ms** después del `ts` del wearable y queda persistida; el test de integración mide ~15 ms entre publicar y recibir (objetivo < 500 ms). El simulador confirma el descarte de `tamper` y `spoof` y la deduplicación de `duplicate`. Queda del lado del firmware mostrar `SHOW_TICKET` en el OLED (F).
+**Terminado ✅ (lado API, 18/10):** con `pnpm sim:wearables --inject=fall:3@4` y la API corriendo, la caída llega a la sala `staff` como `alert:emergency` **~8 ms** después del `ts` del wearable y queda persistida; el test de integración mide ~15 ms entre publicar y recibir (objetivo < 500 ms). El simulador confirma el descarte de `tamper` y `spoof` y la deduplicación de `duplicate`. El receptor y estado de `SHOW_TICKET` en el firmware se completaron como software en 4c; la validación en placa sigue fuera de este cierre.
 
 ## Fase 3 · Backoffice y llamador TV ✅
 
@@ -138,10 +138,12 @@ También se verificó parada y recreación del stack sin borrar volúmenes: usua
 
 Segundo arranque verificado: archivos de credenciales idénticos, MQTT y smoke otra vez en verde. `pnpm affected` pasó sus 16 tareas de lint/test/build en 7 proyectos; los 7 tests operativos de inicialización, entorno y aprovisionamiento también pasaron. La ejecución remota del job CI queda pendiente; este cierre acredita las comprobaciones locales.
 
-### 4c · Comandos en el firmware
+### 4c · Comandos en el firmware — completo como software (18/10)
 
-- [ ] Suscripción a `.../cmd`, validación de `SHOW_TICKET`, estado del llamado en OLED y resuscripción al reconectar.
-- [ ] Tests native de parser/estado y compilación sin exigir placa, flasheo ni calibración. MAX30102 no bloquea este cierre: el simulador aporta `hr` y `spo2`.
+- [x] Suscripción QoS 1 al código propio en cualquier sala, validación y reensamblado acotado de `SHOW_TICKET`, estado del llamado en OLED y resuscripción al reconectar. Cola FreeRTOS hacia el `loop()`, sin acceso a I²C desde MQTT ([ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md)).
+- [x] Tests native de parser, fragmentos, estado, scroll/UTF-8 y adaptador MQTT real con SDK de prueba; compilación con SDK ESP32-C3 sin exigir placa, flasheo ni calibración. MAX30102 no bloquea este cierre: el simulador aporta `hr` y `spo2`.
+
+**Verificado localmente (18/10):** `pio-check-docker` ejecutó 43 tests native (11 nuevos) y compiló el firmware ESP32-C3 con la plantilla de secretos. También compiló los tests de cifrado de placa sin subirlos ni ejecutarlos. `pnpm affected` pasó 16 tareas en 7 proyectos y los headers generados están al día. El llamado se conserva en RAM hasta reemplazo o reinicio, con indicador sin red y prioridad temporal de caída local; no hay limpieza automática al finalizar ni recuperación de comandos perdidos durante cortes. El E2E sobre Docker corresponde a 4d y la ejecución física sigue pendiente.
 
 ### 4d · Pruebas integradas de software
 

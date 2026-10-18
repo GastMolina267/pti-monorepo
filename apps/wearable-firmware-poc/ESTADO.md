@@ -7,6 +7,8 @@
 
 ## Dónde estamos
 
+**Software 4c (18/10/2026):** recepción de `SHOW_TICKET`, validación y reensamblado acotado, resuscripción MQTT por conexión y cola hacia el `loop()` implementados. El OLED muestra el último llamado, desplaza consultorios largos y conserva la prioridad de caída local. Pruebas sin placa: `pnpm nx run wearable-firmware-poc:pio-check-docker`; alcance y límites en [ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md). Esto no cambia los resultados físicos de los hitos listados abajo: no se flasheó ni calibró hardware con esta entrega.
+
 Validación de hardware por hitos (ver `AGENTS.md` sección 9). Se avanza en orden, sin
 pasar al siguiente hasta que el anterior pasa.
 

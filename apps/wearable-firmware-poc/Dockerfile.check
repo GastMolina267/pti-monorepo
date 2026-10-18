@@ -1,0 +1,13 @@
+# Verificación sin placa ni secretos locales; el host solo necesita Docker y pnpm/Nx.
+FROM python:3.12-bookworm AS toolchain
+RUN pip install --no-cache-dir platformio==6.1.19
+WORKDIR /firmware
+COPY apps/wearable-firmware-poc/platformio.ini ./
+RUN pio pkg install -e esp32-c3-supermini -e native
+
+FROM toolchain AS check
+COPY apps/wearable-firmware-poc/ ./
+RUN cp src/secrets.h.example src/secrets.h \
+    && pio test -e native \
+    && pio run \
+    && pio test -e esp32-c3-supermini --without-uploading --without-testing

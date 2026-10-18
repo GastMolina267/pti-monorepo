@@ -39,6 +39,7 @@ pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:re
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv
 pnpm fw:build | fw:upload | fw:monitor   # firmware del wearable (requiere PlatformIO en el PATH)
+pnpm nx run wearable-firmware-poc:pio-check-docker # tests y compilación del firmware sin placa ni toolchain local
 pnpm sim:wearables        # pulseras simuladas por MQTT (--help para anomalías y carga)
 pnpm nx test <proyecto>   # vitest (front/libs) · jest (api)
 pnpm nx lint <proyecto>

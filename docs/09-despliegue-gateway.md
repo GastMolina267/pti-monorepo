@@ -1,4 +1,4 @@
-# 09 · Despliegue local del gateway (Fases 4a–4b)
+# 09 · Despliegue local del gateway y firmware (Fases 4a–4c)
 
 El gateway corre la API, PostgreSQL, Mosquitto y Nginx con los builds de Backoffice y TV. No necesita portal cautivo, router especial ni wearable físico. [ADR 0013](adr/0013-despliegue-software-gateway.md).
 
@@ -71,6 +71,22 @@ pnpm gateway:seed
 ```
 
 Ese comando habilita explícitamente `SEED_ALLOW_PRODUCTION=true` solo en el contenedor temporal del seed. La aplicación sigue ejecutándose con configuración de producción. Los usuarios son `admin@vitalia.local`, `enfermeria@vitalia.local`, `medico@vitalia.local`, `pediatria@vitalia.local` y `recepcion@vitalia.local`; la contraseña está en `SEED_PASSWORD` de `.gateway/.env`. Todos los datos son simulados.
+
+## Firmware sin placa (4c)
+
+Desde la raíz, con Docker Desktop iniciado:
+
+```bash
+pnpm nx run wearable-firmware-poc:pio-check-docker
+```
+
+El target construye `Dockerfile.check` del firmware con Python 3.12 y PlatformIO 6.1.19: tests native de las libs puras y del adaptador MQTT, build ESP32-C3 y compilación de los tests de cifrado de placa sin subirlos ni ejecutarlos. Solo usa `secrets.h.example`; `.dockerignore` excluye los secretos reales. La primera ejecución descarga el compilador y las bibliotecas fijadas en `platformio.ini`. El target `pio-toolchain-docker` permite preparar únicamente las herramientas.
+
+Validación local de 4c (18/10): 43 tests nativos pasaron, incluido el adaptador MQTT de producción con stubs de SDK; firmware ESP32-C3 y tests de cifrado de placa compilados. La compilación de estos últimos no acredita haber ejecutado los vectores en hardware.
+
+Si ya tenés PlatformIO y GCC en el PATH, siguen disponibles `pnpm fw:test` y `pnpm fw:build`. Los targets `pio-*` son explícitos: `pnpm affected` no obliga a instalar herramientas de firmware en todas las máquinas. CI conserva el job de firmware con las mismas pruebas nativas, compilación real y compilación de tests de placa.
+
+La recepción del llamado usa el contrato documentado en [04-contratos.md](04-contratos.md#comando-al-wearable-wearablecommand): identidad propia, resuscripción, validación, fragmentos y cola hacia el OLED. Conserva el último llamado en RAM y señala pérdida de red; no recupera comandos emitidos mientras estaba desconectado. El recorrido API → broker → cliente de prueba se completa en 4d. Esta validación no acredita pantalla física, sensores, flasheo ni calibración.
 
 ## Verificación y parada
 

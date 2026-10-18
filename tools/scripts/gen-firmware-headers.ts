@@ -20,6 +20,10 @@ import {
 } from '../../libs/shared/contracts/src/lib/telemetry/mqtt';
 import { SEQ_BOOT_SHIFT } from '../../libs/shared/contracts/src/lib/telemetry/seq';
 import {
+  WEARABLE_COMMAND_LIMITS,
+  WEARABLE_COMMAND_TYPES,
+} from '../../libs/shared/contracts/src/lib/telemetry/commands';
+import {
   WEARABLE_NUMBER_MAX,
   WEARABLE_NUMBER_MIN,
 } from '../../libs/shared/contracts/src/lib/telemetry/wearable-id';
@@ -63,6 +67,10 @@ function renderContracts(): string {
     '// snprintf(buf, len, FMT, sala, wearableId)',
     `constexpr const char* MQTT_TOPIC_DATA_FMT = "${MQTT_TOPICS.wearableData('%s', '%s')}";`,
     `constexpr const char* MQTT_TOPIC_CMD_FMT = "${MQTT_TOPICS.wearableCommand('%s', '%s')}";`,
+    `constexpr const char* CMD_SHOW_TICKET = "${WEARABLE_COMMAND_TYPES[0]}";`,
+    `constexpr uint16_t COMMAND_PAYLOAD_BYTES = ${WEARABLE_COMMAND_LIMITS.payloadBytes};`,
+    `constexpr uint16_t COMMAND_TICKET_CODE_BYTES = ${WEARABLE_COMMAND_LIMITS.ticketCodeBytes};`,
+    `constexpr uint16_t COMMAND_CONSULTING_ROOM_BYTES = ${WEARABLE_COMMAND_LIMITS.consultingRoomBytes};`,
     '',
     '// --- Sobre cifrado (ADR 0006) ---',
     `constexpr uint8_t ENVELOPE_VERSION = ${ENVELOPE_VERSION};`,

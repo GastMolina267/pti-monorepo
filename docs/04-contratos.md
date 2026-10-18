@@ -231,6 +231,10 @@ Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSIO
 - Va **en claro**: no lleva signos vitales ni datos personales, solo lo que ya muestra la TV. Desde 4b la ACL del gateway reserva la publicación en `cmd` a la API.
 - Si no hay conexión con el broker, el llamado sigue igual (el OLED no se entera).
 
+Desde 4c, el firmware se suscribe con QoS 1 a `hospital/+/wearable/<id propio>/cmd` en cada conexión, incluso al reconectar. El receptor valida el objeto completo con esos tres campos, `type` conocido y textos UTF-8 no vacíos sin controles. Los límites `WEARABLE_COMMAND_LIMITS` se generan a C++: 512 bytes de JSON, 16 de código y 320 de consultorio (sin terminadores). El formato del mensaje no cambia.
+
+Los fragmentos se reensamblan dentro del límite; mensajes retenidos, incompletos, ajenos, desconocidos o inválidos se descartan sin cambiar el último llamado. La tarea MQTT pasa una copia por cola al `loop()`, que muestra `TE LLAMAN`, código y consultorio. Los nombres largos se desplazan y las tildes/ñ se transliteran para la fuente básica del OLED. Una caída local reciente conserva prioridad; sin broker se indica `LLAMADO SIN RED` y se conserva lo recibido. El llamado dura hasta reemplazo o reinicio: todavía no hay `CLEAR_TICKET` ni recuperación automática de llamados perdidos durante una desconexión. [ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md).
+
 ## Portal cautivo ↔ API (Fase 4)
 
 El portal (`pti-captive-portal`) hoy espera `/auth/*`. En la Fase 4 se alinea con este contrato: `GET /api/services`, `POST /api/check-in` y polling o socket de `GET /api/tickets/:id/public`. Su `VITE_BASE_URL` apunta a la API del gateway (CORS ya incluye `http://localhost:5173`).
