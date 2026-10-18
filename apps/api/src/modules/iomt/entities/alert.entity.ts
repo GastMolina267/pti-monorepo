@@ -1,22 +1,26 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { TRIAGE_LEVELS, type AlertEmergencyEvent, type TriageLevel } from '@vitalia/contracts';
+import {
+  ALERT_KINDS,
+  ALERT_STATUSES,
+  TRIAGE_LEVELS,
+  type AlertKind,
+  type AlertStatus,
+  type TriageLevel,
+} from '@vitalia/contracts';
 import { StaffUserEntity } from '../../auth/entities/staff-user.entity';
 import { TicketEntity } from '../../tickets/entities/ticket.entity';
 import { WearableEntity } from './wearable.entity';
 
-export const ALERT_KINDS = ['FALL', 'HYPOXIA', 'TACHYCARDIA', 'BRADYCARDIA', 'FEVER', 'HYPOTHERMIA'] as const;
-export const ALERT_STATUSES = ['ACTIVE', 'ACKNOWLEDGED', 'RESOLVED'] as const;
-export type AlertStatus = (typeof ALERT_STATUSES)[number];
-
-/** Alerta clínica (se usa desde la Fase 2). */
+/** Alerta clínica generada por un hallazgo CRÍTICO de una lectura (`vitalsFindings`). */
 @Entity({ name: 'alerts' })
 @Index('ix_alerts_status_time', ['status', 'detectedAt'])
+@Index('ix_alerts_wearable_status', ['wearableId', 'status'])
 export class AlertEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ type: 'enum', enum: ALERT_KINDS, enumName: 'alert_kind' })
-  kind!: AlertEmergencyEvent['kind'];
+  kind!: AlertKind;
 
   @Column({ type: 'enum', enum: TRIAGE_LEVELS, enumName: 'triage_level' })
   level!: TriageLevel;

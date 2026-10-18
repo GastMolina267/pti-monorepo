@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
@@ -8,7 +14,9 @@ import {
   OPEN_TICKET_STATUSES,
   TICKET_STATUS_LABELS,
   TICKET_STATUSES,
+  TRIAGE_LEVELS,
   type CheckInRequest,
+  type QueueChange,
   type PublicTicket,
   type Ticket,
   type TicketQuery,
@@ -21,6 +29,8 @@ import { toDayKey } from '../../common/time/day-key';
 import type { Env } from '../../config/env.schema';
 import { ConsultingRoomEntity } from '../catalog/entities/consulting-room.entity';
 import { ServiceAreaEntity } from '../catalog/entities/service-area.entity';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { WearablesService } from '../wearables/wearables.service';
 import { PatientEntity } from './entities/patient.entity';
 import { TicketEntity } from './entities/ticket.entity';
 import { toPublicTicket, toTicket } from './tickets.mapper';
@@ -34,14 +44,21 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
+/** Al pasar a estos estados, la pulsera del turno se libera. */
+const RELEASES_WEARABLE: readonly TicketStatus[] = ['DONE', 'CANCELLED'];
+
 @Injectable()
 export class TicketsService {
+  private readonly logger = new Logger(TicketsService.name);
+
   constructor(
     @InjectRepository(TicketEntity) private readonly tickets: Repository<TicketEntity>,
     @InjectRepository(ServiceAreaEntity) private readonly services: Repository<ServiceAreaEntity>,
     @InjectRepository(ConsultingRoomEntity) private readonly rooms: Repository<ConsultingRoomEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly config: ConfigService<Env, true>,
+    private readonly realtime: RealtimeGateway,
+    private readonly wearables: WearablesService,
   ) {}
 
   private today(): string {
@@ -106,7 +123,9 @@ export class TicketsService {
           );
           return ticket.id;
         });
-        return this.getPublic(ticketId);
+        const ticket = await this.getEntity(ticketId);
+        this.notifyQueue('CHECK_IN', ticket);
+        return this.toPublic(ticket);
       } catch (err) {
         // Dos check-ins simultáneos pueden competir por el mismo número: reintentar.
         if (isUniqueViolation(err) && attempt < MAX_NUMBER_RETRIES) continue;
@@ -135,7 +154,10 @@ export class TicketsService {
 
   /** Vista pública para el paciente (sin datos clínicos), con posición y espera estimada. */
   async getPublic(id: string): Promise<PublicTicket> {
-    const ticket = await this.getEntity(id);
+    return this.toPublic(await this.getEntity(id));
+  }
+
+  private async toPublic(ticket: TicketEntity): Promise<PublicTicket> {
     return toPublicTicket(
       ticket,
       await this.positionOf(ticket),
@@ -150,14 +172,25 @@ export class TicketsService {
     const room = await this.rooms.findOneBy({ id: consultingRoomId, active: true });
     if (!room) throw new NotFoundException('Consultorio no encontrado');
 
+    const calledAt = new Date();
     await this.tickets.update(id, {
       status: 'CALLED',
-      calledAt: new Date(),
+      calledAt,
       consultingRoomId: room.id,
       calledById: user.id,
     });
-    // Fase 2: emitir REALTIME_EVENTS.TICKET_CALLED (TV, paciente, OLED del wearable).
-    return this.findOne(id);
+    // Primero el llamado (TV, staff, paciente: objetivo < 100 ms), después el resto.
+    this.realtime.emitTicketCalled({
+      ticketId: id,
+      ticketCode: ticket.code,
+      consultingRoom: room.name,
+      professionalName: user.fullName,
+      calledAt: calledAt.toISOString(),
+    });
+    void this.wearables.showTicket(id, { ticketCode: ticket.code, consultingRoom: room.name });
+    const updated = await this.getEntity(id);
+    this.notifyQueue('CALLED', updated);
+    return toTicket(updated);
   }
 
   async updateStatus(id: string, status: TicketStatus): Promise<Ticket> {
@@ -174,10 +207,15 @@ export class TicketsService {
       Object.assign(changes, { calledAt: null, consultingRoomId: null, calledById: null, finishedAt: null });
 
     await this.tickets.update(id, changes);
-    return this.findOne(id);
+    if (RELEASES_WEARABLE.includes(status)) {
+      await this.wearables.releaseByTicket(id);
+    }
+    const updated = await this.getEntity(id);
+    this.notifyQueue('STATUS', updated);
+    return toTicket(updated);
   }
 
-  /** Triaje manual por enfermería (hasta que el wearable lo actualice en la Fase 2). */
+  /** Triaje manual por enfermería: puede subirlo o bajarlo (la telemetría solo lo sube). */
   async updateTriage(id: string, triageLevel: TriageLevel): Promise<Ticket> {
     const ticket = await this.getEntity(id);
     if (!OPEN_TICKET_STATUSES.includes(ticket.status)) {
@@ -186,7 +224,44 @@ export class TicketsService {
       );
     }
     await this.tickets.update(id, { triageLevel });
-    return this.findOne(id);
+    const updated = await this.getEntity(id);
+    this.notifyQueue('TRIAGE', updated);
+    return toTicket(updated);
+  }
+
+  /**
+   * Escalado automático desde la telemetría: sube el triaje de un turno abierto si la lectura
+   * es más grave, **nunca lo baja** (bajar es decisión de enfermería, `PATCH /triage`).
+   * Devuelve `true` si cambió.
+   */
+  async escalateTriage(id: string, level: TriageLevel): Promise<boolean> {
+    const lower = TRIAGE_LEVELS.slice(0, TRIAGE_LEVELS.indexOf(level));
+    if (lower.length === 0) return false;
+    const result = await this.tickets.update(
+      { id, status: In([...OPEN_TICKET_STATUSES]), triageLevel: In(lower) },
+      { triageLevel: level },
+    );
+    if (!result.affected) return false;
+    this.notifyQueue('TRIAGE', await this.getEntity(id));
+    return true;
+  }
+
+  /** `queue:updated` a staff y TV, fuera del camino de la respuesta (cuenta la espera). */
+  private notifyQueue(change: QueueChange, ticket: TicketEntity): void {
+    this.tickets
+      .countBy({ serviceId: ticket.serviceId, dayKey: ticket.dayKey, status: 'WAITING' })
+      .then((waitingCount) =>
+        this.realtime.emitQueueUpdated({
+          change,
+          ticketId: ticket.id,
+          ticketCode: ticket.code,
+          serviceCode: ticket.service.code,
+          status: ticket.status,
+          waitingCount,
+          at: new Date().toISOString(),
+        }),
+      )
+      .catch((err: Error) => this.logger.warn(`No se pudo avisar el cambio de la fila: ${err.message}`));
   }
 
   private async getEntity(id: string): Promise<TicketEntity> {
