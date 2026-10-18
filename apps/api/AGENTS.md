@@ -70,6 +70,7 @@ modules/<dominio>/
 ```bash
 pnpm nx serve api                 # http://localhost:3000/api · Swagger /api/docs
 pnpm gateway:up                   # imagen API + PostgreSQL/MQTT + Nginx/Backoffice/TV; docs/09-despliegue-gateway.md
+pnpm gateway:e2e                  # Playwright sobre Docker sembrado; browser: gateway:e2e-install
 pnpm nx test api                  # + TEST_DATABASE_URL=... para la integración
 pnpm db:migrate | db:generate --name=X | db:revert | db:show | db:seed | db:reset
 ```

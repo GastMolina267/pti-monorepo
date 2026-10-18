@@ -7,13 +7,11 @@ import {
   type AlertAcknowledgedEvent,
   type AlertEmergencyEvent,
 } from '@vitalia/contracts';
-import { catchError, EMPTY, firstValueFrom, switchMap } from 'rxjs';
+import { catchError, defer, EMPTY, firstValueFrom, type Observable, switchMap, tap } from 'rxjs';
 import { AlertsApi } from '../api/alerts.api';
 import { RealtimeService } from '../realtime/realtime.service';
 import { AlarmService } from '../sound/alarm.service';
 import { QueueStore } from './queue.store';
-
-const FRESH_MS = 10_000;
 
 /** Convierte el evento en tiempo real a la forma de `GET /api/alerts`. */
 export function alertFromEvent(e: AlertEmergencyEvent, patientDisplayName: string | null): Alert {
@@ -56,6 +54,9 @@ export class AlertsStore {
   /** Alertas que el usuario minimizó: no suenan ni tapan la pantalla, pero siguen activas. */
   private readonly minimized = signal<ReadonlySet<string>>(new Set());
   private readonly acking = signal<ReadonlySet<string>>(new Set());
+  /** Impide que una respuesta en vuelo reactive una alerta ya reconocida. Se limpia por sesión. */
+  private readonly acknowledged = new Set<string>();
+  private requestVersion = 0;
 
   /** Las que todavía reclaman atención (overlay + alarma). */
   readonly pending = computed(() => this.active().filter((a) => !this.minimized().has(a.id)));
@@ -68,12 +69,14 @@ export class AlertsStore {
   start(destroyRef: DestroyRef): void {
     this.active.set([]);
     this.minimized.set(new Set());
+    this.acknowledged.clear();
     this.reload();
 
     this.realtime
       .on<AlertEmergencyEvent>(REALTIME_EVENTS.ALERT_EMERGENCY)
       .pipe(takeUntilDestroyed(destroyRef))
       .subscribe((e) => {
+        if (this.acknowledged.has(e.alertId)) return;
         const ticket = e.ticketId ? this.queue.tickets().find((t) => t.id === e.ticketId) : undefined;
         this.active.update((l) => mergeAlerts(l, [alertFromEvent(e, ticket?.patient.displayName ?? null)]));
       });
@@ -86,17 +89,14 @@ export class AlertsStore {
     // Al reconectar, la base ya tiene todo lo que pasó mientras tanto.
     this.realtime.ready$
       .pipe(
-        switchMap(() => this.api.list(true).pipe(catchError(() => EMPTY))),
+        switchMap(() => this.resync()),
         takeUntilDestroyed(destroyRef),
       )
-      .subscribe((list) => this.replaceWith(list));
+      .subscribe();
   }
 
   reload(): void {
-    this.api
-      .list(true)
-      .pipe(catchError(() => EMPTY))
-      .subscribe((list) => this.replaceWith(list));
+    this.resync().subscribe();
   }
 
   isAcking(id: string): boolean {
@@ -127,21 +127,32 @@ export class AlertsStore {
     this.minimized.set(new Set(this.active().map((a) => a.id)));
   }
 
-  /**
-   * Reemplaza por lo que dice la API, pero conserva las recién llegadas por WebSocket:
-   * la alerta se emite antes de guardarse y puede no estar todavía en la respuesta.
-   */
-  private replaceWith(list: Alert[]): void {
-    const fresh = Date.now() - FRESH_MS;
+  /** Cada snapshot conoce qué alertas ya existían al iniciar el pedido. */
+  private resync(): Observable<Alert[]> {
+    return defer(() => {
+      const version = ++this.requestVersion;
+      const known = new Set(this.active().map((a) => a.id));
+      return this.api.list(true).pipe(
+        tap((list) => {
+          if (version === this.requestVersion) this.replaceWith(list, known);
+        }),
+        catchError(() => EMPTY),
+      );
+    });
+  }
+
+  /** Conserva solo eventos llegados durante el pedido, sin rescatar reconocidas durante un corte. */
+  private replaceWith(list: Alert[], known: ReadonlySet<string>): void {
     this.active.update((l) =>
       mergeAlerts(
-        l.filter((a) => new Date(a.detectedAt).getTime() > fresh),
+        l.filter((a) => !known.has(a.id)),
         list,
-      ),
+      ).filter((a) => !this.acknowledged.has(a.id)),
     );
   }
 
   private remove(id: string): void {
+    this.acknowledged.add(id);
     this.active.update((l) => l.filter((a) => a.id !== id));
   }
 }

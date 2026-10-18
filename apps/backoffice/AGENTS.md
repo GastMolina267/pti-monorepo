@@ -40,6 +40,7 @@ Cada feature es una carpeta con componentes standalone y su ruta lazy (`loadComp
 - **Alertas críticas:** contraste alto, animación `vt-crit-pulse`, sonido y respeto de `prefers-reduced-motion`.
 - **Accesibilidad:** `aria-label` en botones de ícono y foco visible. Responsivo de móvil a escritorio (RNF-O4).
 - **Tests:** vitest + TestBed (`pnpm nx test backoffice`). Socket con `FakeSocket` por `SOCKET_FACTORY`; HTTP con `provideHttpClientTesting`. La lógica pura (ordenar, filtrar, aplicar lecturas) va en funciones exportadas y se prueba sin TestBed.
+- **E2E (4d):** `pnpm gateway:e2e` prueba la UI compilada contra Docker (asignar, reconocer, llamar y reconectar sin recarga). `AlertsStore` reconcilia por IDs y versión de consulta; no recuperar alertas conocidas ausentes del snapshot ni reconocidas desde una respuesta vieja. Ver ADR 0016 y `docs/09-despliegue-gateway.md`.
 
 ## Comandos
 

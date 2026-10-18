@@ -35,15 +35,16 @@ Versiones fijadas al crear el monorepo (octubre 2026). Las de Angular y NestJS s
 
 ## Frontend (`apps/backoffice`, `apps/tv-display`, `libs/shared/ui`)
 
-| Tecnología                    | Versión                            | Uso                                                       |
-| ----------------------------- | ---------------------------------- | --------------------------------------------------------- |
-| Angular                       | 22 (standalone, zoneless, signals) | Framework ([ADR 0002](adr/0002-backoffice-en-angular.md)) |
-| Angular Material + CDK        | 22.2 (M3)                          | Componentes, con tema Vitalia                             |
-| @angular/build (esbuild)      | 22                                 | Build y dev-server                                        |
-| @lucide/angular               | 1.x                                | Íconos (sin CDN)                                          |
-| @fontsource/plus-jakarta-sans | 5                                  | Tipografía auto-hospedada                                 |
-| Vitest + Analog               | 4.1                                | Tests                                                     |
-| socket.io-client              | 4                                  | Tiempo real (Backoffice: sala `staff` · TV: sala `tv`)    |
+| Tecnología                    | Versión                            | Uso                                                             |
+| ----------------------------- | ---------------------------------- | --------------------------------------------------------------- |
+| Angular                       | 22 (standalone, zoneless, signals) | Framework ([ADR 0002](adr/0002-backoffice-en-angular.md))       |
+| Angular Material + CDK        | 22.2 (M3)                          | Componentes, con tema Vitalia                                   |
+| @angular/build (esbuild)      | 22                                 | Build y dev-server                                              |
+| @lucide/angular               | 1.x                                | Íconos (sin CDN)                                                |
+| @fontsource/plus-jakarta-sans | 5                                  | Tipografía auto-hospedada                                       |
+| Vitest + Analog               | 4.1                                | Tests                                                           |
+| Playwright + Chromium         | 1.64 (solo desarrollo)             | E2E real sobre el gateway Docker, Backoffice, TV y reconexiones |
+| socket.io-client              | 4                                  | Tiempo real (Backoffice: sala `staff` · TV: sala `tv`)          |
 
 ## Infraestructura (`docker-compose.yml`, `infra/`)
 

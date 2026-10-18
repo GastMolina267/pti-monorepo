@@ -11,7 +11,7 @@
 | 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa                |
 | 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ Software · ⏳ placa     |
 | 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa                |
-| 4    | Despliegue e integración del software   | 18–31 oct | G      | 4a–4c completas · sigue 4d |
+| 4    | Despliegue e integración del software   | 18–31 oct | G      | 4a–4d completas · sigue 4e |
 | 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente                  |
 | 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente                  |
 
@@ -145,10 +145,14 @@ Segundo arranque verificado: archivos de credenciales idénticos, MQTT y smoke o
 
 **Verificado localmente (18/10):** `pio-check-docker` ejecutó 43 tests native (11 nuevos) y compiló el firmware ESP32-C3 con la plantilla de secretos. También compiló los tests de cifrado de placa sin subirlos ni ejecutarlos. `pnpm affected` pasó 16 tareas en 7 proyectos y los headers generados están al día. El llamado se conserva en RAM hasta reemplazo o reinicio, con indicador sin red y prioridad temporal de caída local; no hay limpieza automática al finalizar ni recuperación de comandos perdidos durante cortes. El E2E sobre Docker corresponde a 4d y la ejecución física sigue pendiente.
 
-### 4d · Pruebas integradas de software
+### 4d · Pruebas integradas de software — completo (18/10)
 
-- [ ] Check-in por API → asignación de pulsera simulada → telemetría cifrada → alerta y reconocimiento en Backoffice → llamado en TV y recepción de `SHOW_TICKET` por un cliente de prueba.
-- [ ] Verificar resincronización tras reconectar sobre el despliegue Docker, aprovechando la lógica de Fase 3.
+- [x] Check-in por API → asignación de pulsera simulada desde UI → telemetría AES-GCM por Mosquitto autenticado y persistencia → caída y reconocimiento en Backoffice → llamado desde UI en TV y recepción de `SHOW_TICKET` por un cliente MQTT.
+- [x] Resincronización sin recargar Backoffice/TV tras cortes de sus conexiones: recuperar turnos, signos vitales, alertas nuevas y último llamado; quitar una alerta reconocida desde otro cliente durante el corte. Reconexión del cliente MQTT antes del segundo comando.
+
+**Verificado localmente (18/10):** `pnpm gateway:e2e` pasó un escenario de ocho pasos en Chromium contra los builds reales de Docker (9,7 s de recorrido). No usa mocks de negocio ni borra la base: crea fixtures simulados sin DNI y cierra sus turnos/reconoce sus alertas; los 14 turnos originales del seed se conservaron. El E2E reprodujo una alerta reconocida que quedaba activa al reconectar; se corrigió la conciliación por IDs y versiones de consulta, con cuatro regresiones nuevas. Los 30 tests del Backoffice, el typecheck E2E, las 16 tareas de `pnpm affected`, smoke y ACL MQTT pasaron. [ADR 0016](adr/0016-validar-gateway-con-navegadores-reales.md).
+
+El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remota no se acredita con estas pruebas locales. Los cortes simulados afectan a los navegadores, no al gateway ni a la WAN; el receptor MQTT es un cliente de prueba, sin placa ni OLED físico.
 
 ### 4e · Operación y demo
 

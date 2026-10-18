@@ -11,6 +11,7 @@ Pantalla **pasiva** del hall de la sala de espera (VLAN 40, modo kiosco). Muestr
 - Estructura: `core/realtime/` (socket a la sala `tv`, `ready$`), `core/sound/` (anunciador), `features/display/` (pantalla y `call-board.ts`, lógica pura del tablero).
 - Al arrancar y en cada reconexión pide `GET /api/tickets/recent-calls`; el tablero se guarda en `localStorage` para mostrar el último estado si se recarga sin conexión.
 - **Nunca** muestra datos clínicos ni nombres: solo código de turno, consultorio y profesional.
+- **E2E (4d):** `pnpm gateway:e2e` verifica el llamado real por Nginx y la recuperación de uno emitido mientras el navegador estuvo desconectado, sin recargar la página. Usa un contexto Chromium aislado y datos simulados.
 
 ## Comandos
 

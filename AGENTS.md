@@ -35,6 +35,7 @@ pnpm install              # Node >= 22.12, pnpm 10
 pnpm infra:up             # PostgreSQL 16 + Mosquitto 2 (Docker)
 pnpm gateway:up           # gateway Docker de software; gateway:init · gateway:seed · gateway:smoke · gateway:down
 pnpm gateway:mqtt-check   # autenticación y ACL reales; sim:wearables --gateway usa identidades individuales
+pnpm gateway:e2e          # recorrido UI/API/MQTT sobre Docker y reconexión; instalar browser con gateway:e2e-install
 pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:revert · db:seed · db:reset
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv

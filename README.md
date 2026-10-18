@@ -43,6 +43,8 @@ El broker del gateway usa usuarios y ACL por pulsera: verificalos con `pnpm gate
 
 El firmware recibe `SHOW_TICKET` y muestra el llamado en el OLED. Podés verificar sus tests y compilación sin placa con `pnpm nx run wearable-firmware-poc:pio-check-docker`; usa solo Docker y la plantilla de secretos.
 
+Para probar el recorrido integrado en el gateway sembrado, ejecutá `pnpm gateway:e2e-install` y `pnpm gateway:e2e`: Backoffice y TV reales en Chromium, telemetría cifrada, alertas, llamado y recuperación tras cortes de los clientes. Solo usa datos simulados y conserva el historial.
+
 | Script                                               | Acción                             |
 | ---------------------------------------------------- | ---------------------------------- |
 | `pnpm dev` / `dev:api` / `dev:backoffice` / `dev:tv` | Servidores de desarrollo           |

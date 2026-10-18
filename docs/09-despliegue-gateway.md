@@ -1,4 +1,4 @@
-# 09 · Despliegue local del gateway y firmware (Fases 4a–4c)
+# 09 · Despliegue local, firmware y pruebas integradas (Fases 4a–4d)
 
 El gateway corre la API, PostgreSQL, Mosquitto y Nginx con los builds de Backoffice y TV. No necesita portal cautivo, router especial ni wearable físico. [ADR 0013](adr/0013-despliegue-software-gateway.md).
 
@@ -88,12 +88,39 @@ Si ya tenés PlatformIO y GCC en el PATH, siguen disponibles `pnpm fw:test` y `p
 
 La recepción del llamado usa el contrato documentado en [04-contratos.md](04-contratos.md#comando-al-wearable-wearablecommand): identidad propia, resuscripción, validación, fragmentos y cola hacia el OLED. Conserva el último llamado en RAM y señala pérdida de red; no recupera comandos emitidos mientras estaba desconectado. El recorrido API → broker → cliente de prueba se completa en 4d. Esta validación no acredita pantalla física, sensores, flasheo ni calibración.
 
+## Recorrido integrado sobre Docker (4d)
+
+En una instalación nueva, levantá el gateway y ejecutá el seed explícito como se indica arriba. Con ese stack en funcionamiento:
+
+```bash
+pnpm gateway:e2e-install
+pnpm nx run api:gateway-e2e-typecheck
+pnpm gateway:e2e
+```
+
+`gateway:e2e-install` descarga Chromium una sola vez. En Linux/CI usá `pnpm nx run api:gateway-e2e-install:ci` para instalar también las dependencias del sistema. Los tests de `tools/gateway-e2e/` usan los puertos y la contraseña del seed de `.gateway/.env`, con dos contextos de navegador aislados; no necesitan portal, router ni placa.
+
+El recorrido verifica login, check-in por API, asignación desde Backoffice, lectura cifrada por MQTT y persistencia visible, caída, reconocimiento desde UI, llamado desde UI → TV y `SHOW_TICKET` en el cliente MQTT. Después corta las conexiones de ambos navegadores, reconoce una alerta desde otro cliente, publica hipoxia y otra lectura, llama otro turno y vuelve a conectar. Exige que fila, signos vitales, alertas y TV recuperen los cambios sin recargar. Incluye un corte/reconexión del cliente MQTT antes del segundo comando.
+
+Necesitás al menos una pulsera simulada 02–08 aprovisionada, libre, sin emisor externo ni alertas activas. El test no usa la pulsera física 01. La sala `e2e-4d` queda reservada para estas pruebas; una pulsera libre cuya última lectura pertenece a esa sala puede reutilizarse inmediatamente. No ejecutes dos recorridos sobre el mismo stack al mismo tiempo.
+
+Cada corrida crea dos pacientes/turnos **simulados y sin DNI**, marcados en el motivo como `E2E simulado 4d`. Al terminar reconoce sus alertas y cierra sus turnos, liberando la pulsera; no borra la base ni resetea el seed. El historial y las lecturas quedan disponibles como evidencia de prueba. Las capturas de fallos quedan bajo `.gateway/e2e-results`; no se guardan trazas, JWT ni sesiones de login en archivos. No compartas la configuración local.
+
+La limpieza corre en `finally`; si el proceso se termina abruptamente o se agota su timeout global, revisá los turnos marcados como E2E que hayan quedado abiertos antes de repetir.
+
+El E2E detectó y motivó la corrección de alertas reconocidas durante un corte que seguían visibles por la heurística de frescura. Las regresiones cubren también eventos durante una consulta y respuestas atrasadas que intentan restaurar alertas reconocidas. [ADR 0016](adr/0016-validar-gateway-con-navegadores-reales.md).
+
+Esta prueba usa el despliegue real y un cliente MQTT de prueba; no ejecuta el firmware en hardware ni acredita una caída de WAN, la prueba de 24 h o los objetivos de carga y latencia de Fase 5.
+
+Validación local (18/10): recorrido de ocho pasos en verde sobre el gateway reconstruido, 30 tests del Backoffice y 16 tareas afectadas en siete proyectos. Smoke y seguridad MQTT volvieron a pasar después del E2E. El job CI está configurado; falta acreditar su ejecución remota.
+
 ## Verificación y parada
 
 ```bash
 pnpm nx run api:gateway-test
 pnpm gateway:smoke
 pnpm gateway:mqtt-check
+pnpm gateway:e2e
 pnpm affected
 pnpm gateway:down
 ```
