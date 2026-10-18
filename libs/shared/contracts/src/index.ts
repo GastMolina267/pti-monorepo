@@ -8,4 +8,5 @@ export * from './lib/catalog';
 export * from './lib/tickets';
 export * from './lib/realtime';
 export * from './lib/telemetry';
+export * from './lib/iomt';
 export * from './lib/clinical';
