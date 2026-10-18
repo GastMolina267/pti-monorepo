@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
 
 /** Crea credenciales locales sin sobrescribir una instalación ni imprimir secretos. */
@@ -36,7 +35,7 @@ export function readGatewaySettings(directory = '.gateway') {
   return parseEnv(readFileSync(resolve(directory, '.env'), 'utf8'));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (process.argv[1] && resolve(process.argv[1]) === resolve('tools/scripts/gateway-init.mjs')) {
   const result = initializeGateway();
   console.log(
     result.created ? 'Configuración creada en .gateway/.env' : 'Se conserva .gateway/.env existente',

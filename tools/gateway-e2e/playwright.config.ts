@@ -1,22 +1,26 @@
 import { defineConfig } from '@playwright/test';
 import { resolve } from 'node:path';
 
+const demo = process.env['GATEWAY_DEMO'] === '1';
+const operations = process.env['GATEWAY_OPERATIONS'] === '1';
+
 export default defineConfig({
   testDir: '.',
-  testMatch: 'gateway.spec.ts',
+  testMatch: operations ? 'operations.spec.ts' : 'gateway.spec.ts',
+  globalSetup: './global-setup.ts',
   tsconfig: './tsconfig.json',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   forbidOnly: !!process.env['CI'],
-  timeout: 90_000,
-  globalTimeout: 180_000,
+  timeout: operations ? 300_000 : demo ? 240_000 : 90_000,
+  globalTimeout: operations ? 420_000 : demo ? 300_000 : 180_000,
   expect: { timeout: 8000 },
   outputDir: resolve('.gateway/e2e-results'),
   reporter: [['list', { printSteps: true }]],
   use: {
     browserName: 'chromium',
-    headless: true,
+    headless: !demo || process.env['GATEWAY_DEMO_HEADLESS'] === '1',
     viewport: { width: 1440, height: 1000 },
     locale: 'es-AR',
     timezoneId: 'America/Argentina/Buenos_Aires',
@@ -26,6 +30,6 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
-    launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] },
+    launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'], slowMo: demo ? 200 : 0 },
   },
 });

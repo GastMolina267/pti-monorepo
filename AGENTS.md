@@ -36,6 +36,10 @@ pnpm infra:up             # PostgreSQL 16 + Mosquitto 2 (Docker)
 pnpm gateway:up           # gateway Docker de software; gateway:init · gateway:seed · gateway:smoke · gateway:down
 pnpm gateway:mqtt-check   # autenticación y ACL reales; sim:wearables --gateway usa identidades individuales
 pnpm gateway:e2e          # recorrido UI/API/MQTT sobre Docker y reconexión; instalar browser con gateway:e2e-install
+pnpm gateway:verify       # tests operativos, typecheck, smoke, ACL y E2E secuenciales
+pnpm gateway:demo         # recorrido visible con pausas; gateway:recover --run=<UUID> para interrupciones
+pnpm gateway:operations   # reinicios reales + persistencia + recuperación + restauración aislada
+pnpm gateway:backup       # base + configuración; gateway:backup-check --backup=RUTA restaura en PostgreSQL aislado
 pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:revert · db:seed · db:reset
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv

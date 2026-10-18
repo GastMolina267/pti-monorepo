@@ -66,15 +66,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm nx run api:gateway-test
-      - run: pnpm nx run api:gateway-e2e-typecheck
       - run: pnpm nx run api:gateway-e2e-install:ci
       - run: pnpm gateway:up
       - run: pnpm gateway:seed
-      - run: pnpm gateway:smoke
-      - run: pnpm gateway:mqtt-check
       - run: pnpm sim:wearables --gateway --count=2 --duration=8
-      - run: pnpm gateway:e2e
+      - run: pnpm gateway:verify
+      - run: pnpm gateway:operations
+      - run: pnpm gateway:smoke
       - if: always()
         run: pnpm gateway:down
 

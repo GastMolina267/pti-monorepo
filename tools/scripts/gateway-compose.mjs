@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { readGatewaySettings } from './gateway-init.mjs';
 
 /** El .env de desarrollo que carga Nx no puede reemplazar los secretos del gateway. */
@@ -11,7 +10,7 @@ export function gatewayComposeInvocation(args, environment = process.env, direct
   };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (process.argv[1] && resolve(process.argv[1]) === resolve('tools/scripts/gateway-compose.mjs')) {
   const invocation = gatewayComposeInvocation(process.argv.slice(2));
   const result = spawnSync('docker', invocation.args, { env: invocation.env, stdio: 'inherit' });
   if (result.error) console.error('No se pudo ejecutar Docker:', result.error.message);

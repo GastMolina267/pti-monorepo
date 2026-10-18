@@ -20,3 +20,4 @@ Formato y proceso: skill `vitalia-docs`. Un ADR aceptado no se edita: se reempla
 | [0014](0014-identidades-y-acl-mqtt.md)                 | Identidades individuales y ACL MQTT del gateway    | Aceptado           |
 | [0015](0015-recibir-comandos-en-el-firmware.md)        | Recepción MQTT y estado del llamado en el firmware | Aceptado           |
 | [0016](0016-validar-gateway-con-navegadores-reales.md) | E2E del gateway y snapshots de reconexión          | Aceptado           |
+| [0017](0017-operar-y-recuperar-el-gateway.md)          | Operación, recuperación y respaldos del gateway    | Aceptado           |

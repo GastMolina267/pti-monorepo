@@ -5,6 +5,58 @@
   "projectType": "application",
   "tags": ["scope:api", "type:app"],
   "targets": {
+    "gateway-verify": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "pnpm nx run api:gateway-test",
+          "pnpm nx run api:gateway-e2e-typecheck",
+          "pnpm nx run api:gateway-smoke",
+          "pnpm nx run api:gateway-mqtt-check",
+          "pnpm nx run api:gateway-e2e"
+        ],
+        "parallel": false
+      }
+    },
+    "gateway-demo": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "playwright test --config tools/gateway-e2e/playwright.config.ts",
+        "env": { "GATEWAY_DEMO": "1" }
+      },
+      "configurations": { "ci": { "env": { "GATEWAY_DEMO": "1", "GATEWAY_DEMO_HEADLESS": "1" } } }
+    },
+    "gateway-operations": {
+      "cache": false,
+      "parallelism": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "playwright test --config tools/gateway-e2e/playwright.config.ts",
+        "env": { "GATEWAY_OPERATIONS": "1" }
+      }
+    },
+    "gateway-backup": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-backup.mjs" }
+    },
+    "gateway-backup-check": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/scripts/gateway-backup.mjs --check=\"{args.backup}\"",
+        "forwardAllArgs": false
+      }
+    },
+    "gateway-recover": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "tsx --tsconfig tsconfig.base.json tools/scripts/gateway-recover.ts" }
+    },
     "gateway-e2e": {
       "cache": false,
       "parallelism": false,
@@ -175,8 +227,8 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "node --test tools/scripts/gateway-init.spec.mjs tools/scripts/gateway-compose.spec.mjs",
-          "tsx --tsconfig tsconfig.base.json --test tools/scripts/gateway-mqtt-config.spec.ts"
+          "node --test tools/scripts/gateway-init.spec.mjs tools/scripts/gateway-compose.spec.mjs tools/scripts/gateway-backup.spec.mjs tools/scripts/gateway-lock.spec.mjs",
+          "tsx --tsconfig tsconfig.base.json --test tools/scripts/gateway-mqtt-config.spec.ts tools/scripts/gateway-fixtures.spec.ts"
         ],
         "parallel": false
       }

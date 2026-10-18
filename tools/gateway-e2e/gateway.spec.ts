@@ -8,6 +8,13 @@ import {
   type Ticket,
 } from '@vitalia/contracts';
 import { GatewayApi, login, networkGate, TestWearable, tvOrigin } from './support';
+import { setTimeout as delay } from 'node:timers/promises';
+
+async function checkpoint(message: string): Promise<void> {
+  if (process.env['GATEWAY_DEMO'] !== '1') return;
+  console.log(`DEMO · ${message}`);
+  await delay(5000);
+}
 
 test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recargar', async ({
   browser,
@@ -60,17 +67,22 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
       await expect(dialog).not.toBeVisible();
       expect((await gateway.wearable(deviceId)).ticket?.id).toBe(first.id);
       await page.getByRole('link', { name: 'Triaje', exact: true }).click();
+      await checkpoint(`Turno ${first.code} registrado y pulsera asignada. Observá la fila de triaje.`);
     });
     await test.step('Lectura AES-GCM real → persistencia y signos vitales en la fila', async () => {
       const seq = await device.publish();
       await expect.poll(async () => (await gateway.wearable(deviceId)).lastReading?.seq).toBe(seq);
       await expect(pulse(first.code)).toHaveText('77lpm');
+      await checkpoint('Lectura cifrada recibida y persistida: 77 lpm, SpO₂ 98 %.');
     });
     await test.step('Caída → alerta crítica → reconocimiento desde Backoffice', async () => {
       await device.publish({ fall: true, accPeakG: 3.2 });
       const overlay = page.getByRole('alertdialog');
       await expect(overlay.locator('h2')).toContainText(`Caída · ${first.code}`);
       const alert = await gateway.alert(first.id, 'FALL');
+      await checkpoint(
+        'Caída simulada: aviso crítico y alarma. A continuación se reconoce desde Backoffice.',
+      );
       await overlay.getByRole('button', { name: 'Reconocer alerta', exact: true }).click();
       await expect(overlay).not.toBeVisible();
       const acknowledged = (await gateway.call<Alert[]>('GET', '/alerts?active=false')).find(
@@ -96,6 +108,7 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
         });
       await expect(tv.locator('body')).not.toContainText(device.wearable.code);
       await expect(tv.locator('body')).not.toContainText('Prueba');
+      await checkpoint(`Llamado ${first.code} en la TV y comando SHOW_TICKET recibido por MQTT.`);
       await row(first.code).getByRole('button', { name: 'Pasar a atención', exact: true }).click();
       await row(first.code).getByRole('button', { name: 'Finalizar atención', exact: true }).click();
       await expect
@@ -129,6 +142,9 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
       await expect.poll(() => device.commands.some((c) => c.value.ticketCode === second.code)).toBe(true);
       await expect(tv.locator('.call .code')).toHaveText(first.code);
       await expect(pulse(second.code)).toHaveText('78lpm');
+      await checkpoint(
+        'Clientes desconectados; el gateway sigue guardando cambios y atendiendo solicitudes.',
+      );
     });
     await test.step('Reconectar sin recargar: recuperar fila, signos vitales, alertas y último llamado', async () => {
       const navigations: string[] = [];
@@ -162,6 +178,7 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
       await expect(tv.locator('.call .code')).toHaveText(second.code);
       const overlay = page.getByRole('alertdialog');
       await expect(overlay.locator('h2')).toContainText(`Hipoxia · ${second.code}`);
+      await checkpoint('Reconexión sin recargar: nueva lectura, hipoxia y último llamado recuperados.');
       expect(navigations).toEqual([]);
       await overlay.getByRole('button', { name: 'Minimizar', exact: true }).click();
       await page

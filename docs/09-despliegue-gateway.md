@@ -1,4 +1,4 @@
-# 09 · Despliegue local, firmware y pruebas integradas (Fases 4a–4d)
+# 09 · Despliegue local, operación y demo (Fases 4a–4e)
 
 El gateway corre la API, PostgreSQL, Mosquitto y Nginx con los builds de Backoffice y TV. No necesita portal cautivo, router especial ni wearable físico. [ADR 0013](adr/0013-despliegue-software-gateway.md).
 
@@ -104,9 +104,9 @@ El recorrido verifica login, check-in por API, asignación desde Backoffice, lec
 
 Necesitás al menos una pulsera simulada 02–08 aprovisionada, libre, sin emisor externo ni alertas activas. El test no usa la pulsera física 01. La sala `e2e-4d` queda reservada para estas pruebas; una pulsera libre cuya última lectura pertenece a esa sala puede reutilizarse inmediatamente. No ejecutes dos recorridos sobre el mismo stack al mismo tiempo.
 
-Cada corrida crea dos pacientes/turnos **simulados y sin DNI**, marcados en el motivo como `E2E simulado 4d`. Al terminar reconoce sus alertas y cierra sus turnos, liberando la pulsera; no borra la base ni resetea el seed. El historial y las lecturas quedan disponibles como evidencia de prueba. Las capturas de fallos quedan bajo `.gateway/e2e-results`; no se guardan trazas, JWT ni sesiones de login en archivos. No compartas la configuración local.
+Cada corrida crea dos pacientes/turnos **simulados y sin DNI**, marcados en el motivo como `E2E simulado 4e: <UUID>:` (las corridas anteriores conservan el marcador 4d). Al terminar reconoce sus alertas y cierra sus turnos, liberando la pulsera; no borra la base ni resetea el seed. El historial y las lecturas quedan disponibles como evidencia de prueba. Las capturas de fallos quedan bajo `.gateway/e2e-results`; no se guardan trazas, JWT ni sesiones de login en archivos. No compartas la configuración local.
 
-La limpieza corre en `finally`; si el proceso se termina abruptamente o se agota su timeout global, revisá los turnos marcados como E2E que hayan quedado abiertos antes de repetir.
+La limpieza corre en `finally`. Desde 4e se escribe un diario en `.gateway/runs/<UUID>.json` antes del primer check-in; si el proceso se interrumpe, usá la recuperación por corrida explicada abajo. Los diarios solo contienen IDs y fechas.
 
 El E2E detectó y motivó la corrección de alertas reconocidas durante un corte que seguían visibles por la heurística de frescura. Las regresiones cubren también eventos durante una consulta y respuestas atrasadas que intentan restaurar alertas reconocidas. [ADR 0016](adr/0016-validar-gateway-con-navegadores-reales.md).
 
@@ -117,10 +117,7 @@ Validación local (18/10): recorrido de ocho pasos en verde sobre el gateway rec
 ## Verificación y parada
 
 ```bash
-pnpm nx run api:gateway-test
-pnpm gateway:smoke
-pnpm gateway:mqtt-check
-pnpm gateway:e2e
+pnpm gateway:verify
 pnpm affected
 pnpm gateway:down
 ```
@@ -135,3 +132,105 @@ docker compose --env-file .gateway/.env -f docker-compose.gateway.yml logs --tai
 ```
 
 Las imágenes finales no incluyen fuentes TypeScript, dependencias de desarrollo ni secretos del host. La API corre como usuario `node`; Nginx sirve cada app en su propio origen para conservar sus rutas absolutas y sus servicios Socket.IO sin modificar la UI.
+
+## Operación y demo reproducible (4e)
+
+### Primera ejecución desde una copia limpia
+
+Con Docker Desktop iniciado, desde la raíz de la copia, ejecutá en este orden:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm gateway:up
+pnpm gateway:seed
+pnpm gateway:e2e-install
+pnpm gateway:verify
+pnpm gateway:demo
+```
+
+`gateway:verify` ejecuta secuencialmente tests operativos unitarios, typecheck E2E, smoke, autenticación/ACL MQTT y recorrido E2E. Corta en el primer fallo y Nx muestra la tarea que falló. Necesita un stack levantado y sembrado; no hace seed ni reinicia servicios. Para acreditar además el código del monorepo, ejecutá `pnpm affected`.
+
+El seed es para una instalación simulada inicial. Para repetir una demo usá directamente `gateway:demo`, sin resetear la base. Detené otros simuladores durante la demo y los checks; necesitás una pulsera simulada libre. Cada corrida mantiene su historial y limpia únicamente sus recursos. Las pantallas, claves y puertos se toman de la misma instalación local.
+
+### Guion para presentar
+
+`gateway:demo` abre dos ventanas nuevas de Chromium (Backoffice y TV), realiza el mismo recorrido probado en 4d, ralentiza las acciones y pausa cinco segundos en los puntos de observación. La terminal muestra `DEMO · ...` en cada pausa y el UUID recuperable. Se ejecuta sola: evitá intervenir en esas ventanas mientras avanza.
+
+1. **Ingreso y asignación:** mostrar el turno creado por API y su pulsera asignada desde la UI. Solo pacientes ficticios, sin DNI.
+2. **Lectura:** observar 77 lpm y SpO₂ 98 % en triaje. La lectura recorrió cifrado AES-GCM, Mosquitto, API y PostgreSQL.
+3. **Caída simulada:** mostrar aviso crítico y alarma, reconocimiento desde Backoffice y triaje crítico que se conserva.
+4. **Llamado y cierre:** observar código/consultorio en la TV y recepción del comando MQTT; luego finalizar la atención y liberar la pulsera.
+5. **Corte de los clientes:** mantener las pantallas con su último estado mientras otro cliente reconoce una alerta y el gateway recibe hipoxia, nueva lectura y llamado.
+6. **Reconexión:** recuperar el estado sin recargar; reconocer la nueva alerta y cerrar los recursos propios al finalizar.
+
+La TV muestra información pública. El cliente MQTT confirma `SHOW_TICKET`; no representa una pantalla física. Las ventanas se cierran al terminar. Para comprobar el guion sin abrir ventanas: `pnpm nx run api:gateway-demo:ci`. Esta variante conserva las pausas y las mismas aserciones.
+
+### Reinicios y prueba operativa
+
+```bash
+pnpm gateway:operations
+pnpm gateway:smoke
+```
+
+Este comando **interrumpe brevemente el stack local**. Usalo fuera de una demo: crea fixtures propios, hace `down` y recrea sin borrar volúmenes, exige conservar turno/asignación/última lectura y configuración byte a byte, comprueba reconexión de Backoffice/TV sin recarga y reutiliza el JWT anterior. Reinicia también Mosquitto, exige una nueva lectura/alerta y un llamado en TV con comando MQTT. Finalmente simula una respuesta de check-in perdida, recupera la corrida dos veces y verifica que los otros turnos abiertos no cambien. Crea un respaldo y lo restaura en PostgreSQL temporal aislado; deja el gateway funcionando y conserva el respaldo local.
+
+E2E, demo, recuperación y creación de respaldo usan `.gateway/operation.lock` para impedir operaciones simultáneas entre esos comandos. No ejecutes `gateway:up`, `gateway:down`, seed o simuladores mientras corren. Si un proceso fue terminado abruptamente, comprobá que el PID del archivo ya no esté activo y eliminá **solo** `.gateway/operation.lock` antes de recuperar. Nunca borres `.gateway/.env` para resolver un bloqueo.
+
+### Recuperar una demo interrumpida
+
+1. Detené el proceso de la demo o E2E y cualquier simulador. Si quedó un bloqueo de un proceso terminado, retiralo como se indicó arriba.
+2. Recuperá el servicio con `pnpm gateway:up` y `pnpm gateway:smoke`, conservando configuración y volúmenes.
+3. Listá las corridas y elegí el UUID indicado por la terminal de la demo:
+
+```bash
+pnpm gateway:recover
+pnpm gateway:recover --run=<UUID>
+```
+
+El comando localiza por marcador los turnos de esa corrida mediante una consulta de solo lectura a PostgreSQL, incluso si son de otro día o el servidor creó el turno antes de que se guardara su ID en el diario. Comprueba el marcador de **todos** los turnos antes de mutar; reconoce sus alertas activas y lleva los turnos a `DONE` o `CANCELLED` mediante la API, liberando la pulsera. Es idempotente y conserva pacientes, lecturas e historial. No hace un barrido de todos los pacientes simulados ni toca fixtures antiguos de 4d. Esos casos anteriores requieren revisión manual.
+
+### Respaldo y ensayo de restauración
+
+Sin demos ni simuladores activos:
+
+```bash
+pnpm gateway:backup
+pnpm gateway:backup-check --backup=".gateway/backups/<carpeta-informada>"
+```
+
+El respaldo crea un directorio nuevo: `database.dump` (snapshot consistente de `pg_dump` custom), `.env`, `mqtt/devices.json`, `mqtt/users`, `mqtt/acl`, diarios disponibles y `manifest.json` con SHA-256, fecha, revisión Git (si está disponible) y `workingTreeDirty` para señalar cambios sin commit. Si los archivos copiados cambian durante el dump, falla y no genera un manifiesto válido. Un directorio sin manifiesto o con hashes distintos no es un respaldo válido.
+
+El bundle contiene **secretos en claro y datos de la base**. Se guarda bajo `.gateway/`, excluido de Git y Docker. Conservá una copia con acceso restringido fuera del disco de trabajo; para transportarla, usá almacenamiento cifrado. La copia de la base necesita su configuración original: regenerar AES, contraseñas o identidades MQTT rompe la continuidad de la instalación.
+
+`backup-check` valida todos los hashes y restaura el dump completo en un contenedor `postgres:16-alpine` temporal, sin red, puertos ni volumen del gateway. Ejecuta `pg_restore` en una transacción, consulta las tablas principales y migraciones, e informa solamente conteos. El contenedor y su almacenamiento efímero se eliminan en `finally`. No cambia la base original ni acredita una restauración del gateway en otra máquina; sí comprueba que el dump se puede restaurar con su esquema y datos.
+
+### Restauración real ante pérdida de datos
+
+Este procedimiento reemplaza el contenido de la base seleccionada por el respaldo. Ejecutalo únicamente cuando hayas decidido recuperar ese punto en el tiempo. Primero validá el bundle con `backup-check` y guardá un respaldo del estado actual si sigue accesible.
+
+1. Detené emisores y ejecutá `gateway:down`, conservando los volúmenes. Usá una copia del repositorio correspondiente a la revisión del manifiesto. Si el respaldo se tomó con cambios sin commit, necesitás también esas fuentes.
+2. Copiá del bundle `.env`, `mqtt/` y `runs/` (si existe) a `.gateway/`, conservando una copia aparte de la configuración actual. En una máquina nueva deben copiarse **antes** del primer `gateway:up`; no ejecutes el seed.
+3. Si conservás un volumen PostgreSQL existente, la contraseña del rol debe coincidir con la de la configuración recuperada. Restaurar `.env` no rota la contraseña del rol. Si es un volumen de la misma instalación y no se rotaron claves, ya coincide.
+4. Ejecutá `gateway:up`, detené API/web, copiá el dump al contenedor y restaurá. En estos comandos reemplazá `<respaldo>` por la ruta real:
+
+```bash
+docker compose --env-file .gateway/.env -f docker-compose.gateway.yml stop api web
+docker compose --env-file .gateway/.env -f docker-compose.gateway.yml cp "<respaldo>/database.dump" postgres:/tmp/vitalia-restore.dump
+docker compose --env-file .gateway/.env -f docker-compose.gateway.yml exec -T postgres pg_restore -U vitalia -d vitalia --clean --if-exists --exit-on-error --single-transaction --no-owner --no-privileges /tmp/vitalia-restore.dump
+docker compose --env-file .gateway/.env -f docker-compose.gateway.yml exec -T postgres rm -f /tmp/vitalia-restore.dump
+pnpm gateway:up
+pnpm gateway:verify
+```
+
+Si `pg_restore` falla, la transacción revierte: mantené API/web detenidos y revisá versión del repositorio, PostgreSQL y respaldo antes de intentar de nuevo. Tras recuperar, el comando `gateway:recover` permite limpiar una corrida pendiente incluida en los diarios. El respaldo no incluye mensajes pendientes del broker ni imágenes Docker: los mensajes perdidos durante cortes prolongados corresponden al trabajo de resiliencia de Fase 5.
+
+### Diagnóstico breve
+
+- **Docker no responde:** iniciá Docker Desktop con motor Linux y repetí `gateway:up`.
+- **Puerto ocupado:** detené la otra instalación o ajustá los tres puertos en `.gateway/.env` y recreá. No reemplaces secretos.
+- **Health degradado:** inspeccioná `ps` y `logs --tail=100 api mosquitto postgres`; `gateway:smoke` exige base y broker saludables.
+- **Login rechazado:** verificá que se haya ejecutado el seed inicial y que estés usando el `SEED_PASSWORD` de esta instalación, no el `.env` de desarrollo. Respetá el límite de cinco intentos por minuto.
+- **No hay pulsera disponible:** detené emisores, recuperá la corrida pendiente y revisá asignaciones/alertas desde Backoffice. Evitá ejecutar demos en paralelo.
+- **Respaldo inválido:** conservá el directorio para diagnóstico y generá otro; no edites hashes para hacer pasar el check.
+
+CI ejecuta `gateway:verify`, `gateway:operations` y smoke final sobre una instalación nueva. Los respaldos, configuración, diarios y capturas permanecen locales al job; no se publican como artifacts. La prueba de 24 h sin WAN, carga, latencias, sincronización Cloud y hardware siguen pendientes en sus fases correspondientes.

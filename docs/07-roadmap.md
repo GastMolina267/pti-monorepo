@@ -5,15 +5,15 @@
 
 ## Resumen
 
-| Fase | Objetivo                                | Fechas    | Resp.  | Estado                     |
-| ---- | --------------------------------------- | --------- | ------ | -------------------------- |
-| 0    | Fundaciones del monorepo                | 3 oct     | G      | ✅ Completa                |
-| 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa                |
-| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ Software · ⏳ placa     |
-| 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa                |
-| 4    | Despliegue e integración del software   | 18–31 oct | G      | 4a–4d completas · sigue 4e |
-| 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente                  |
-| 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente                  |
+| Fase | Objetivo                                | Fechas    | Resp.  | Estado                 |
+| ---- | --------------------------------------- | --------- | ------ | ---------------------- |
+| 0    | Fundaciones del monorepo                | 3 oct     | G      | ✅ Completa            |
+| 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa            |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ Software · ⏳ placa |
+| 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa            |
+| 4    | Despliegue e integración del software   | 18 oct    | G      | ✅ Software completo   |
+| 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente              |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente              |
 
 ```mermaid
 gantt
@@ -25,7 +25,7 @@ gantt
   section Frontend
   F3 Backoffice y TV       :done, f3, 2026-10-12, 7d
   section Equipo
-  F4 Integración software :crit, f4, 2026-10-18, 14d
+  F4 Integración software :done, f4, 2026-10-18, 1d
   F5 Validación            :f5, 2026-11-01, 15d
   F6 Cierre y defensa      :f6, 2026-11-15, 10d
 ```
@@ -114,7 +114,7 @@ gantt
 
 **Terminado ✅ (18/10):** probado en Chromium con la API, el broker y el simulador corriendo. Una caída simulada abre el aviso rojo en el Backoffice (~3 s desde lanzar el simulador, que tarda en arrancar; la API la emite en milisegundos) y un llamado aparece en la TV **113 ms** después del click en "Llamar".
 
-## Fase 4 · Despliegue e integración del software (G)
+## Fase 4 · Despliegue e integración del software (G) ✅
 
 > Alcance acordado el 18/10: desarrollo del monorepo y validación con simuladores. Portal cautivo, router, VLANs, walled garden, servicio NTP de la red, montaje y calibración física quedan fuera de esta fase de desarrollo. El firmware entra como código, compilación y tests sin placa. La demo física completa del Hito 3 conserva esas dependencias externas; no se las acredita con una prueba de software.
 
@@ -154,11 +154,16 @@ Segundo arranque verificado: archivos de credenciales idénticos, MQTT y smoke o
 
 El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remota no se acredita con estas pruebas locales. Los cortes simulados afectan a los navegadores, no al gateway ni a la WAN; el receptor MQTT es un cliente de prueba, sin placa ni OLED físico.
 
-### 4e · Operación y demo
+### 4e · Operación y demo — completo (18/10)
 
-- [ ] Guion E2E, configuración, datos simulados, arranque/parada y recuperación documentados; checks Nx y demo reproducibles.
+- [x] Demo visible con pausas y guion: reutiliza el recorrido 4d con pacientes simulados sin DNI. `gateway:verify` unifica tests operativos, typecheck, smoke, ACL y E2E.
+- [x] Diarios locales por UUID y recuperación idempotente de corridas interrumpidas; consulta por marcador para respuestas HTTP perdidas y validación de pertenencia antes de modificar. Bloqueo exclusivo entre operaciones de demo/pruebas/recuperación/respaldo.
+- [x] Tests reales de parada/recreación con persistencia de turno, asignación, lectura y credenciales; reconexión de Backoffice/TV sin recarga; reinicio del broker con nueva ingesta y comando MQTT.
+- [x] Respaldo conjunto de PostgreSQL/configuración/diarios con hashes y restauración automática en PostgreSQL efímero aislado. Guía de arranque, parada, diagnóstico, recuperación y restauración real; [ADR 0017](adr/0017-operar-y-recuperar-el-gateway.md).
 
-**Terminado (software) cuando:** desde una copia limpia se levanta el gateway Docker y se completa el recorrido de 4d con checks en verde, sin depender del portal, router ni hardware físico. Guía: [09-despliegue-gateway.md](09-despliegue-gateway.md).
+**Verificado localmente (18/10):** 11 tests operativos unitarios (4 nuevos), suite operativa de cuatro pasos (~36 s de recorrido), demo con pausas (~38 s), `gateway:verify`, comandos públicos de respaldo/restauración/recuperación y las 16 tareas de `pnpm affected` en siete proyectos en verde. Se ensayó además una copia de fuentes sin `.env`, `node_modules` ni volúmenes previos: instalación congelada usando caché local, construcción de imágenes, credenciales nuevas, puertos separados, seed de 14 turnos y `gateway:verify` completo con el E2E de 4d. Chromium ya estaba instalado en el host. La copia no reutilizó secretos ni datos de la instalación habitual.
+
+**Cierre de software acreditado:** desde una copia limpia se levanta el gateway Docker y se completa el recorrido de 4d con checks en verde, sin depender del portal, router ni hardware físico. La restauración se probó en una base aislada; no se acredita un traslado completo a otra máquina. CI incorpora verificación y prueba operativa, con ejecución remota todavía pendiente. La prueba WAN de 24 h, carga, latencias y sincronización Cloud continúan en Fase 5. Guía: [09-despliegue-gateway.md](09-despliegue-gateway.md).
 
 ## Fase 5 · Resiliencia, carga y validación (Eq)
 

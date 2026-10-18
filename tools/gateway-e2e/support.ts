@@ -12,13 +12,11 @@ import {
   composeSeq,
   MQTT_QOS,
   MQTT_TOPICS,
-  OPEN_TICKET_STATUSES,
   splitSeq,
   type Alert,
   type CheckInResponse,
   type LoginResponse,
   type TelemetryReading,
-  type Ticket,
   type Wearable,
   type WearableCommand,
 } from '@vitalia/contracts';
@@ -32,6 +30,7 @@ import {
 import { parseKey, sealReading } from '../wearable-simulator/src/lib/envelope';
 import { BootStore } from '../wearable-simulator/src/lib/boot-store';
 import { nextBoot } from '../wearable-simulator/src/lib/wearable';
+import { cleanupFixtures, FixtureJournal, runMarker } from '../scripts/gateway-fixtures';
 
 export const settings = parseEnv(readFileSync('.gateway/.env', 'utf8'));
 export const backofficeOrigin = `http://localhost:${settings.GATEWAY_HTTP_PORT}`;
@@ -39,7 +38,7 @@ export const tvOrigin = `http://localhost:${settings.GATEWAY_TV_PORT}`;
 
 /** REST real a través de Nginx; los errores no imprimen tokens, credenciales ni bodies. */
 export class GatewayApi {
-  readonly tickets: string[] = [];
+  private journal?: FixtureJournal;
   constructor(readonly request: APIRequestContext) {}
   async call<T>(method: string, path: string, data?: unknown): Promise<T> {
     const response = await this.request.fetch(`${backofficeOrigin}/${API_PREFIX}${path}`, { method, data });
@@ -47,14 +46,20 @@ export class GatewayApi {
     return response.json() as Promise<T>;
   }
   async checkIn(reason: string): Promise<CheckInResponse> {
+    if (!this.journal) {
+      this.journal = new FixtureJournal();
+      console.log(`Corrida recuperable: ${this.journal.run.id}`);
+    }
+    delete this.journal.run.cleanedAt;
+    this.journal.save();
     const ticket = await this.call<CheckInResponse>('POST', '/check-in', {
       firstName: 'Prueba',
       lastName: 'Integración',
       source: 'KIOSK',
       serviceCode: 'CLINICA',
-      reason: `E2E simulado 4d: ${reason} ${randomUUID()}`,
+      reason: `${runMarker(this.journal.run.id)} ${reason}`,
     });
-    this.tickets.push(ticket.id);
+    this.journal.remember(ticket.id);
     return ticket;
   }
   wearable(id: string): Promise<Wearable> {
@@ -77,22 +82,7 @@ export class GatewayApi {
   }
   /** Solo reconoce/cierra los recursos creados por esta corrida; conserva el seed y el historial. */
   async cleanup(): Promise<void> {
-    const owned = new Set(this.tickets);
-    for (const a of await this.call<Alert[]>('GET', '/alerts')) {
-      if (!a.ticketId || !owned.has(a.ticketId)) continue;
-      const response = await this.request.post(`${backofficeOrigin}/${API_PREFIX}/alerts/${a.id}/ack`);
-      expect([200, 409]).toContain(response.status());
-    }
-    for (const id of this.tickets) {
-      let ticket = await this.call<Ticket>('GET', `/tickets/${id}`);
-      if (ticket.status === 'CALLED')
-        ticket = await this.call('PATCH', `/tickets/${id}/status`, { status: 'IN_PROGRESS' });
-      if (OPEN_TICKET_STATUSES.includes(ticket.status)) {
-        await this.call('PATCH', `/tickets/${id}/status`, {
-          status: ticket.status === 'IN_PROGRESS' ? 'DONE' : 'CANCELLED',
-        });
-      }
-    }
+    if (this.journal) await cleanupFixtures(this.journal, this.call.bind(this));
   }
 }
 
