@@ -25,6 +25,8 @@ export interface SimOptions {
   keyHex: string;
   username?: string;
   password?: string;
+  credentialsFile?: string;
+  gateway: boolean;
   count: number;
   first: number;
   room: string;
@@ -53,6 +55,7 @@ export const LAST_SEEDED_NUMBER = 8;
 export const USAGE = `Simulador de wearables Vitalia: publica lecturas cifradas (AES-256-GCM) por MQTT con QoS 1.
 
   pnpm sim:wearables [opciones]
+  pnpm sim:wearables --args="--gateway --verbose"   # argumentos reservados por Nx
 
 Opciones:
   --count=N            pulseras simuladas (por defecto ${DEFAULTS.count}: wb-02…wb-08 del seed)
@@ -64,8 +67,10 @@ Opciones:
   --inject=ESPEC       inyecta un evento; se puede repetir (ver abajo)
   --url=URL            broker (por defecto MQTT_URL del .env o ${DEFAULTS.url})
   --key=HEX            clave AES de 64 hex (por defecto TELEMETRY_AES_KEY del .env)
+  --gateway            usa .gateway/.env y las credenciales por pulsera del gateway Docker
+  --credentials=RUTA   JSON de contraseñas por código (o MQTT_CREDENTIALS_FILE)
   --verbose            muestra cada lectura publicada
-  --help
+  --help               desde pnpm: --args=--help
 
 ESPEC = <tipo>:<NN>[@<segundo>][~<duración s>]   ej. fall:3@10   hypoxia:4@5~60
   Clínicos: ${ANOMALY_KINDS.join(', ')} (duración por defecto ${DEFAULTS.anomalyS} s)
@@ -122,9 +127,14 @@ export function parseOptions(
   const injections: Injection[] = [];
   let verbose = false;
   let help = false;
+  let gateway = false;
 
   for (const arg of argv) {
     if (arg === '--') continue; // pnpm lo agrega a veces antes de los argumentos del script
+    if (arg === '--gateway') {
+      gateway = true;
+      continue;
+    }
     if (arg === '--verbose') verbose = true;
     else if (arg === '--help' || arg === '-h') help = true;
     else {
@@ -135,12 +145,23 @@ export function parseOptions(
     }
   }
 
-  const known = new Set(['url', 'key', 'count', 'first', 'interval', 'duration', 'room', 'seed']);
+  const known = new Set([
+    'url',
+    'key',
+    'count',
+    'first',
+    'interval',
+    'duration',
+    'room',
+    'seed',
+    'credentials',
+  ]);
   for (const name of values.keys()) {
     if (!known.has(name)) throw new UsageError(`opción desconocida: --${name}`);
   }
 
   const get = (name: string) => values.get(name);
+  if (get('credentials') === '') throw new UsageError('--credentials necesita una ruta');
   const count = positiveNumber(get('count') ?? String(DEFAULTS.count), 'count', { integer: true });
   const first = positiveNumber(get('first') ?? String(DEFAULTS.first), 'first', { integer: true });
   if (first < WEARABLE_NUMBER_MIN || first + count - 1 > WEARABLE_NUMBER_MAX) {
@@ -163,6 +184,8 @@ export function parseOptions(
     keyHex,
     username: env['MQTT_USERNAME'] || undefined,
     password: env['MQTT_PASSWORD'] || undefined,
+    credentialsFile: get('credentials') ?? (env['MQTT_CREDENTIALS_FILE'] || undefined),
+    gateway,
     count,
     first,
     room,

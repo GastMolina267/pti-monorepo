@@ -8,7 +8,7 @@
  *   pnpm sim:wearables --inject=fall:3@10 --inject=hypoxia:4@20~60
  *
  * Cada pulsera tiene su propia conexión con el client ID = su código, como el firmware.
- * `pnpm sim:wearables --help` muestra todas las opciones.
+ * `pnpm sim:wearables --args=--help` muestra todas las opciones del simulador (no las de Nx).
  */
 import { createInterface } from 'node:readline';
 import mqtt, { type MqttClient } from 'mqtt';
@@ -19,6 +19,7 @@ import {
   type EncryptedEnvelope,
   type TelemetryReading,
   type TriageLevel,
+  type WearableMqttPasswords,
 } from '@vitalia/contracts';
 import {
   LAST_SEEDED_NUMBER,
@@ -33,7 +34,8 @@ import {
 import { parseKey, sealReading, tamperEnvelope } from './lib/envelope';
 import { createRng } from './lib/rng';
 import { BootStore } from './lib/boot-store';
-import { SimulatedWearable, nextBoot } from './lib/wearable';
+import { connectionCredentials, gatewayEnvironment, loadDevicePasswords } from './lib/credentials';
+import { SimulatedWearable, nextBoot, simulatedCode } from './lib/wearable';
 
 interface Sim {
   wearable: SimulatedWearable;
@@ -64,7 +66,10 @@ function loadOptions(): SimOptions {
     // sin .env: se usan los argumentos o los valores por defecto
   }
   try {
-    const options = parseOptions(process.argv.slice(2), process.env);
+    const argv = process.argv.slice(2);
+    const useGateway = argv.includes('--gateway') && !argv.includes('--help') && !argv.includes('-h');
+    const env = useGateway ? { ...process.env, ...gatewayEnvironment() } : process.env;
+    const options = parseOptions(argv, env);
     if (options.help) {
       console.log(USAGE);
       process.exit(0);
@@ -78,6 +83,19 @@ function loadOptions(): SimOptions {
 }
 
 const options = loadOptions();
+// Validar todas las identidades antes de abrir la primera conexión.
+function readPasswords(): WearableMqttPasswords | undefined {
+  try {
+    const devices = loadDevicePasswords(options.credentialsFile);
+    for (let i = 0; i < options.count; i++)
+      connectionCredentials(simulatedCode(options.first + i), devices, options);
+    return devices;
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : 'No se pudieron cargar las credenciales MQTT');
+    process.exit(2);
+  }
+}
+const devicePasswords = readPasswords();
 const key = parseKey(options.keyHex);
 const rng = createRng(options.seed);
 // Como el contador de arranques en NVS del firmware: cada corrida usa un bloque de seq nuevo.
@@ -91,8 +109,7 @@ const sims: Sim[] = Array.from({ length: options.count }, (_, i) => {
   const wearable = new SimulatedWearable(options.first + i, options.room, rng, boot);
   const client = mqtt.connect(options.url, {
     clientId: wearable.code,
-    username: options.username,
-    password: options.password,
+    ...connectionCredentials(wearable.code, devicePasswords, options),
     reconnectPeriod: 2000,
   });
   client.on('error', (err) => log(`✖ ${wearable.code}: ${err.message}`));

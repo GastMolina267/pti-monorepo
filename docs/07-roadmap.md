@@ -5,15 +5,15 @@
 
 ## Resumen
 
-| Fase | Objetivo                                  | Fechas    | Resp.  | Estado               |
-| ---- | ----------------------------------------- | --------- | ------ | -------------------- |
-| 0    | Fundaciones del monorepo                  | 3 oct     | G      | ✅ Completa          |
-| 1    | Núcleo de datos, turnos y auth            | 3–4 oct   | G      | ✅ Completa          |
-| 2    | Telemetría MQTT, alertas y tiempo real    | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F) |
-| 3    | Backoffice y llamador TV funcionales      | 12–18 oct | G (T)  | ✅ Completa          |
-| 4    | Integración de punta a punta (**Hito 3**) | 26–31 oct | Eq     | Pendiente            |
-| 5    | Resiliencia, carga y validación           | 1–15 nov  | Eq     | Pendiente            |
-| 6    | Landing, memoria y defensa (**Hito 4**)   | nov       | Eq     | Pendiente            |
+| Fase | Objetivo                                | Fechas    | Resp.  | Estado                     |
+| ---- | --------------------------------------- | --------- | ------ | -------------------------- |
+| 0    | Fundaciones del monorepo                | 3 oct     | G      | ✅ Completa                |
+| 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa                |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ API · ⏳ OLED (F)       |
+| 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa                |
+| 4    | Despliegue e integración del software   | 18–31 oct | G      | 4a–4b completas · sigue 4c |
+| 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente                  |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente                  |
 
 ```mermaid
 gantt
@@ -25,7 +25,7 @@ gantt
   section Frontend
   F3 Backoffice y TV       :done, f3, 2026-10-12, 7d
   section Equipo
-  F4 Integración (Hito 3)  :crit, f4, 2026-10-26, 6d
+  F4 Integración software :crit, f4, 2026-10-18, 14d
   F5 Validación            :f5, 2026-11-01, 15d
   F6 Cierre y defensa      :f6, 2026-11-15, 10d
 ```
@@ -114,16 +114,45 @@ gantt
 
 **Terminado ✅ (18/10):** probado en Chromium con la API, el broker y el simulador corriendo. Una caída simulada abre el aviso rojo en el Backoffice (~3 s desde lanzar el simulador, que tarda en arrancar; la API la emite en milisegundos) y un llamado aparece en la TV **113 ms** después del click en "Llamar".
 
-## Fase 4 · Integración de punta a punta — Hito 3 (Eq)
+## Fase 4 · Despliegue e integración del software (G)
 
-- [ ] Portal cautivo → check-in y estado del turno contra la API (repo `pti-captive-portal`, `VITE_BASE_URL` al gateway)
-- [ ] Wearable real publicando cifrado en Mosquitto (F) y recibiendo el turno en el OLED
-- [ ] Dockerfile multi-stage de la API + Nginx (Backoffice, TV, portal, proxy `/api` y `/socket.io`) en `docker-compose`
-- [ ] Mosquitto con usuario/contraseña y ACL por wearable: usuario = código `wb-<NN>-<mac>`, contraseña con `mosquitto_passwd` cargada **a mano** en el `secrets.h` de cada pulsera; ACL `pattern write hospital/+/wearable/%u/data` y `pattern read hospital/+/wearable/%u/cmd`. **La API también necesita su usuario** (`read hospital/+/wearable/+/data`, `write hospital/+/wearable/+/cmd`); si no, deja de recibir telemetría
-- [ ] RUT956: VLANs 10/20/30/40 apuntando al gateway; portal cautivo con walled garden; **servidor NTP local** para la VLAN 10 (sin internet) y `NTP_SERVER` del firmware apuntando a él (F)
-- [ ] Guion de demo E2E documentado
+> Alcance acordado el 18/10: desarrollo del monorepo y validación con simuladores. Portal cautivo, router, VLANs, walled garden, servicio NTP de la red, montaje y calibración física quedan fuera de esta fase de desarrollo. El firmware entra como código, compilación y tests sin placa. La demo física completa del Hito 3 conserva esas dependencias externas; no se las acredita con una prueba de software.
 
-**Terminado (Hito 3) cuando:** el llamado emitido desde el Backoffice se ve al instante en la TV, en el portal del paciente y en el OLED del wearable.
+### 4a · Despliegue reproducible del gateway — completo (18/10)
+
+- [x] Imágenes multi-stage: API con dependencias de producción, Backoffice y TV estáticos con Nginx; proxies `/api` y `/socket.io`.
+- [x] Compose independiente del entorno dev, migraciones al arrancar, volúmenes y healthchecks.
+- [x] Configuración local con credenciales aleatorias, sin sobrescribir secretos existentes; seed simulado explícito.
+- [x] Smoke de ambos orígenes: HTML, rutas SPA, health, PostgreSQL, MQTT y Socket.IO (WebSocket y polling); guía y job CI definido.
+
+**Verificado localmente (18/10):** imágenes construidas desde cero, migraciones aplicadas y seed dentro de la imagen final (3 servicios, 5 consultorios, 5 usuarios, 8 pulseras y 14 turnos). Smoke OK en `localhost:8080` y `localhost:8081`; 2 tests del inicializador y `pnpm affected` en verde (7 proyectos, 16 tareas). El job CI está configurado; su ejecución remota no se acredita en esta validación local.
+
+También se verificó parada y recreación del stack sin borrar volúmenes: usuarios, IDs de turnos y credenciales se conservan; login y smoke pasan después del segundo arranque.
+
+### 4b · Seguridad MQTT — completo (18/10)
+
+- [x] Usuarios y ACL por wearable, usuario propio de la API y cuenta de health restringida, con aprovisionamiento reproducible sin versionar secretos; altas, rotación y bajas explícitas ([ADR 0014](adr/0014-identidades-y-acl-mqtt.md)).
+- [x] Pruebas contra Mosquitto real: anónimos y contraseña incorrecta rechazados, escrituras cruzadas denegadas con PUBACK `0x87` y aislamiento de entregas aun con filtros amplios; simulador con credenciales por pulsera (`--gateway`).
+
+**Verificado localmente (18/10):** actualización del stack 4a sin borrar volúmenes, broker autenticado y health OK; se conservan los 14 turnos del seed. Dos pulseras enviaron 7 lecturas cifradas, confirmadas por QoS 1 y persistidas en PostgreSQL. Smoke de Backoffice/TV y Socket.IO en verde. Los tests del aprovisionador cubren idempotencia, conservación de secretos, altas y revocación; CI incorpora el check MQTT real. El transporte sigue siendo TCP en loopback, sin TLS ni validación física o de red.
+
+Segundo arranque verificado: archivos de credenciales idénticos, MQTT y smoke otra vez en verde. `pnpm affected` pasó sus 16 tareas de lint/test/build en 7 proyectos; los 7 tests operativos de inicialización, entorno y aprovisionamiento también pasaron. La ejecución remota del job CI queda pendiente; este cierre acredita las comprobaciones locales.
+
+### 4c · Comandos en el firmware
+
+- [ ] Suscripción a `.../cmd`, validación de `SHOW_TICKET`, estado del llamado en OLED y resuscripción al reconectar.
+- [ ] Tests native de parser/estado y compilación sin exigir placa, flasheo ni calibración. MAX30102 no bloquea este cierre: el simulador aporta `hr` y `spo2`.
+
+### 4d · Pruebas integradas de software
+
+- [ ] Check-in por API → asignación de pulsera simulada → telemetría cifrada → alerta y reconocimiento en Backoffice → llamado en TV y recepción de `SHOW_TICKET` por un cliente de prueba.
+- [ ] Verificar resincronización tras reconectar sobre el despliegue Docker, aprovechando la lógica de Fase 3.
+
+### 4e · Operación y demo
+
+- [ ] Guion E2E, configuración, datos simulados, arranque/parada y recuperación documentados; checks Nx y demo reproducibles.
+
+**Terminado (software) cuando:** desde una copia limpia se levanta el gateway Docker y se completa el recorrido de 4d con checks en verde, sin depender del portal, router ni hardware físico. Guía: [09-despliegue-gateway.md](09-despliegue-gateway.md).
 
 ## Fase 5 · Resiliencia, carga y validación (Eq)
 

@@ -37,6 +37,10 @@ Swagger: <http://localhost:3000/api/docs> · Setup completo en Windows: [docs/gu
 
 ## Scripts
 
+Despliegue del software en Docker (sin portal ni router): `pnpm gateway:up` y `pnpm gateway:smoke`. Seed simulado explícito: `pnpm gateway:seed`. Configuración y operación: [docs/09-despliegue-gateway.md](docs/09-despliegue-gateway.md).
+
+El broker del gateway usa usuarios y ACL por pulsera: verificalos con `pnpm gateway:mqtt-check` y enviá telemetría cifrada con `pnpm sim:wearables --gateway`.
+
 | Script                                               | Acción                             |
 | ---------------------------------------------------- | ---------------------------------- |
 | `pnpm dev` / `dev:api` / `dev:backoffice` / `dev:tv` | Servidores de desarrollo           |

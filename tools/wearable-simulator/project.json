@@ -5,5 +5,13 @@
   "projectType": "application",
   "tags": ["scope:tools", "type:app"],
   "// targets": "test y lint se infieren (vitest.config.mts, eslint.config.mjs). Se ejecuta con `pnpm sim:wearables`.",
-  "targets": {}
+  "targets": {
+    "simulate": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx --tsconfig tools/wearable-simulator/tsconfig.app.json tools/wearable-simulator/src/main.ts"
+      }
+    }
+  }
 }

@@ -46,6 +46,19 @@ describe('validateTarget', () => {
 });
 
 describe('parseOptions', () => {
+  it('acepta el modo gateway y un archivo explícito por encima del entorno', () => {
+    expect(
+      parseOptions(['--gateway', '--credentials=local/devices.json'], {
+        ...env,
+        MQTT_CREDENTIALS_FILE: 'otro.json',
+      }),
+    ).toMatchObject({ gateway: true, credentialsFile: 'local/devices.json' });
+    expect(parseOptions([], { ...env, MQTT_CREDENTIALS_FILE: 'otro.json' })).toMatchObject({
+      gateway: false,
+      credentialsFile: 'otro.json',
+    });
+    expect(() => parseOptions(['--credentials='], env)).toThrow(/necesita una ruta/);
+  });
   it('por defecto simula las pulseras del seed cada 3 s con el .env', () => {
     const o = parseOptions([], env);
     expect(o).toMatchObject({

@@ -127,3 +127,7 @@ La tesis (§8.3) define **un solo backend NestJS** para maximizar rendimiento y 
 ## Despliegue (objetivo Fase 4)
 
 Un `docker compose up` en el gateway levanta `postgres`, `mosquitto`, `api` y `nginx`. Nginx sirve los builds estáticos del Backoffice, la TV y el portal cautivo, y hace de proxy a `/api` y `/socket.io`. Hardware: laptop (prototipo, la batería hace de UPS) o Mini PC Intel N100 / Raspberry Pi 5 (producción).
+
+El desarrollo de Fase 4 se acota al software del monorepo: `docker-compose.gateway.yml` despliega PostgreSQL, Mosquitto, API y Nginx con Backoffice y TV en orígenes separados; portal y configuración de la red quedan fuera de este trabajo. El Compose de desarrollo se conserva. Configuración local y credenciales en `.gateway/.env`; migraciones al arrancar y seed explícito. Ver [09-despliegue-gateway.md](09-despliegue-gateway.md) y [ADR 0013](adr/0013-despliegue-software-gateway.md).
+
+Desde 4b Mosquitto exige identidad propia por pulsera y cuentas separadas para API y health. Un contenedor temporal prepara hashes y ACL en un volumen de solo lectura para el broker; los secretos de aprovisionamiento quedan en `.gateway/`. Las pruebas usan simuladores con credenciales individuales. [ADR 0014](adr/0014-identidades-y-acl-mqtt.md).

@@ -145,7 +145,13 @@ io({ path: '/socket.io', auth: { ticketId } }); // paciente → sala patient:<ti
 - `NN`: número físico de la pulsera, de 01 a 99. En el firmware es `WEARABLE_NUMBER`, en `secrets.h`.
 - `mac`: últimos 3 bytes de la MAC Wi-Fi, en hex minúscula.
 - En código: `WEARABLE_CODE_PATTERN`, `formatWearableCode()` y `parseWearableCode()` de `@vitalia/contracts`.
-- Fase 4: el código también es el usuario de Mosquitto. Su contraseña se carga a mano en el firmware.
+- Desde 4b, el código también es el usuario de Mosquitto en el gateway. Su contraseña individual se aprovisiona localmente; la carga al firmware queda manual.
+
+### Identidades y permisos (gateway 4b)
+
+`WearableMqttPasswords` y `parseWearableMqttPasswords()` definen y validan el archivo local de códigos y contraseñas (16–128 caracteres, sin controles ni `:`). No es un endpoint REST ni un payload de telemetría. El aprovisionador y el simulador lo comparten sin incorporar secretos a los builds.
+
+La API puede leer todos los `.../data` y escribir `.../cmd`; cada pulsera solo escribe sus datos y lee sus comandos en cualquier sala; health solo lee uptime. Los demás permisos se deniegan. Aprovisionamiento, altas, revocación y pruebas en [09-despliegue-gateway.md](09-despliegue-gateway.md#seguridad-mqtt-4b), decisión en [ADR 0014](adr/0014-identidades-y-acl-mqtt.md). Los mensajes y el cifrado existentes se conservan.
 
 ### Sobre cifrado (`EncryptedEnvelope`)
 
@@ -222,7 +228,7 @@ Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSIO
 
 - La API lo publica en `hospital/<sala>/wearable/<id>/cmd` con QoS 1 y sin retain al llamar el turno que tiene la pulsera, o al asignar la pulsera a un turno ya llamado.
 - `<sala>` es la de la última lectura recibida (`wearables.last_room`). Si nunca publicó, se usa `DEFAULT_WEARABLE_ROOM` (`sala1`).
-- Va **en claro**: no lleva signos vitales ni datos personales, solo lo que ya muestra la TV. En la Fase 4 la ACL de Mosquitto limita quién publica en `cmd`.
+- Va **en claro**: no lleva signos vitales ni datos personales, solo lo que ya muestra la TV. Desde 4b la ACL del gateway reserva la publicación en `cmd` a la API.
 - Si no hay conexión con el broker, el llamado sigue igual (el OLED no se entera).
 
 ## Portal cautivo ↔ API (Fase 4)

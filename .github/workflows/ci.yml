@@ -55,6 +55,26 @@ jobs:
       - run: pnpm fw:codegen --check
       - run: pnpm nx affected -t lint test build --parallel=3
 
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm nx run api:gateway-test
+      - run: pnpm gateway:up
+      - run: pnpm gateway:seed
+      - run: pnpm gateway:smoke
+      - run: pnpm gateway:mqtt-check
+      - run: pnpm sim:wearables --gateway --count=2 --duration=8
+      - if: always()
+        run: pnpm gateway:down
+
   # Firmware del wearable (PlatformIO). Corre solo si cambió el firmware o los
   # contratos que implementa; si no, termina en segundos (ADR 0010).
   firmware:

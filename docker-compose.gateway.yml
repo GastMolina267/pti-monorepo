@@ -1,0 +1,101 @@
+# Despliegue local de software, separado de la infraestructura de desarrollo.
+# pnpm gateway:init y pnpm gateway:up
+name: vitalia-gateway
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vitalia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ejecutá pnpm gateway:init}
+      POSTGRES_DB: vitalia
+      TZ: America/Argentina/Cordoba
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vitalia -d vitalia']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  mqtt-init:
+    image: eclipse-mosquitto:2
+    entrypoint: ['/bin/sh', '/bootstrap/mosquitto-init.sh']
+    restart: 'no'
+    volumes:
+      - ./.gateway/mqtt:/run/mqtt:ro
+      - ./infra/gateway/mosquitto-init.sh:/bootstrap/mosquitto-init.sh:ro
+      - mqtt-auth:/mosquitto/auth
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    # Acceso local autenticado para simuladores.
+    ports:
+      - '127.0.0.1:${GATEWAY_MQTT_PORT:-1884}:1883'
+    volumes:
+      - ./infra/gateway/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt-auth:/mosquitto/auth:ro
+      - mosquitto-data:/mosquitto/data
+    environment:
+      MQTT_HEALTH_USERNAME: ${MQTT_HEALTH_USERNAME:?Ejecutá pnpm gateway:up}
+      MQTT_HEALTH_PASSWORD: ${MQTT_HEALTH_PASSWORD:?Ejecutá pnpm gateway:up}
+    depends_on:
+      mqtt-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mosquitto_sub -h localhost -u "$$MQTT_HEALTH_USERNAME" -P "$$MQTT_HEALTH_PASSWORD" -t ''$$SYS/broker/uptime'' -C 1 -W 3',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: vitalia-api:local
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: api
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: 3000
+      DATABASE_URL: postgresql://vitalia:${POSTGRES_PASSWORD:?Ejecutá pnpm gateway:init}@postgres:5432/vitalia
+      DB_RUN_MIGRATIONS: 'true'
+      SWAGGER_ENABLED: 'false'
+      JWT_SECRET: ${JWT_SECRET:?Ejecutá pnpm gateway:init}
+      TELEMETRY_AES_KEY: ${TELEMETRY_AES_KEY:?Ejecutá pnpm gateway:init}
+      CORS_ORIGINS: http://localhost:${GATEWAY_HTTP_PORT:-8080},http://localhost:${GATEWAY_TV_PORT:-8081},http://127.0.0.1:${GATEWAY_HTTP_PORT:-8080},http://127.0.0.1:${GATEWAY_TV_PORT:-8081}
+      MQTT_URL: mqtt://mosquitto:1883
+      MQTT_USERNAME: ${MQTT_USERNAME:?Ejecutá pnpm gateway:up}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:?Ejecutá pnpm gateway:up}
+      SEED_PASSWORD: ${SEED_PASSWORD:?Ejecutá pnpm gateway:init}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+
+  web:
+    image: vitalia-web:local
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: web
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${GATEWAY_HTTP_PORT:-8080}:8080'
+      - '127.0.0.1:${GATEWAY_TV_PORT:-8081}:8081'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  mqtt-auth:
+  postgres-data:
+  mosquitto-data:
