@@ -31,6 +31,16 @@ constexpr uint8_t SEQ_BOOT_SHIFT = 24;
 constexpr int WEARABLE_NUMBER_MIN = 1;
 constexpr int WEARABLE_NUMBER_MAX = 99;
 
+// --- Rangos físicos de la lectura (TELEMETRY_READING_LIMITS): fuera, la API la descarta ---
+constexpr float READING_HR_MIN = 20.0f;
+constexpr float READING_HR_MAX = 250.0f;
+constexpr float READING_SPO2_MIN = 50.0f;
+constexpr float READING_SPO2_MAX = 100.0f;
+constexpr float READING_TEMP_MIN = 25.0f;
+constexpr float READING_TEMP_MAX = 45.0f;
+constexpr float READING_ACC_PEAK_G_MIN = 0.0f;
+constexpr float READING_ACC_PEAK_G_MAX = 16.0f;
+
 // --- Umbrales clínicos (CLINICAL_THRESHOLDS) ---
 constexpr float HEART_RATE_NORMAL_MIN = 60.0f;
 constexpr float HEART_RATE_NORMAL_MAX = 100.0f;
