@@ -9,6 +9,8 @@
 
 **Software 4c (18/10/2026):** recepción de `SHOW_TICKET`, validación y reensamblado acotado, resuscripción MQTT por conexión y cola hacia el `loop()` implementados. El OLED muestra el último llamado, desplaza consultorios largos y conserva la prioridad de caída local. Pruebas sin placa: `pnpm nx run wearable-firmware-poc:pio-check-docker`; alcance y límites en [ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md). Esto no cambia los resultados físicos de los hitos listados abajo: no se flasheó ni calibró hardware con esta entrega.
 
+**Prueba en la placa (21/10/2026):** primera vez que corre en la placa el firmware reestructurado (#4/#5) con MQTT + AES-256-GCM (#7). Pasan los hitos 6b y 7 contra el Mosquitto de desarrollo (`pnpm infra:up`) en la notebook. Detalle en "Prueba en la placa del 21/10" abajo. Todavía no se probaron en la placa el llamado en el OLED (`SHOW_TICKET`) ni la calibración de caídas.
+
 Validación de hardware por hitos (ver `AGENTS.md` sección 9). Se avanza en orden, sin
 pasar al siguiente hasta que el anterior pasa.
 
@@ -20,8 +22,8 @@ pasar al siguiente hasta que el anterior pasa.
 | 4. MLX90614            | ⚠️ **PARCIAL — recalibración fina pendiente** | El sensor funciona tras recuperar la EEPROM. Falta la curva de compensación fina, que requiere la carcasa/correa (ver abajo).                                                                                |
 | 5. MAX30102 (BPM/SpO2) | ⛔ **NO EMPEZADO**                            | Próximo paso.                                                                                                                                                                                                |
 | 6a. Wi-Fi (asociación) | ✅ **PASA**                                   | Asocia, obtiene IP, RSSI excelente. Quirk: el 1er `WiFi.begin()` post-boot falla, el 2do conecta (retry automático). Client ID MQTT = `wb-01-24d7cc` (número físico 01 + MAC `44:BD:8D:24:D7:CC`, ADR 0011). |
-| 6b. MQTT               | ⛔ pendiente                                  | Depende de tener Mosquitto corriendo en el Edge Gateway. `MQTT_BROKER` en `secrets.h` hay que ponerlo con la IP real del gateway.                                                                            |
-| 7. Cifrado AES-256     | ⛔ pendiente                                  |                                                                                                                                                                                                              |
+| 6b. MQTT               | ✅ **PASA** (21/10, broker de desarrollo)     | QoS 1 contra Mosquitto en la notebook: publicadas = confirmadas (PUBACK), 0 descartadas. Falta repetirlo contra el gateway (ACL y credenciales por pulsera, ADR 0014).                                       |
+| 7. Cifrado AES-256     | ✅ **PASA** (21/10)                           | `pio-test-device`: 3/3 en la placa (vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio). `fw:mqtt-check` descifra todas las lecturas con la clave del `.env`.                       |
 | 8. Detección de caídas | ⚠️ **LÓGICA LISTA — falta calibrar**          | `FallDetector` en tres fases (caída libre → impacto → inmovilidad) con tests native. Falta ajustar los parámetros de `config.h` con caídas controladas en la placa (ver abajo).                              |
 
 ---
@@ -84,19 +86,50 @@ a ambiente ~23 °C.
 3. ✅ **Firmware reestructurado y alineado al contrato** (2026-10-07): `lib/` (telemetry,
    fall_detection, sensors, net, ui), `config.h`, `vitalia_contracts.h` generado, NTP, `seq`
    por arranque y tests native (`pnpm fw:test`). La demo ya sirve `TelemetryReading` en `/data`.
-   **Pendiente de probar en la placa** (ver "Cómo compilar / subir").
-4. ✅ **Hitos 6b y 7 implementados** (2026-10-12): cada 3 s la `TelemetryReading` se cifra con
-   AES-256-GCM y se publica con QoS 1 por ESP-MQTT (ADR 0012). **Pendiente de probar en la placa:**
+   ✅ Probado en la placa el 21/10 (ver "Prueba en la placa del 21/10").
+4. ✅ **Hitos 6b y 7** (2026-10-12, probados en la placa el 21/10): cada 3 s la `TelemetryReading` se
+   cifra con AES-256-GCM y se publica con QoS 1 por ESP-MQTT (ADR 0012). Para repetir la prueba:
    1. Misma clave en `TELEMETRY_AES_KEY` (`.env`) y `TELEMETRY_AES_KEY_HEX` (`secrets.h`); `MQTT_BROKER` = IP de la notebook.
    2. `pnpm infra:up` (Mosquitto local) y `pnpm nx run wearable-firmware-poc:pio-test-device` (vectores GCM en la placa).
    3. `pnpm fw:upload` y `pnpm fw:mqtt-check`: cada lectura tiene que salir ✔.
-5. **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13). Falta calibrar en la placa:
+   4. Pendiente: repetirlo contra el gateway (`pnpm gateway:up`) con `MQTT_USER`/`MQTT_PASS` de la pulsera.
+5. **Llamado en el OLED (4c):** publicar un `SHOW_TICKET` en `.../cmd` y verificar a ojo `TE LLAMAN`, el scroll de consultorios largos y la prioridad de una caída local. Pendiente.
+6. **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13). Falta calibrar en la placa:
    1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
    2. Caídas controladas sobre superficie acolchada con la pulsera puesta: si la muñeca no llega a marcar caída libre (< 0,4 g por 60 ms), bajar `FALL_FREE_FALL_MIN_MS`, subir `FALL_FREE_FALL_G` o, en último caso, `FALL_REQUIRE_FREE_FALL = false`.
    3. Falsos positivos: golpes de la mano contra la mesa, sentarse de golpe, aplaudir. No tienen que confirmar caída (sin caída libre o con movimiento después).
    4. Ajustar `FALL_STILL_TOLERANCE_G` con el offset real del MPU6050 en reposo (~1,05 g).
 
 Estructura actual del firmware: `AGENTS.md` §5.
+
+---
+
+## Prueba en la placa del 21/10
+
+Placa `wb-01-24d7cc` por USB (COM3), Wi-Fi `Dp7` (IP `192.168.100.28`, RSSI −32 a −36 dBm) y la notebook por Ethernet en la misma red (`192.168.100.17` = `MQTT_BROKER`), con el Mosquitto de `pnpm infra:up`.
+
+| Prueba                                     | Resultado                                                                                                         |
+| :----------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
+| `pio-test-device` (lib/crypto en la placa) | ✅ 3/3: vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio                               |
+| Arranque                                   | ✅ `OLED:OK MPU6050:OK MLX90614:OK`, `wearableId: wb-01-24d7cc`, `WiFi OK`, `NTP OK`, `MQTT OK`                   |
+| `/data` y `/status`                        | ✅ `TelemetryReading` cada 3 s con `ts` en ms actual; contadores MQTT con publicadas = confirmadas, 0 descartadas |
+| `seq` entre reinicios                      | ✅ el arranque pasa de 1 a 2 y `seq` de `16777223` a `33554439` (bloque siguiente)                                |
+| `fw:mqtt-check`                            | ✅ todas las lecturas descifran con la clave del `.env`, `wearableId` = tópico y `seq` sin huecos                 |
+| Lecturas fuera de rango (ver abajo)        | ✅ corregido: 6/6 ✔ con la pulsera sin poner                                                                      |
+
+**Hallazgo: lecturas descartadas enteras.** La API (y `fw:mqtt-check`) descartan la lectura completa si un campo se sale del rango físico. En la placa pasaba en dos casos:
+
+- **Pulsera sin poner:** el MLX90614 mide el aire (~23 °C) y `temp` queda debajo de 25 °C. Se descartaban todas las lecturas, con su `accPeakG` y su `fall`.
+- **Golpe fuerte:** `accPeakG` es la magnitud de los 3 ejes, que puede pasar los 16 g aunque cada eje sature en 16 g. Justo la lectura con `fall: true` podía descartarse.
+
+Fix: los rangos están en `TELEMETRY_READING_LIMITS` (contracts), los usan la API, `fw:mqtt-check` y el firmware (vía `vitalia_contracts.h`). Antes de serializar, `telemetry::applyReadingLimits()` omite `hr`/`spo2`/`temp` fuera de rango y satura `accPeakG` en 16 g.
+
+**Otros hallazgos:**
+
+- Enchufada con BOOT apretado, la placa queda en modo descarga (`boot:0x7 (DOWNLOAD...)` en el log de la ROM) y el firmware no arranca. Hay que soltar BOOT y apretar RST.
+- El primer arranque después de eso dio el MLX90614 sin detectar y el MPU6050 con valores sin sentido (6–17 g en reposo). Con un RST volvió todo a la normalidad. Si se repite, revisar el cableado del bus I²C.
+- Después de un `fw:upload` la placa no volvió a asociarse a `Dp7` en varios arranques seguidos (reintento cada 3 s durante minutos). Se resolvió desenchufando y volviendo a enchufar el USB (ciclo de alimentación completo). RST no alcanzaba.
+- El monitor serie solo imprime al arrancar y cuando cambia algo (Wi-Fi, MQTT): para ver el arranque hay que abrir el monitor antes de resetear.
 
 ---
 
@@ -128,11 +161,11 @@ pio device monitor            # solo monitor
 Si el puerto está ocupado: cerrar el monitor serie antes de subir. Si la placa no
 aparece: mantener BOOT presionado mientras se conecta el USB.
 
-**El firmware actual** arma una `TelemetryReading` del contrato cada 3 s y la expone por HTTP
-(acelerómetro, temperatura, OLED, Wi-Fi, NTP). No incluye MAX30102 (Hito 5) ni MQTT (Hito 6b).
+**El firmware actual** arma una `TelemetryReading` del contrato cada 3 s, la publica cifrada por MQTT
+y la expone por HTTP (acelerómetro, temperatura, OLED, Wi-Fi, NTP). No incluye MAX30102 (Hito 5).
 
 Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, después
-`WiFi OK` y `NTP OK`. Recién con NTP aparecen lecturas.
+`WiFi OK`, `NTP OK` y `MQTT OK`. Recién con NTP aparecen lecturas.
 
 - OLED: IP (o `WiFi...`), temperatura estimada (o `NTP...` hasta sincronizar) y aceleración + evento.
 - Servidor HTTP en el puerto 80:
