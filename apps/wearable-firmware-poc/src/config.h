@@ -28,7 +28,11 @@ constexpr uint32_t IMU_PERIOD_MS = 20;          // 50 Hz
 constexpr uint32_t TEMP_PERIOD_MS = 500;        // 2 Hz
 constexpr uint32_t OLED_PERIOD_MS = 500;
 constexpr uint32_t TELEMETRY_PERIOD_MS = 3000;  // una lectura cada 3 s (docs/03-dominio)
-constexpr uint32_t WIFI_RETRY_MS = 3000;
+constexpr uint32_t WIFI_RETRY_MS = 3000;            // espera después de un intento fallido
+constexpr uint32_t WIFI_ATTEMPT_TIMEOUT_MS = 15000;  // intento sin respuesta: se reinicia
+// Potencia de transmisión en cuartos de dBm (wifi_power_t). PROVISIONAL: la máxima (78 = 19,5 dBm)
+// coincidió con fallos AUTH_EXPIRE, sin confirmar que fuera la causa (ESTADO.md). Baja el alcance.
+constexpr int8_t WIFI_TX_POWER_QDBM = 34;  // 8,5 dBm
 constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una caída
 constexpr uint32_t CALL_SCROLL_MS = 500;       // avance del consultorio largo, sin delay()
 

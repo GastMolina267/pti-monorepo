@@ -70,14 +70,15 @@ gantt
 - [x] Firmware reestructurado (`lib/` telemetry, fall_detection, sensors, net, ui + `config.h`) con tests native en CI (`pnpm fw:test`) (F)
 - [x] Firmware: arma `TelemetryReading` cada 3 s (`seq` por arranque en NVS, `ts` en ms) y la expone por HTTP `/data` (etapa previa a la publicación por MQTT del ítem siguiente) (F)
 - [x] Firmware: publicar `TelemetryReading` cifrada por MQTT (con `seq` y `ts` en ms), reemplazando el payload del POC (`device_id`, `bpm`, `temp_c`, `event`) (F)
-- [x] Firmware: MQTT con ESP-MQTT contra Mosquitto, QoS 1 y outbox (Hito 6b, [ADR 0012](adr/0012-esp-mqtt-en-el-firmware.md)) — falta probarlo en la placa (F)
+- [x] Firmware: MQTT con ESP-MQTT contra Mosquitto, QoS 1 y outbox (Hito 6b, [ADR 0012](adr/0012-esp-mqtt-en-el-firmware.md)) — probado en la placa el 21/10 contra el Mosquitto de desarrollo y contra el gateway con credenciales por pulsera (con un puente temporal: el broker del gateway sigue en loopback) (F)
 - [x] Código de wearable `wb-<NN>-<mac>` en contracts, seed y firmware ([ADR 0011](adr/0011-identificador-del-wearable.md)) (F)
 - [x] Vectores AES-256-GCM compartidos: `GCM_TEST_VECTORS` en contracts → `gcm_vectors.h` del firmware (`pnpm fw:codegen`, check en CI) (F)
 - [x] Firmware: hora por NTP (`configTime` con `NTP_SERVER`); en desarrollo, NTP público (red única con internet) (F)
 - [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
-- [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) (F)
-- [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c, pendiente validación física (G; F: placa)
-- [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — falta calibrar con caídas controladas en la placa (F)
+- [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) — 3/3 en la placa el 21/10 (F)
+- [x] Rangos físicos de la lectura en contracts (`TELEMETRY_READING_LIMITS`), compartidos por API, `fw:mqtt-check` y firmware: el wearable omite `temp`/`hr`/`spo2` fuera de rango y satura `accPeakG` en 16 g, para que la API no descarte la lectura entera (hallazgo de la prueba en la placa del 21/10) (F)
+- [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c; probado en la placa el 21/10 (llamado, reemplazo, scroll y tildes/ñ), falta ver la prioridad de una caída local (G; F: placa)
+- [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — lógica validada en la protoboard el 21/10; la calibración espera la pulsera con el circuito soldado (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 
 - [x] Emitir eventos de dominio desde `tickets`: check-in, llamado, estado y triaje (G)
@@ -169,6 +170,8 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 - [ ] Módulo `sync`: outbox local → réplica a la nube al volver la WAN (RF-O6, capa Cloud)
 - [ ] Firmware: buffer propio para cortes del broker de más de 30 s (el outbox de ESP-MQTT descarta a los 30 s, ADR 0012) (F)
+- [ ] Hardware: pasar el circuito de la protoboard a una protoboard chica o a una placa perforada con pistas soldadas y montarlo en la pulsera impresa. En la protoboard los golpes aflojan el bus I²C (prueba del 21/10) (F)
+- [ ] Firmware: con la pulsera, calibrar caídas (`FALL_*` de `config.h`, falsos positivos), volver a medir la latencia de la caída (< 2 s) y ver la prioridad de la caída sobre el llamado en el OLED (F)
 - [ ] Prueba de corte de WAN durante 24 h (RNF-O2)
 - [ ] Carga: 50 pulseras cada 3 s (simulador) y 0 % de pérdida con QoS 1
 - [ ] Medición de latencias (alerta < 500 ms, REST < 50 ms, llamado < 100 ms) con reporte

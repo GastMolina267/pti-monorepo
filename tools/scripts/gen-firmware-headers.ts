@@ -1,7 +1,7 @@
 /**
  * Genera los headers C/C++ del firmware a partir de @vitalia/contracts (fuente única):
  *
- *   apps/wearable-firmware-poc/include/vitalia_contracts.h    tópicos, cifrado, seq, ID y umbrales
+ *   apps/wearable-firmware-poc/include/vitalia_contracts.h    tópicos, cifrado, seq, ID, rangos y umbrales
  *   apps/wearable-firmware-poc/test/fixtures/gcm_vectors.h    vectores de prueba AES-256-GCM
  *
  *   pnpm fw:codegen            # regenera los headers
@@ -17,6 +17,7 @@ import {
   MQTT_TOPIC_ROOT,
   MQTT_TOPICS,
   TELEMETRY_CIPHER,
+  TELEMETRY_READING_LIMITS,
 } from '../../libs/shared/contracts/src/lib/telemetry/mqtt';
 import { SEQ_BOOT_SHIFT } from '../../libs/shared/contracts/src/lib/telemetry/seq';
 import {
@@ -44,6 +45,12 @@ function floatLiteral(n: number): string {
 }
 
 function renderContracts(): string {
+  const limits: string[] = [];
+  for (const [field, { min, max }] of Object.entries(TELEMETRY_READING_LIMITS)) {
+    limits.push(`constexpr float READING_${upperSnake(field)}_MIN = ${floatLiteral(min)};`);
+    limits.push(`constexpr float READING_${upperSnake(field)}_MAX = ${floatLiteral(max)};`);
+  }
+
   const thresholds: string[] = [];
   for (const [group, fields] of Object.entries(CLINICAL_THRESHOLDS)) {
     for (const [field, value] of Object.entries(fields)) {
@@ -84,6 +91,9 @@ function renderContracts(): string {
     '// --- Identificador wb-<NN>-<mac> (ADR 0011) ---',
     `constexpr int WEARABLE_NUMBER_MIN = ${WEARABLE_NUMBER_MIN};`,
     `constexpr int WEARABLE_NUMBER_MAX = ${WEARABLE_NUMBER_MAX};`,
+    '',
+    '// --- Rangos físicos de la lectura (TELEMETRY_READING_LIMITS): fuera, la API la descarta ---',
+    ...limits,
     '',
     '// --- Umbrales clínicos (CLINICAL_THRESHOLDS) ---',
     ...thresholds,

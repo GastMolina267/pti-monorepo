@@ -32,6 +32,14 @@ struct Reading {
  */
 size_t serializeReading(const Reading& reading, char* out, size_t outLen);
 
+/**
+ * Deja la lectura dentro de los rangos del contrato (`TELEMETRY_READING_LIMITS`), porque la
+ * API descarta la lectura entera si un campo se sale, `fall` incluido:
+ * - `hr`, `spo2`, `temp` fuera de rango (o NaN) se omiten. Ej.: pulsera sin poner → ~23 °C.
+ * - `accPeakG` se satura en el máximo (la magnitud de 3 ejes pasa los 16 g en un golpe).
+ */
+void applyReadingLimits(Reading& reading);
+
 /** `seq` = arranque << SEQ_BOOT_SHIFT | contador (composeSeq de contracts). */
 uint64_t composeSeq(uint32_t boot, uint32_t counter);
 

@@ -1,4 +1,8 @@
-import { WEARABLE_CODE_PATTERN, type TelemetryReading } from '@vitalia/contracts';
+import {
+  TELEMETRY_READING_LIMITS as L,
+  WEARABLE_CODE_PATTERN,
+  type TelemetryReading,
+} from '@vitalia/contracts';
 import { z } from 'zod';
 import { TelemetryRejection } from './telemetry-rejection';
 
@@ -6,18 +10,19 @@ import { TelemetryRejection } from './telemetry-rejection';
 export const MIN_READING_TS_MS = Date.UTC(2024, 0, 1);
 
 /**
- * Validación del `TelemetryReading` descifrado. Rangos físicamente posibles (no clínicos:
- * la clasificación la hace `assessVitals`), los mismos que `tools/scripts/mqtt-check.ts`.
+ * Validación del `TelemetryReading` descifrado. Rangos físicamente posibles de contracts
+ * (`TELEMETRY_READING_LIMITS`, los mismos que `tools/scripts/mqtt-check.ts`); la
+ * clasificación clínica la hace `assessVitals`.
  * Estricto: un campo fuera del contrato descarta el mensaje.
  */
 export const telemetryReadingSchema = z.strictObject({
   wearableId: z.string().regex(WEARABLE_CODE_PATTERN, 'no es wb-<NN>-<mac>'),
   seq: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
   ts: z.number().int().min(MIN_READING_TS_MS, 'no es epoch en ms (¿segundos? ¿reloj sin NTP?)'),
-  hr: z.number().min(20).max(250).optional(),
-  spo2: z.number().min(50).max(100).optional(),
-  temp: z.number().min(25).max(45).optional(),
-  accPeakG: z.number().min(0).max(16).optional(),
+  hr: z.number().min(L.hr.min).max(L.hr.max).optional(),
+  spo2: z.number().min(L.spo2.min).max(L.spo2.max).optional(),
+  temp: z.number().min(L.temp.min).max(L.temp.max).optional(),
+  accPeakG: z.number().min(L.accPeakG.min).max(L.accPeakG.max).optional(),
   fall: z.boolean().optional(),
 }) satisfies z.ZodType<TelemetryReading>;
 
