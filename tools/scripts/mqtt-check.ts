@@ -14,6 +14,7 @@ import {
   MQTT_QOS,
   MQTT_TOPICS,
   TELEMETRY_CIPHER,
+  TELEMETRY_READING_LIMITS,
   type EncryptedEnvelope,
   type TelemetryReading,
 } from '../../libs/shared/contracts/src/lib/telemetry/mqtt';
@@ -77,7 +78,8 @@ function decrypt(raw: Buffer): TelemetryReading {
   }
 }
 
-function inRange(r: TelemetryReading, field: 'hr' | 'spo2' | 'temp' | 'accPeakG', min: number, max: number) {
+function inRange(r: TelemetryReading, field: keyof typeof TELEMETRY_READING_LIMITS) {
+  const { min, max } = TELEMETRY_READING_LIMITS[field];
   const v = r[field];
   if (v === undefined) return;
   if (typeof v !== 'number' || v < min || v > max) throw new Invalid(`${field}=${v} fuera de ${min}–${max}`);
@@ -101,10 +103,7 @@ function validate(topic: string, r: TelemetryReading): string[] {
   if (Math.abs(Date.now() - r.ts) > MAX_SKEW_MS) {
     warnings.push(`ts desfasado ${Math.round((Date.now() - r.ts) / 1000)} s`);
   }
-  inRange(r, 'hr', 20, 250);
-  inRange(r, 'spo2', 50, 100);
-  inRange(r, 'temp', 25, 45);
-  inRange(r, 'accPeakG', 0, 16);
+  for (const field of ['hr', 'spo2', 'temp', 'accPeakG'] as const) inRange(r, field);
   if (r.fall !== undefined && typeof r.fall !== 'boolean') throw new Invalid('fall no es boolean');
 
   const prev = lastSeq.get(r.wearableId);
