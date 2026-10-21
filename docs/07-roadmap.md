@@ -77,7 +77,7 @@ gantt
 - [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
 - [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) — 3/3 en la placa el 21/10 (F)
 - [x] Rangos físicos de la lectura en contracts (`TELEMETRY_READING_LIMITS`), compartidos por API, `fw:mqtt-check` y firmware: el wearable omite `temp`/`hr`/`spo2` fuera de rango y satura `accPeakG` en 16 g, para que la API no descarte la lectura entera (hallazgo de la prueba en la placa del 21/10) (F)
-- [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c, pendiente validación física (G; F: placa)
+- [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c; probado en la placa el 21/10 (llamado, reemplazo, scroll y tildes/ñ), falta ver la prioridad de una caída local (G; F: placa)
 - [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — falta calibrar con caídas controladas en la placa (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
 

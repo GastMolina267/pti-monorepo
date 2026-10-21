@@ -9,7 +9,7 @@
 
 **Software 4c (18/10/2026):** recepción de `SHOW_TICKET`, validación y reensamblado acotado, resuscripción MQTT por conexión y cola hacia el `loop()` implementados. El OLED muestra el último llamado, desplaza consultorios largos y conserva la prioridad de caída local. Pruebas sin placa: `pnpm nx run wearable-firmware-poc:pio-check-docker`; alcance y límites en [ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md). Esto no cambia los resultados físicos de los hitos listados abajo: no se flasheó ni calibró hardware con esta entrega.
 
-**Prueba en la placa (21/10/2026):** primera vez que corre en la placa el firmware reestructurado (#4/#5) con MQTT + AES-256-GCM (#7). Pasan los hitos 6b y 7 contra el Mosquitto de desarrollo (`pnpm infra:up`) en la notebook. Detalle en "Prueba en la placa del 21/10" abajo. Todavía no se probaron en la placa el llamado en el OLED (`SHOW_TICKET`) ni la calibración de caídas.
+**Prueba en la placa (21/10/2026):** primera vez que corre en la placa el firmware reestructurado (#4/#5) con MQTT + AES-256-GCM (#7). Pasan los hitos 6b y 7 contra el Mosquitto de desarrollo (`pnpm infra:up`) en la notebook, y el llamado en el OLED (`SHOW_TICKET`). Detalle en "Prueba en la placa del 21/10" abajo. Falta la calibración de caídas.
 
 Validación de hardware por hitos (ver `AGENTS.md` sección 9). Se avanza en orden, sin
 pasar al siguiente hasta que el anterior pasa.
@@ -93,7 +93,7 @@ a ambiente ~23 °C.
    2. `pnpm infra:up` (Mosquitto local) y `pnpm nx run wearable-firmware-poc:pio-test-device` (vectores GCM en la placa).
    3. `pnpm fw:upload` y `pnpm fw:mqtt-check`: cada lectura tiene que salir ✔.
    4. Pendiente: repetirlo contra el gateway (`pnpm gateway:up`) con `MQTT_USER`/`MQTT_PASS` de la pulsera.
-5. **Llamado en el OLED (4c):** publicar un `SHOW_TICKET` en `.../cmd` y verificar a ojo `TE LLAMAN`, el scroll de consultorios largos y la prioridad de una caída local. Pendiente.
+5. ✅ **Llamado en el OLED (4c)**, probado en la placa el 21/10: `TE LLAMAN` con código y consultorio, reemplazo por el llamado nuevo, scroll de consultorios largos y tildes/ñ transliteradas. Falta ver la prioridad de una caída local sobre el llamado (con el Hito 8).
 6. **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13). Falta calibrar en la placa:
    1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
    2. Caídas controladas sobre superficie acolchada con la pulsera puesta: si la muñeca no llega a marcar caída libre (< 0,4 g por 60 ms), bajar `FALL_FREE_FALL_MIN_MS`, subir `FALL_FREE_FALL_G` o, en último caso, `FALL_REQUIRE_FREE_FALL = false`.
@@ -108,14 +108,23 @@ Estructura actual del firmware: `AGENTS.md` §5.
 
 Placa `wb-01-24d7cc` por USB (COM3), Wi-Fi `Dp7` (IP `192.168.100.28`, RSSI −32 a −36 dBm) y la notebook por Ethernet en la misma red (`192.168.100.17` = `MQTT_BROKER`), con el Mosquitto de `pnpm infra:up`.
 
-| Prueba                                     | Resultado                                                                                                         |
-| :----------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
-| `pio-test-device` (lib/crypto en la placa) | ✅ 3/3: vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio                               |
-| Arranque                                   | ✅ `OLED:OK MPU6050:OK MLX90614:OK`, `wearableId: wb-01-24d7cc`, `WiFi OK`, `NTP OK`, `MQTT OK`                   |
-| `/data` y `/status`                        | ✅ `TelemetryReading` cada 3 s con `ts` en ms actual; contadores MQTT con publicadas = confirmadas, 0 descartadas |
-| `seq` entre reinicios                      | ✅ el arranque pasa de 1 a 2 y `seq` de `16777223` a `33554439` (bloque siguiente)                                |
-| `fw:mqtt-check`                            | ✅ todas las lecturas descifran con la clave del `.env`, `wearableId` = tópico y `seq` sin huecos                 |
-| Lecturas fuera de rango (ver abajo)        | ✅ corregido: 6/6 ✔ con la pulsera sin poner                                                                      |
+| Prueba                                           | Resultado                                                                                                         |
+| :----------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
+| `pio-test-device` (lib/crypto en la placa)       | ✅ 3/3: vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio                               |
+| Arranque                                         | ✅ `OLED:OK MPU6050:OK MLX90614:OK`, `wearableId: wb-01-24d7cc`, `WiFi OK`, `NTP OK`, `MQTT OK`                   |
+| `/data` y `/status`                              | ✅ `TelemetryReading` cada 3 s con `ts` en ms actual; contadores MQTT con publicadas = confirmadas, 0 descartadas |
+| `seq` entre reinicios                            | ✅ el arranque pasa de 1 a 2 y `seq` de `16777223` a `33554439` (bloque siguiente)                                |
+| `fw:mqtt-check`                                  | ✅ todas las lecturas descifran con la clave del `.env`, `wearableId` = tópico y `seq` sin huecos                 |
+| Lecturas fuera de rango (ver abajo)              | ✅ corregido: 6/6 ✔ con la pulsera sin poner                                                                      |
+| Llamado en el OLED (`SHOW_TICKET` por `.../cmd`) | ✅ ver abajo                                                                                                      |
+
+**Llamado en el OLED.** Se publicó con `mosquitto_pub` (QoS 1, sin retain) en `hospital/sala1/wearable/wb-01-24d7cc/cmd`, mirando el OLED:
+
+1. `A-024` / `Consultorio 4`: aparece `TE LLAMAN` con el código y el consultorio.
+2. `B-107` / `Consultorio 12 - Clinica Medica y Traumatologia Pediatrica`: reemplaza al anterior y el consultorio se desplaza completo.
+3. `C-005` / `Cardiología Niñez - Atención Pediátrica` (UTF-8): se ve `Cardiologia Ninez - Atencion Pediatrica`, sin caracteres raros.
+
+Mientras tanto la telemetría siguió normal (213 publicadas, 213 confirmadas).
 
 **Hallazgo: lecturas descartadas enteras.** La API (y `fw:mqtt-check`) descartan la lectura completa si un campo se sale del rango físico. En la placa pasaba en dos casos:
 
