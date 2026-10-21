@@ -29,6 +29,7 @@
 #include "mqtt_link.h"
 #include "oled.h"
 #include "peak_tracker.h"
+#include "pulse_ox.h"
 #include "reading.h"
 #include "secrets.h"  // WEARABLE_NUMBER, Wi-Fi, NTP_SERVER… (no versionado)
 #include "skin_temp.h"
@@ -66,6 +67,7 @@ static fall_detection::FallParams fallParams() {
 
 sensors::Imu imu;
 sensors::SkinTemp skinTemp;
+sensors::PulseOx pulseOx;
 net::WifiLink wifi;
 ui::Oled oled(Wire, I2C_CLOCK_HZ);
 ui::StatusLed led(PIN_LED);
@@ -161,10 +163,18 @@ static bool provideStatus(String& out) {
   doc["sensors"]["mpu6050"] = imu.isHealthy();
   doc["sensors"]["mlx90614"] = skinTemp.isHealthy();
   doc["sensors"]["oled"] = oled.isHealthy();
+  doc["sensors"]["max30102"] = pulseOx.isHealthy();
   if (!isnan(imu.magnitudeG())) doc["accel_g"] = roundf(imu.magnitudeG() * 100) / 100.0;
   if (skinTemp.isHealthy()) {
     doc["temp_skin_c"] = roundf(skinTemp.skinC() * 10) / 10.0;
     doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
+  }
+  if (pulseOx.isHealthy()) {
+    JsonObject p = doc["ppg"].to<JsonObject>();
+    p["ir"] = pulseOx.lastIr();
+    p["red"] = pulseOx.lastRed();
+    p["finger"] = pulseOx.fingerPresent();
+    p["samples"] = pulseOx.totalSamples();
   }
   doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
   doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
@@ -229,8 +239,10 @@ void setup() {
   bool oledOk = oled.begin(OLED_I2C_ADDR);
   bool imuOk = imu.begin(Wire, MPU6050_I2C_ADDR);
   bool mlxOk = skinTemp.begin(Wire, MLX90614_I2C_ADDR, SKIN_TO_CORE_OFFSET_C);
-  Serial.printf(" OLED:%s  MPU6050:%s  MLX90614:%s\n", oledOk ? "OK" : "--", imuOk ? "OK" : "--",
-                mlxOk ? "OK" : "--");
+  bool ppgOk = pulseOx.begin(Wire, {PPG_LED_AMPLITUDE, PPG_SAMPLE_AVERAGE, PPG_SAMPLE_RATE,
+                                    PPG_PULSE_WIDTH_US, PPG_ADC_RANGE, PPG_FINGER_IR_MIN});
+  Serial.printf(" OLED:%s  MPU6050:%s  MLX90614:%s  MAX30102:%s\n", oledOk ? "OK" : "--",
+                imuOk ? "OK" : "--", mlxOk ? "OK" : "--", ppgOk ? "OK" : "--");
 
   bootCount = net::nextBootCount();
   net::deviceCode(deviceId, sizeof(deviceId), WEARABLE_NUMBER);  // rango validado por static_assert
@@ -257,7 +269,7 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t lastImu = 0, lastTemp = 0, lastOled = 0, lastReading = 0;
+  static uint32_t lastImu = 0, lastTemp = 0, lastPpg = 0, lastOled = 0, lastReading = 0;
   static bool mdnsUp = false, ntpLogged = false;
   uint32_t now = millis();
 
@@ -312,6 +324,13 @@ void loop() {
         buildReading();
       }
     }
+  }
+  if (now - lastPpg >= PPG_POLL_MS) {
+    lastPpg = now;
+    pulseOx.read([now](uint32_t ir, uint32_t red) {
+      if (PPG_LOG_RAW) Serial.printf("ppg,%lu,%lu,%lu\n", static_cast<unsigned long>(now),
+                                     static_cast<unsigned long>(ir), static_cast<unsigned long>(red));
+    });
   }
   if (now - lastTemp >= TEMP_PERIOD_MS) {
     lastTemp = now;
