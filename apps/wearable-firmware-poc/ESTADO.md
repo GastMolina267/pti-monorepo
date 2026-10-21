@@ -9,22 +9,22 @@
 
 **Software 4c (18/10/2026):** recepción de `SHOW_TICKET`, validación y reensamblado acotado, resuscripción MQTT por conexión y cola hacia el `loop()` implementados. El OLED muestra el último llamado, desplaza consultorios largos y conserva la prioridad de caída local. Pruebas sin placa: `pnpm nx run wearable-firmware-poc:pio-check-docker`; alcance y límites en [ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md). Esto no cambia los resultados físicos de los hitos listados abajo: no se flasheó ni calibró hardware con esta entrega.
 
-**Prueba en la placa (21/10/2026):** primera vez que corre en la placa el firmware reestructurado (#4/#5) con MQTT + AES-256-GCM (#7). Pasan los hitos 6b y 7 contra el Mosquitto de desarrollo (`pnpm infra:up`) en la notebook, y el llamado en el OLED (`SHOW_TICKET`). Detalle en "Prueba en la placa del 21/10" abajo. Falta la calibración de caídas.
+**Prueba en la placa (21/10/2026):** primera vez que corre en la placa el firmware reestructurado (#4/#5) con MQTT + AES-256-GCM (#7). Pasan los hitos 6b y 7 contra el Mosquitto de desarrollo (`pnpm infra:up`) en la notebook, y el llamado en el OLED (`SHOW_TICKET`). Detalle en "Prueba en la placa del 21/10" abajo. La calibración de caídas queda para cuando el circuito esté soldado en la pulsera (en la protoboard los golpes aflojan los cables).
 
 Validación de hardware por hitos (ver `AGENTS.md` sección 9). Se avanza en orden, sin
 pasar al siguiente hasta que el anterior pasa.
 
-| Hito                   | Estado                                        | Notas                                                                                                                                                                                                        |
-| :--------------------- | :-------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Escáner I²C         | ✅ **PASA**                                   | Las 4 direcciones detectadas: `0x3C` OLED, `0x57` MAX30102, `0x5A` MLX90614, `0x68` MPU6050                                                                                                                  |
-| 2. OLED SSD1306        | ✅ **PASA**                                   | Texto estático OK. Ver gotcha del reloj abajo.                                                                                                                                                               |
-| 3. MPU6050             | ✅ **PASA**                                   | ~1.05 g en reposo (dentro de tolerancia, offset de fábrica). REST/MOV OK.                                                                                                                                    |
-| 4. MLX90614            | ⚠️ **PARCIAL — recalibración fina pendiente** | El sensor funciona tras recuperar la EEPROM. Falta la curva de compensación fina, que requiere la carcasa/correa (ver abajo).                                                                                |
-| 5. MAX30102 (BPM/SpO2) | ⛔ **NO EMPEZADO**                            | Próximo paso.                                                                                                                                                                                                |
-| 6a. Wi-Fi (asociación) | ✅ **PASA**                                   | Asocia, obtiene IP, RSSI excelente. Quirk: el 1er `WiFi.begin()` post-boot falla, el 2do conecta (retry automático). Client ID MQTT = `wb-01-24d7cc` (número físico 01 + MAC `44:BD:8D:24:D7:CC`, ADR 0011). |
-| 6b. MQTT               | ✅ **PASA** (21/10, broker de desarrollo)     | QoS 1 contra Mosquitto en la notebook: publicadas = confirmadas (PUBACK), 0 descartadas. Falta repetirlo contra el gateway (ACL y credenciales por pulsera, ADR 0014).                                       |
-| 7. Cifrado AES-256     | ✅ **PASA** (21/10)                           | `pio-test-device`: 3/3 en la placa (vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio). `fw:mqtt-check` descifra todas las lecturas con la clave del `.env`.                       |
-| 8. Detección de caídas | ⚠️ **LÓGICA LISTA — falta calibrar**          | `FallDetector` en tres fases (caída libre → impacto → inmovilidad) con tests native. Falta ajustar los parámetros de `config.h` con caídas controladas en la placa (ver abajo).                              |
+| Hito                   | Estado                                        | Notas                                                                                                                                                                                                                                                                            |
+| :--------------------- | :-------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Escáner I²C         | ✅ **PASA**                                   | Las 4 direcciones detectadas: `0x3C` OLED, `0x57` MAX30102, `0x5A` MLX90614, `0x68` MPU6050                                                                                                                                                                                      |
+| 2. OLED SSD1306        | ✅ **PASA**                                   | Texto estático OK. Ver gotcha del reloj abajo.                                                                                                                                                                                                                                   |
+| 3. MPU6050             | ✅ **PASA**                                   | ~1.05 g en reposo (dentro de tolerancia, offset de fábrica). REST/MOV OK.                                                                                                                                                                                                        |
+| 4. MLX90614            | ⚠️ **PARCIAL — recalibración fina pendiente** | El sensor funciona tras recuperar la EEPROM. Falta la curva de compensación fina, que requiere la carcasa/correa (ver abajo).                                                                                                                                                    |
+| 5. MAX30102 (BPM/SpO2) | ⛔ **NO EMPEZADO**                            | Próximo paso.                                                                                                                                                                                                                                                                    |
+| 6a. Wi-Fi (asociación) | ✅ **PASA**                                   | Asocia, obtiene IP, RSSI excelente. Quirk: el 1er `WiFi.begin()` post-boot falla, el 2do conecta (retry automático). Client ID MQTT = `wb-01-24d7cc` (número físico 01 + MAC `44:BD:8D:24:D7:CC`, ADR 0011).                                                                     |
+| 6b. MQTT               | ✅ **PASA** (21/10, broker de desarrollo)     | QoS 1 contra Mosquitto en la notebook: publicadas = confirmadas (PUBACK), 0 descartadas. Falta repetirlo contra el gateway (ACL y credenciales por pulsera, ADR 0014).                                                                                                           |
+| 7. Cifrado AES-256     | ✅ **PASA** (21/10)                           | `pio-test-device`: 3/3 en la placa (vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio). `fw:mqtt-check` descifra todas las lecturas con la clave del `.env`.                                                                                           |
+| 8. Detección de caídas | ⏸️ **EN ESPERA — calibrar con la pulsera**    | Lógica validada con el sensor real en la protoboard (21/10): una caída confirmada y publicada, un falso positivo rechazado. La calibración se hace con el circuito soldado dentro de la pulsera impresa: en la protoboard los golpes aflojan los cables del bus I²C (ver abajo). |
 
 ---
 
@@ -93,8 +93,8 @@ a ambiente ~23 °C.
    2. `pnpm infra:up` (Mosquitto local) y `pnpm nx run wearable-firmware-poc:pio-test-device` (vectores GCM en la placa).
    3. `pnpm fw:upload` y `pnpm fw:mqtt-check`: cada lectura tiene que salir ✔.
    4. Pendiente: repetirlo contra el gateway (`pnpm gateway:up`) con `MQTT_USER`/`MQTT_PASS` de la pulsera.
-5. ✅ **Llamado en el OLED (4c)**, probado en la placa el 21/10: `TE LLAMAN` con código y consultorio, reemplazo por el llamado nuevo, scroll de consultorios largos y tildes/ñ transliteradas. Falta ver la prioridad de una caída local sobre el llamado (con el Hito 8).
-6. **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13). Falta calibrar en la placa:
+5. ✅ **Llamado en el OLED (4c)**, probado en la placa el 21/10: `TE LLAMAN` con código y consultorio, reemplazo por el llamado nuevo, scroll de consultorios largos y tildes/ñ transliteradas. Falta ver la prioridad de una caída local sobre el llamado (con el Hito 8, en la pulsera).
+6. ⏸️ **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13) y se validó en la protoboard el 21/10 (ver "Prueba de caídas en la protoboard"). **La calibración espera la pulsera:** primero hay que pasar el circuito a una protoboard chica o a una placa perforada con pistas soldadas, sin cables que se aflojen, y montarlo en la pulsera impresa. Recién ahí tienen sentido los valores de `config.h`, porque dependen de cómo cae y se mueve una muñeca y no una protoboard. Pasos para ese momento:
    1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
    2. Caídas controladas sobre superficie acolchada con la pulsera puesta: si la muñeca no llega a marcar caída libre (< 0,4 g por 60 ms), bajar `FALL_FREE_FALL_MIN_MS`, subir `FALL_FREE_FALL_G` o, en último caso, `FALL_REQUIRE_FREE_FALL = false`.
    3. Falsos positivos: golpes de la mano contra la mesa, sentarse de golpe, aplaudir. No tienen que confirmar caída (sin caída libre o con movimiento después).
@@ -117,6 +117,7 @@ Placa `wb-01-24d7cc` por USB (COM3), Wi-Fi `Dp7` (IP `192.168.100.28`, RSSI −3
 | `fw:mqtt-check`                                  | ✅ todas las lecturas descifran con la clave del `.env`, `wearableId` = tópico y `seq` sin huecos                 |
 | Lecturas fuera de rango (ver abajo)              | ✅ corregido: 6/6 ✔ con la pulsera sin poner                                                                      |
 | Llamado en el OLED (`SHOW_TICKET` por `.../cmd`) | ✅ ver abajo                                                                                                      |
+| Caídas en la protoboard (sin calibrar)           | ✅ lógica: 1 confirmada y 1 rechazada · ⚠️ golpes aflojan el bus I²C, ver abajo                                   |
 
 **Llamado en el OLED.** Se publicó con `mosquitto_pub` (QoS 1, sin retain) en `hospital/sala1/wearable/wb-01-24d7cc/cmd`, mirando el OLED:
 
@@ -125,6 +126,14 @@ Placa `wb-01-24d7cc` por USB (COM3), Wi-Fi `Dp7` (IP `192.168.100.28`, RSSI −3
 3. `C-005` / `Cardiología Niñez - Atención Pediátrica` (UTF-8): se ve `Cardiologia Ninez - Atencion Pediatrica`, sin caracteres raros.
 
 Mientras tanto la telemetría siguió normal (213 publicadas, 213 confirmadas).
+
+**Prueba de caídas en la protoboard.** Con `FALL_LOG_TRANSITIONS = true`, dejando caer la protoboard sobre una superficie acolchada (la pulsera no está impresa). Sirve para validar la lógica con el sensor real, no para calibrar:
+
+- ✅ **Caída confirmada:** `IDLE -> FREE_FALL (0,19 g) -> SETTLING (impacto 8,93 g) -> CHECK_STILL -> confirmada`. Llegó al broker con `fall: true` y pico 8,93 g.
+- ✅ **Falso positivo rechazado:** caída libre e impacto de 7,53 g, pero con movimiento después (2,92 g): vuelve a `IDLE` sin confirmar.
+- Cuatro caídas no pasaron de `FREE_FALL`: la caída libre duró menos de `FALL_FREE_FALL_MIN_MS` (60 ms). Es un dato para calibrar con la pulsera, no una conclusión.
+- ⚠️ **Los golpes aflojaron el bus I²C:** ~3200 errores `Wire ... Error -1` en 5 min, con el MPU6050 y el MLX90614 a la vez (cable de SDA, SCL o GND flojo). Al final el MPU6050 devolvía valores congelados.
+- ⚠️ En paralelo se cortó la conexión MQTT dos veces (`Writing didn't complete in specified timeout`, el OLED mostró `LLAMADO SIN RED`) y la lectura de la caída llegó **~5 s tarde** (objetivo < 2 s) y repetida por QoS 1. Hay que volver a medir la latencia con el circuito soldado: con el bus I²C fallando no se puede separar la causa.
 
 **Hallazgo: lecturas descartadas enteras.** La API (y `fw:mqtt-check`) descartan la lectura completa si un campo se sale del rango físico. En la placa pasaba en dos casos:
 
