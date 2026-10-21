@@ -128,6 +128,7 @@ static void buildReading() {
   r.fall = fall.pending();
   if (skinTemp.isHealthy()) r.temp = skinTemp.coreEstC();
   // hr / spo2: vacíos hasta el Hito 5 (MAX30102).
+  telemetry::applyReadingLimits(r);  // fuera de rango la API descarta la lectura entera
 
   size_t n = telemetry::serializeReading(r, lastReadingJson, sizeof(lastReadingJson));
   hasReading = n > 0;

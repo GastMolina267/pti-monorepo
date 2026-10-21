@@ -2,6 +2,8 @@
 #include <string.h>
 #include <unity.h>
 
+#include <math.h>
+
 #include "../../fixtures/gcm_vectors.h"
 #include "peak_tracker.h"
 #include "reading.h"
@@ -100,6 +102,51 @@ void test_peak_tracker_takes_max_and_resets() {
   TEST_ASSERT_FALSE(peak.take().has_value());
 }
 
+// La pulsera sin poner mide el aire (~23 °C): `temp` se omite y la lectura sigue siendo válida.
+void test_limits_omit_out_of_range_vitals() {
+  Reading r = exampleReading();
+  r.temp = 23.3f;
+  r.hr = 300;
+  r.spo2 = 40;
+  telemetry::applyReadingLimits(r);
+  TEST_ASSERT_FALSE(r.temp.has_value());
+  TEST_ASSERT_FALSE(r.hr.has_value());
+  TEST_ASSERT_FALSE(r.spo2.has_value());
+
+  Reading nan = exampleReading();
+  nan.temp = NAN;
+  nan.accPeakG = NAN;
+  telemetry::applyReadingLimits(nan);
+  TEST_ASSERT_FALSE(nan.temp.has_value());
+  TEST_ASSERT_FALSE(nan.accPeakG.has_value());
+}
+
+// Un golpe de 17 g (magnitud de 3 ejes) sale como 16 g: la lectura con `fall` no se descarta.
+void test_limits_saturate_acc_peak_and_keep_fall() {
+  Reading r = exampleReading();
+  r.accPeakG = 17.08f;
+  r.fall = true;
+  telemetry::applyReadingLimits(r);
+  TEST_ASSERT_EQUAL_FLOAT(16.0f, *r.accPeakG);
+  TEST_ASSERT_TRUE(r.fall);
+}
+
+void test_limits_keep_in_range_values_and_bounds() {
+  Reading r = exampleReading();
+  telemetry::applyReadingLimits(r);
+  char before[256], after[256];
+  telemetry::serializeReading(exampleReading(), before, sizeof(before));
+  telemetry::serializeReading(r, after, sizeof(after));
+  TEST_ASSERT_EQUAL_STRING(before, after);
+
+  Reading edge = exampleReading();
+  edge.temp = 25.0f;
+  edge.accPeakG = 16.0f;
+  telemetry::applyReadingLimits(edge);
+  TEST_ASSERT_EQUAL_FLOAT(25.0f, *edge.temp);
+  TEST_ASSERT_EQUAL_FLOAT(16.0f, *edge.accPeakG);
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_serialize_matches_shared_gcm_vector_plaintext);
@@ -111,5 +158,8 @@ int main() {
   RUN_TEST(test_format_wearable_code);
   RUN_TEST(test_format_wearable_code_rejects_out_of_range);
   RUN_TEST(test_peak_tracker_takes_max_and_resets);
+  RUN_TEST(test_limits_omit_out_of_range_vitals);
+  RUN_TEST(test_limits_saturate_acc_peak_and_keep_fall);
+  RUN_TEST(test_limits_keep_in_range_values_and_bounds);
   return UNITY_END();
 }

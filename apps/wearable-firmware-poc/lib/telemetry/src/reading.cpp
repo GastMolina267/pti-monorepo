@@ -1,6 +1,7 @@
 #include "reading.h"
 
 #include <ArduinoJson.h>
+#include <math.h>
 #include <stdio.h>
 
 #include "vitalia_contracts.h"
@@ -14,6 +15,13 @@ namespace {
 void putFixed(JsonDocument& doc, const char* key, float value, int decimals, char* buf, size_t len) {
   snprintf(buf, len, "%.*f", decimals, static_cast<double>(value));
   doc[key] = serialized(buf);
+}
+
+template <typename T>
+void omitOutOfRange(std::optional<T>& value, float min, float max) {
+  if (!value) return;
+  float v = static_cast<float>(*value);
+  if (isnan(v) || v < min || v > max) value.reset();
 }
 
 }  // namespace
@@ -34,6 +42,17 @@ size_t serializeReading(const Reading& reading, char* out, size_t outLen) {
 
   if (measureJson(doc) >= outLen) return 0;
   return serializeJson(doc, out, outLen);
+}
+
+void applyReadingLimits(Reading& reading) {
+  omitOutOfRange(reading.hr, vitalia::READING_HR_MIN, vitalia::READING_HR_MAX);
+  omitOutOfRange(reading.spo2, vitalia::READING_SPO2_MIN, vitalia::READING_SPO2_MAX);
+  omitOutOfRange(reading.temp, vitalia::READING_TEMP_MIN, vitalia::READING_TEMP_MAX);
+  if (reading.accPeakG) {
+    float g = *reading.accPeakG;
+    if (isnan(g) || g < vitalia::READING_ACC_PEAK_G_MIN) reading.accPeakG.reset();
+    else if (g > vitalia::READING_ACC_PEAK_G_MAX) reading.accPeakG = vitalia::READING_ACC_PEAK_G_MAX;
+  }
 }
 
 uint64_t composeSeq(uint32_t boot, uint32_t counter) {
