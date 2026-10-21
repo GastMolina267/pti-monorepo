@@ -207,6 +207,11 @@ La API puede leer todos los `.../data` y escribir `.../cmd`; cada pulsera solo e
 | `accPeakG` | g        | Pico del intervalo                                                                        |
 | `fall`     | bool     | `true` si el firmware detectó una caída                                                   |
 
+**Rangos físicos (`TELEMETRY_READING_LIMITS`):** `hr` 20–250, `spo2` 50–100, `temp` 25–45 y `accPeakG` 0–16. No son umbrales clínicos (eso es `assessVitals()`): un valor afuera es un sensor sin poner o roto. La API **descarta la lectura entera** si un campo se sale, así que el wearable no los manda fuera de rango:
+
+- `hr`, `spo2` y `temp` se **omiten**. Ej.: con la pulsera sin poner, el MLX90614 mide el aire (~23 °C).
+- `accPeakG` se **satura** en 16 g. Es la magnitud de los tres ejes, que en un golpe fuerte pasa los 16 g aunque cada eje sature ahí, y esa lectura es la que lleva `fall: true`.
+
 #### `seq` entre reinicios
 
 `seq = arranque × 2^24 + contador` (`composeSeq()` / `splitSeq()` de `@vitalia/contracts`, `SEQ_BOOT_SHIFT = 24`).
@@ -218,7 +223,7 @@ La API puede leer todos los `.../data` y escribir `.../cmd`; cada pulsera solo e
 
 #### Constantes para el firmware
 
-Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSION`, `TELEMETRY_CIPHER`, `SEQ_BOOT_SHIFT`, el rango del número de wearable y `CLINICAL_THRESHOLDS`) se genera en `apps/wearable-firmware-poc/include/vitalia_contracts.h` con `pnpm fw:codegen`. La CI verifica que esté al día.
+Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSION`, `TELEMETRY_CIPHER`, `SEQ_BOOT_SHIFT`, el rango del número de wearable, `TELEMETRY_READING_LIMITS` y `CLINICAL_THRESHOLDS`) se genera en `apps/wearable-firmware-poc/include/vitalia_contracts.h` con `pnpm fw:codegen`. La CI verifica que esté al día.
 
 ### Comando al wearable (`WearableCommand`)
 
