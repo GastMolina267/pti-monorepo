@@ -34,7 +34,7 @@ void WifiLink::connect() {
   delay(50);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
-  // Antes de begin(): con la potencia máxima, la SuperMini no completa la autenticación.
+  // Antes de begin(). En la SuperMini, la potencia máxima coincidió con fallos de autenticación.
   WiFi.setTxPower(static_cast<wifi_power_t>(txPower_));
   WiFi.begin(ssid_, pass_);
   Serial.printf("WiFi: conectando a \"%s\"...\n", ssid_);
