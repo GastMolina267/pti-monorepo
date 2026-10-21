@@ -251,7 +251,7 @@ void setup() {
   Serial.printf(" MQTT: mqtt://%s:%d  tópico %s%s\n", MQTT_BROKER, MQTT_PORT, dataTopic,
                 MQTT_DEBUG_PLAINTEXT ? "  (+ /plain EN CLARO, solo desarrollo)" : "");
 
-  wifi.begin(WIFI_SSID, WIFI_PASS);
+  wifi.begin(WIFI_SSID, WIFI_PASS, WIFI_TX_POWER_QDBM);
   http_demo::begin(provideData, provideStatus);
   Serial.println(F(" HTTP en el puerto 80 (/, /data, /status)"));
 }
@@ -262,7 +262,7 @@ void loop() {
   uint32_t now = millis();
 
   // --- Wi-Fi + NTP ---
-  switch (wifi.loop(now, WIFI_RETRY_MS)) {
+  switch (wifi.loop(now, WIFI_RETRY_MS, WIFI_ATTEMPT_TIMEOUT_MS)) {
     case net::LinkEvent::Connected:
       Serial.printf("WiFi OK  IP: %s  RSSI: %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
       Serial.printf("  -> http://%s/   |   http://%s.local/\n", WiFi.localIP().toString().c_str(), MDNS_HOST);
