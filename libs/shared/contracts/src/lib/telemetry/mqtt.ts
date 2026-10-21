@@ -67,3 +67,20 @@ export interface TelemetryReading {
   /** `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad). */
   fall?: boolean;
 }
+
+/**
+ * Rangos físicamente posibles de cada medición (no clínicos: eso es `assessVitals`). La API
+ * descarta la lectura entera si un campo se sale, así que el wearable no los manda fuera:
+ * - `hr`, `spo2`, `temp`: se omiten. Un `temp` < 25 °C es la pulsera sin poner (mide el aire).
+ * - `accPeakG`: se satura en `max`. En un golpe fuerte la magnitud de los tres ejes puede
+ *   pasar los 16 g aunque cada eje sature ahí, y esa lectura es justo la que lleva `fall`.
+ */
+export const TELEMETRY_READING_LIMITS = {
+  hr: { min: 20, max: 250 },
+  spo2: { min: 50, max: 100 },
+  temp: { min: 25, max: 45 },
+  accPeakG: { min: 0, max: 16 },
+} as const satisfies Record<
+  keyof Pick<TelemetryReading, 'hr' | 'spo2' | 'temp' | 'accPeakG'>,
+  { min: number; max: number }
+>;
