@@ -221,6 +221,7 @@
       "cache": true,
       "inputs": [
         "{workspaceRoot}/tools/scripts/gateway-*",
+        "{workspaceRoot}/tools/scripts/perf-*",
         "{workspaceRoot}/tools/wearable-simulator/src/lib/**/*",
         "^default"
       ],
@@ -228,7 +229,7 @@
       "options": {
         "commands": [
           "node --test tools/scripts/gateway-init.spec.mjs tools/scripts/gateway-compose.spec.mjs tools/scripts/gateway-backup.spec.mjs tools/scripts/gateway-lock.spec.mjs",
-          "tsx --tsconfig tsconfig.base.json --test tools/scripts/gateway-mqtt-config.spec.ts tools/scripts/gateway-fixtures.spec.ts"
+          "tsx --tsconfig tsconfig.base.json --test tools/scripts/gateway-mqtt-config.spec.ts tools/scripts/gateway-fixtures.spec.ts tools/scripts/perf-lib.spec.ts"
         ],
         "parallel": false
       }
