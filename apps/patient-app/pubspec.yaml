@@ -1,0 +1,45 @@
+name: vitalia_paciente
+description: 'Vitalia · app del paciente: turno en vivo, signos vitales, agenda y ficha de salud.'
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Textos de Material (selector de fecha y hora, etc.) en español
+  flutter_localizations:
+    sdk: flutter
+  # REST contra la API del gateway (`/api/patient/*`, `/api/check-in`, `/api/services`)
+  http: ^1.4.0
+  # Aviso instantáneo del llamado (sala `patient:<ticketId>`); si no conecta, alcanza el sondeo
+  socket_io_client: ^3.1.2
+  # Sesión, historial, agenda y ficha de salud cifrados en el teléfono (Keystore de Android)
+  flutter_secure_storage: ^9.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/brand/
+  # Plus Jakarta Sans auto-hospedada (offline-first, como el Backoffice): OFL en assets/fonts/OFL.txt
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/PlusJakartaSans-ExtraBold.ttf
+          weight: 800

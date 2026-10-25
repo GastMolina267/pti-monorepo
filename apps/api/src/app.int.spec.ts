@@ -751,7 +751,7 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
         .post(`/api/tickets/${first.id}/call`)
         .set(authed(doctorToken))
         .send({ consultingRoomId: rooms[0].id })
-        .expect(200);
+        .expect(201);
       const called = (await http().get('/api/patient/me').set(bearer(session)).expect(200))
         .body as PatientOverview;
       expect(called.ticket).toMatchObject({

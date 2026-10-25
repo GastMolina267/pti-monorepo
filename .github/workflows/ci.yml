@@ -53,6 +53,8 @@ jobs:
       - run: pnpm nx format:check
       # Headers del firmware (contratos + vectores GCM) sincronizados con @vitalia/contracts
       - run: pnpm fw:codegen --check
+      # Constantes de la app del paciente (contratos + marca) sincronizadas
+      - run: pnpm app:codegen --check
       - run: pnpm nx affected -t lint test build --parallel=3
 
   gateway:
@@ -125,3 +127,46 @@ jobs:
       # Tests de la placa (lib/crypto con los vectores GCM): sin placa solo se compilan
       - if: steps.changes.outputs.firmware == 'true'
         run: pio test -e esp32-c3-supermini --without-uploading --without-testing
+
+  patient-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/patient-app
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            app:
+              - 'apps/patient-app/**'
+              - '.github/workflows/ci.yml'
+
+      - if: steps.changes.outputs.app == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - if: steps.changes.outputs.app == 'true'
+        # Misma versión que en las máquinas del equipo
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - if: steps.changes.outputs.app == 'true'
+        run: flutter pub get
+
+      - if: steps.changes.outputs.app == 'true'
+        run: flutter analyze
+
+      - if: steps.changes.outputs.app == 'true'
+        run: flutter test
+
+      - if: steps.changes.outputs.app == 'true'
+        run: flutter build apk --debug
