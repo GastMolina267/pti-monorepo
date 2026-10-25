@@ -1,4 +1,4 @@
-import type { PublicTicket, Ticket } from '@vitalia/contracts';
+import type { PatientTicket, PublicTicket, Ticket } from '@vitalia/contracts';
 import { toConsultingRoom, toServiceArea } from '../catalog/catalog.mapper';
 import type { PatientEntity } from './entities/patient.entity';
 import type { TicketEntity } from './entities/ticket.entity';
@@ -41,5 +41,18 @@ export function toPublicTicket(t: TicketEntity, position: number | null, avgMinu
     estimatedWaitMinutes: position === null ? null : position * avgMinutes,
     checkedInAt: t.checkedInAt.toISOString(),
     calledAt: iso(t.calledAt),
+  };
+}
+
+/** Requiere service, consultingRoom y calledBy cargadas. Sin DNI: el paciente ve su turno. */
+export function toPatientTicket(t: TicketEntity, pub: PublicTicket): PatientTicket {
+  return {
+    ...pub,
+    serviceCode: t.service.code,
+    triageLevel: t.triageLevel,
+    reason: t.reason,
+    professionalName: t.calledBy?.fullName ?? null,
+    startedAt: iso(t.startedAt),
+    finishedAt: iso(t.finishedAt),
   };
 }

@@ -17,6 +17,7 @@ import {
   TICKET_STATUSES,
   TRIAGE_LEVELS,
   type CheckInRequest,
+  type PatientTicket,
   type QueueChange,
   type PublicTicket,
   type RecentCallsResponse,
@@ -36,7 +37,7 @@ import { SyncService } from '../sync/sync.service';
 import { WearablesService } from '../wearables/wearables.service';
 import { PatientEntity } from './entities/patient.entity';
 import { TicketEntity } from './entities/ticket.entity';
-import { toPublicTicket, toTicket } from './tickets.mapper';
+import { toPatientTicket, toPublicTicket, toTicket } from './tickets.mapper';
 
 const RELATIONS = { service: true, patient: true, consultingRoom: true } as const;
 const MAX_NUMBER_RETRIES = 3;
@@ -74,6 +75,16 @@ export class TicketsService {
    * Idempotente por DNI: si el paciente ya tiene un turno abierto hoy en ese servicio, lo devuelve.
    */
   async checkIn(req: CheckInRequest): Promise<PublicTicket> {
+    return (await this.checkInDetailed(req)).ticket;
+  }
+
+  /**
+   * Como {@link checkIn}, pero dice si el turno se creó en este pedido (`created`) o ya existía
+   * (check-in repetido con el mismo DNI). La sesión de la app solo se entrega si `created`.
+   */
+  async checkInDetailed(
+    req: CheckInRequest,
+  ): Promise<{ ticket: PublicTicket; patientId: string; created: boolean }> {
     const service = await this.services.findOneBy({
       code: req.serviceCode.trim().toUpperCase(),
       active: true,
@@ -83,7 +94,7 @@ export class TicketsService {
 
     for (let attempt = 1; ; attempt++) {
       try {
-        const ticketId = await this.dataSource.transaction(async (m) => {
+        const outcome = await this.dataSource.transaction(async (m) => {
           const documentNumber = req.documentNumber?.trim() || null;
           let patient = documentNumber ? await m.findOneBy(PatientEntity, { documentNumber }) : null;
 
@@ -94,7 +105,7 @@ export class TicketsService {
               dayKey,
               status: In([...OPEN_TICKET_STATUSES]),
             });
-            if (open) return open.id;
+            if (open) return { id: open.id, created: false };
           } else {
             patient = await m.save(
               m.create(PatientEntity, {
@@ -125,11 +136,11 @@ export class TicketsService {
               patientId: patient.id,
             }),
           );
-          return ticket.id;
+          return { id: ticket.id, created: true };
         });
-        const ticket = await this.getEntity(ticketId);
+        const ticket = await this.getEntity(outcome.id);
         this.notifyQueue('CHECK_IN', ticket);
-        return this.toPublic(ticket);
+        return { ticket: await this.toPublic(ticket), patientId: ticket.patientId, created: outcome.created };
       } catch (err) {
         // Dos check-ins simultáneos pueden competir por el mismo número: reintentar.
         if (isUniqueViolation(err) && attempt < MAX_NUMBER_RETRIES) continue;
@@ -182,6 +193,16 @@ export class TicketsService {
   /** Vista pública para el paciente (sin datos clínicos), con posición y espera estimada. */
   async getPublic(id: string): Promise<PublicTicket> {
     return this.toPublic(await this.getEntity(id));
+  }
+
+  /** El turno visto por su paciente (app): lo público más profesional, triaje y tiempos. */
+  async getForPatient(id: string): Promise<{ ticket: PatientTicket; patient: PatientEntity }> {
+    const entity = await this.tickets.findOne({ where: { id }, relations: { ...RELATIONS, calledBy: true } });
+    if (!entity) throw new NotFoundException('Turno no encontrado');
+    return {
+      ticket: toPatientTicket(entity, await this.toPublic(entity)),
+      patient: entity.patient,
+    };
   }
 
   private async toPublic(ticket: TicketEntity): Promise<PublicTicket> {

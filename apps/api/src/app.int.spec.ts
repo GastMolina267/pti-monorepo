@@ -31,6 +31,10 @@ import {
   type VitalsHistory,
   type Wearable,
   type WearableCommand,
+  type CheckInResponse,
+  type PairingCode,
+  type PatientOverview,
+  type PatientSession,
 } from '@vitalia/contracts';
 import type Aedes from 'aedes';
 import { createBroker } from 'aedes';
@@ -689,6 +693,100 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
         await request(app.getHttpServer()).get(`/api/wearables/${wearable.id}`).set(authed(doctorToken))
       ).body as Wearable;
       expect(w).toMatchObject({ status: 'AVAILABLE', ticket: null });
+    });
+  });
+
+  describe('App del paciente (ADR 0019)', () => {
+    const http = () => request(app.getHttpServer());
+    const bearer = (s: PatientSession) => ({ Authorization: `Bearer ${s.token}` });
+
+    it('check-in desde la app: sesión solo si el turno es nuevo, y no sirve para el personal', async () => {
+      const body = {
+        firstName: 'Bruno',
+        lastName: 'Díaz',
+        documentNumber: '40999888',
+        serviceCode: 'GUARDIA',
+        source: 'PATIENT_APP',
+      };
+      const first = (await http().post('/api/check-in').send(body).expect(201)).body as CheckInResponse;
+      expect(first.patientSession?.ticketId).toBe(first.id);
+      const session = first.patientSession as PatientSession;
+
+      // El DNI no es secreto: repetirlo devuelve el turno pero no otra sesión
+      const again = (await http().post('/api/check-in').send(body).expect(201)).body as CheckInResponse;
+      expect(again.id).toBe(first.id);
+      expect(again.patientSession).toBeUndefined();
+
+      const me = (await http().get('/api/patient/me').set(bearer(session)).expect(200))
+        .body as PatientOverview;
+      expect(me.patient).toEqual({ firstName: 'Bruno', displayName: 'Bruno D.' });
+      expect(me.ticket).toMatchObject({
+        id: first.id,
+        serviceCode: 'GUARDIA',
+        status: 'WAITING',
+        professionalName: null,
+      });
+      expect(JSON.stringify(me)).not.toContain('40999888');
+      expect(me.vitals).toBeNull();
+
+      // Otra clave: el token del paciente no abre nada del personal ni la sala staff
+      await http().get('/api/tickets').set(bearer(session)).expect(401);
+      await http().get('/api/patient/me').set(authed(nurseToken)).expect(401);
+      await http().get('/api/patient/me').expect(401);
+      const rejected = io(apiUrl, {
+        auth: { token: session.token },
+        transports: ['websocket'],
+        reconnection: false,
+      });
+      const error = await nextEvent<{ message: string }>(rejected, REALTIME_ERROR_EVENT);
+      expect(error.message).toContain('Token');
+      rejected.disconnect();
+
+      // Al llamarlo, la app ve a dónde y con quién
+      const rooms = (await http().get('/api/consulting-rooms').set(authed(doctorToken))).body as {
+        id: string;
+        name: string;
+      }[];
+      await http()
+        .post(`/api/tickets/${first.id}/call`)
+        .set(authed(doctorToken))
+        .send({ consultingRoomId: rooms[0].id })
+        .expect(200);
+      const called = (await http().get('/api/patient/me').set(bearer(session)).expect(200))
+        .body as PatientOverview;
+      expect(called.ticket).toMatchObject({
+        status: 'CALLED',
+        consultingRoomName: rooms[0].name,
+        professionalName: 'Dra. Laura Fernández',
+      });
+    });
+
+    it('vinculación con código del personal: un solo uso, y la curva de mis signos', async () => {
+      const [row] = await app
+        .get(DataSource)
+        .query(
+          `SELECT ticket_id FROM telemetry_readings WHERE ticket_id IS NOT NULL ORDER BY measured_at DESC LIMIT 1`,
+        );
+      await http().post(`/api/tickets/${row.ticket_id}/pairing`).expect(401);
+      const pairing = (
+        await http().post(`/api/tickets/${row.ticket_id}/pairing`).set(authed(receptionToken)).expect(201)
+      ).body as PairingCode;
+      expect(pairing.code).toMatch(/^[2346789ABCDEFGHJKMNPQRTUVWXYZ]{6}$/);
+
+      const typed = `${pairing.code.slice(0, 3).toLowerCase()} ${pairing.code.slice(3)}`;
+      const session = (await http().post('/api/patient/pair').send({ code: typed }).expect(200))
+        .body as PatientSession;
+      expect(session.ticketId).toBe(row.ticket_id);
+      const reuse = await http().post('/api/patient/pair').send({ code: pairing.code }).expect(401);
+      expect(reuse.body.message).toContain('pedile uno nuevo');
+
+      const me = (await http().get('/api/patient/me').set(bearer(session)).expect(200))
+        .body as PatientOverview;
+      expect(me.ticket.code).toBe(pairing.ticketCode);
+      expect(me.vitals).toMatchObject({ wearableCode: expect.stringMatching(/^wb-/) });
+      const curve = await http().get('/api/patient/me/readings?minutes=120').set(bearer(session)).expect(200);
+      expect(curve.body.ticketId).toBe(row.ticket_id);
+      expect(curve.body.points.length).toBeGreaterThan(0);
     });
   });
 

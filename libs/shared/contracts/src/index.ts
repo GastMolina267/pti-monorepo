@@ -10,4 +10,5 @@ export * from './lib/realtime';
 export * from './lib/telemetry';
 export * from './lib/iomt';
 export * from './lib/sync';
+export * from './lib/patient';
 export * from './lib/clinical';

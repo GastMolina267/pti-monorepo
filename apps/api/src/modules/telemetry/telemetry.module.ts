@@ -14,6 +14,6 @@ import { VitalsHistoryService } from './vitals-history.service';
   imports: [TypeOrmModule.forFeature([TelemetryReadingEntity]), WearablesModule, AlertsModule, TicketsModule],
   controllers: [VitalsHistoryController],
   providers: [TelemetryService, TelemetryRetentionService, VitalsHistoryService],
-  exports: [TelemetryService],
+  exports: [TelemetryService, VitalsHistoryService],
 })
 export class TelemetryModule {}

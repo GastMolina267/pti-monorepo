@@ -10,6 +10,7 @@ import { CatalogModule } from '../modules/catalog/catalog.module';
 import { CheckInModule } from '../modules/check-in/check-in.module';
 import { HealthModule } from '../modules/health/health.module';
 import { MqttModule } from '../modules/mqtt/mqtt.module';
+import { PatientModule } from '../modules/patient/patient.module';
 import { RealtimeModule } from '../modules/realtime/realtime.module';
 import { SyncModule } from '../modules/sync/sync.module';
 import { TelemetryModule } from '../modules/telemetry/telemetry.module';
@@ -41,6 +42,7 @@ import { WearablesModule } from '../modules/wearables/wearables.module';
     CheckInModule,
     WearablesModule,
     AlertsModule,
+    PatientModule,
     TelemetryModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
