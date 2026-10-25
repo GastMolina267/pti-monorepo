@@ -137,7 +137,12 @@ export function renderDart(): string {
     dartConst('const triageLevelLabels = <String, String>', '{', '}', mapEntries(TRIAGE_LEVEL_LABELS)),
     '',
     '/// Cómo se le muestra el triaje al paciente: prioridad, no diagnóstico.',
-    dartConst('const patientPriorityLabels = <String, String>', '{', '}', mapEntries(PATIENT_PRIORITY_LABELS)),
+    dartConst(
+      'const patientPriorityLabels = <String, String>',
+      '{',
+      '}',
+      mapEntries(PATIENT_PRIORITY_LABELS),
+    ),
     '',
     dartConst(
       'const triageColors = <String, Color>',

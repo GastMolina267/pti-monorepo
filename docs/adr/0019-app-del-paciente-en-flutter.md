@@ -23,7 +23,9 @@ Para eso hay que resolver cuatro cosas:
   1. Check-in desde la app (`source: 'PATIENT_APP'`). La respuesta trae la sesión **solo si el turno se creó en ese pedido**: un check-in repetido con el mismo DNI devuelve el turno, pero sin sesión.
   2. Código de vinculación: 6 caracteres, de un solo uso, vence a los 10 min y se arma con un alfabeto sin caracteres que se confunden. El personal lo genera en el Backoffice (`POST /api/tickets/:id/pairing`) después de ver al paciente, y el paciente lo escribe en la app (`POST /api/patient/pair`, 10 intentos por minuto y por IP; con `TRUST_PROXY`, la IP es la del cliente). Los códigos viven en memoria: el gateway es una sola instancia.
 - **Datos locales y cifrados.** La ficha de salud, la agenda y el historial de visitas se guardan en el teléfono con `flutter_secure_storage` (Keystore de Android) y **no se envían** al hospital ni a la nube. El servidor no recibe más datos de los que ya tenía.
-- **En vivo sin segundo plano.** Con la app abierta, el llamado llega por Socket.IO (`ticket:called` en `patient:<ticketId>`) y además se consulta `/patient/me` cada 10 s, para ver la posición y la espera. En segundo plano no se consulta: el aviso fuerte del llamado sigue siendo la TV y el OLED de la pulsera.
+- **En vivo y notificaciones locales.** Con la app abierta, el llamado llega por Socket.IO (`ticket:called` en `patient:<ticketId>`) y además se consulta `/patient/me` cada 10 s, para ver la posición y la espera. Con la app minimizada, se deja de consultar cada 10 s pero el socket queda abierto mientras Android mantenga vivo el proceso: si llaman el turno, se muestra una **notificación local** (`flutter_local_notifications`). Los turnos de la agenda personal llevan un recordatorio local 2 h antes, en modo inexacto, para no pedir el permiso de alarmas exactas. Todo funciona sin internet: no hay push con servidor. El aviso que no falla sigue siendo la TV y el OLED de la pulsera.
+- **Vinculación por QR.** El Backoffice dibuja el código también como QR (`vitalia://vincular?codigo=…`, con `qrcode-generator`, sin red) y la app lo escanea con la cámara (`mobile_scanner`). La carga manual sigue disponible.
+- **APK desde la CI.** El job de la app sube un APK de release como artefacto, con la dirección del gateway en `VITALIA_GATEWAY_URL` (variable del repositorio). Así se instala sin compilar.
 - **Al paciente se le muestra prioridad, no triaje.** «Prioridad alta/media/habitual» (`PATIENT_PRIORITY_LABELS`), nunca «Crítico».
 - **Red local en HTTP.** El manifest permite tráfico en claro hacia el gateway (no hay TLS en la LAN, igual que en el portal). La dirección del servidor se configura en Ajustes. Por defecto es `10.0.2.2:3000`, la PC vista desde el emulador.
 
@@ -33,7 +35,7 @@ Para eso hay que resolver cuatro cosas:
 - **Login del paciente con DNI y PIN.** Exige alta, recupero y un almacén de credenciales para una estadía de horas. La sesión de turno alcanza y es más simple de defender.
 - **Exponer el turno solo con su UUID** (como `GET /tickets/:id/public`). Sirve para datos públicos, pero no para signos vitales: un UUID viaja en capturas, links y logs.
 - **Guardar la ficha de salud en el servidor.** Habría que custodiar y replicar a la nube datos que el hospital no necesita para atender. Si en el futuro hacen falta, se agregan con su contrato y con consentimiento explícito.
-- **Notificaciones push con servicio en segundo plano** (RF-D1, deseable). Requiere FCM, que no funciona sin internet, o un servicio persistente en Android. Queda en el backlog.
+- **Notificaciones push con servidor** (RF-D1, deseable). Requieren FCM, que no funciona sin internet, o un servicio persistente en Android (con permiso de primer plano y batería). Se eligieron notificaciones locales, que cubren la app minimizada mientras el proceso vive. Si Android lo cierra, el aviso queda en la TV y el OLED.
 
 ## Consecuencias
 

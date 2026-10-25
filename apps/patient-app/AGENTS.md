@@ -14,12 +14,14 @@ lib/
     models.dart                  # espejo de @vitalia/contracts (patient) + modelos locales
     api_client.dart              # VitaliaApi: check-in, pair, me, readings, services, health
     realtime.dart                # Socket.IO a la sala patient:<ticketId> (aviso del llamado)
+    notifications.dart           # Notifier: notificación del llamado y recordatorios de la agenda (locales)
+    pairing.dart                 # parsePairingCode (QR o texto), espejo de contracts
     storage.dart                 # KeyValueStore: SecureStore (Keystore) y MemoryStore (tests)
     app_controller.dart          # estado único (ChangeNotifier): sesión, sondeo, visitas, agenda, ficha
     format.dart                  # fechas y horas en español sin intl
   features/
     home_shell.dart              # 4 pestañas + Ajustes
-    turno/                       # turno en vivo, sacar turno, vincular con código, mis visitas
+    turno/                       # turno en vivo, sacar turno, vincular (QR o código), mis visitas
     salud/                       # signos actuales, prioridad y curva (CustomPainter)
     agenda/                      # turnos que anota el paciente (locales)
     ficha/                       # ficha de salud local + vista «Mostrar al personal»
@@ -36,7 +38,9 @@ assets/                          # isotipo e íconos; Plus Jakarta Sans (OFL) au
 - **Sesión de turno, no cuenta.** El paciente no tiene usuario: usa el token de `PatientSession` (24 h, solo su turno). Se obtiene al sacar turno desde la app o con el código de 6 caracteres que genera el personal en el Backoffice. Nunca pedir ni guardar contraseñas.
 - **Datos sensibles (Ley 25.326).** Todo lo del paciente se guarda con `SecureStore` (cifrado con el Keystore). La ficha de salud y la agenda **no salen del teléfono**. En la UI, el triaje se muestra como prioridad (`patientPriorityLabels`), nunca «Crítico».
 - **Offline-first.** Sin CDNs ni fuentes remotas: la fuente y los íconos van en el APK. Sin red, la app muestra lo guardado (visitas, agenda, ficha) y avisa que no hay conexión con el hospital.
-- **Tiempo real.** El llamado llega por WebSocket (`ticket:called` en la sala del turno) y además se consulta `GET /api/patient/me` cada 10 s con la app abierta. En segundo plano no se consulta.
+- **Tiempo real.** El llamado llega por WebSocket (`ticket:called` en la sala del turno) y además se consulta `GET /api/patient/me` cada 10 s con la app abierta. Minimizada, no hay sondeo pero el socket sigue: el llamado se avisa con una notificación local.
+- **Notificaciones.** Solo locales (`Notifier` en `core/notifications.dart`), sin servidor ni internet: el llamado y un recordatorio 2 h antes de cada turno de la agenda (modo inexacto). El permiso de Android 13+ se pide al vincular un turno o al agendar. Si fallan, la app sigue igual (`_safe`).
+- **QR.** El Backoffice muestra `vitalia://vincular?codigo=…`. La app lo lee con `mobile_scanner` y lo valida con `parsePairingCode` (igual que en contracts).
 - **Red.** El gateway sirve HTTP en la LAN: el manifest permite tráfico en claro. En el emulador la PC es `10.0.2.2`; en el hospital, la IP del gateway (se cambia en Ajustes).
 - **Estado.** Un `AppController` (`ChangeNotifier`) y `ListenableBuilder`. Sin paquetes de estado hasta que haga falta.
 - **Estilo.** `flutter_lints` + reglas de `analysis_options.yaml`, ancho 120. Textos en español rioplatense (voseo), identificadores en inglés.
@@ -51,5 +55,6 @@ pnpm app:run                             # flutter run en el emulador (dart-defi
 pnpm nx run patient-app:run --api=http://10.0.20.1:8080   # contra el gateway del hospital
 pnpm app:test                            # flutter analyze + flutter test
 pnpm app:apk                             # APK de release para instalar directo (sin tiendas)
+# o bajarlo de la CI: PR → Checks → patient-app → artefacto «vitalia-paciente-apk»
 pnpm app:codegen [--check]               # regenera lib/generated desde contracts y design-tokens
 ```
