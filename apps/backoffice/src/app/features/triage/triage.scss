@@ -183,12 +183,43 @@ a.kpi:hover {
   letter-spacing: -0.03em;
   white-space: nowrap;
 }
+.new {
+  border-radius: 999px;
+  svg {
+    margin-right: 6px;
+  }
+}
+
 .who {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-weight: 800;
+    svg {
+      color: var(--vt-primary);
+      opacity: 0.6;
+    }
+  }
+  &:hover strong svg,
+  &:focus-visible strong svg {
+    opacity: 1;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--vt-primary);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
   small {
     display: inline-flex;

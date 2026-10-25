@@ -1,0 +1,49 @@
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.full {
+  width: 100%;
+}
+mat-form-field {
+  width: 100%;
+}
+.error {
+  margin: 0;
+  color: var(--vt-danger);
+  font-weight: 600;
+}
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px;
+  border-radius: var(--vt-r-md);
+  background: var(--vt-surface-2);
+  text-align: center;
+  .code {
+    font-size: 48px;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--vt-primary);
+  }
+  span {
+    font-weight: 700;
+  }
+  small {
+    color: var(--vt-muted);
+  }
+}
+.hint {
+  margin: 14px 0 0;
+  color: var(--vt-muted);
+  font-size: 13px;
+}
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

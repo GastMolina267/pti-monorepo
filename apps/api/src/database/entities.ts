@@ -5,6 +5,7 @@ import { AlertEntity } from '../modules/iomt/entities/alert.entity';
 import { TelemetryReadingEntity } from '../modules/iomt/entities/telemetry-reading.entity';
 import { WearableEntity } from '../modules/iomt/entities/wearable.entity';
 import { PatientEntity } from '../modules/tickets/entities/patient.entity';
+import { SyncOutboxEntity } from '../modules/sync/entities/sync-outbox.entity';
 import { TicketEntity } from '../modules/tickets/entities/ticket.entity';
 
 /**
@@ -21,4 +22,5 @@ export const ENTITIES = [
   WearableEntity,
   TelemetryReadingEntity,
   AlertEntity,
+  SyncOutboxEntity,
 ];

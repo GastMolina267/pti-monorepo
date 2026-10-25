@@ -57,5 +57,14 @@ export interface AssignWearableRequest {
   ticketId: string;
 }
 
+/**
+ * `PATCH /api/wearables/:id`. Solo se pasa a mantenimiento una pulsera libre; `ASSIGNED`
+ * no se setea a mano (lo maneja la asignación).
+ */
+export interface UpdateWearableRequest {
+  label?: string | null;
+  status?: Extract<WearableStatus, 'AVAILABLE' | 'MAINTENANCE'>;
+}
+
 /** Roles que dan de alta pulseras. Asignar y liberar lo puede hacer todo el personal. */
 export const ROLES_CAN_MANAGE_WEARABLES: readonly StaffRole[] = ['ADMIN', 'NURSE'];

@@ -1,5 +1,5 @@
 <header class="top">
-  <vt-logo [size]="52" subtitle="Sala de espera" />
+  <vt-logo [size]="52" [subtitle]="serviceName() ? 'Sala de espera · ' + serviceName() : 'Sala de espera'" />
   <div class="clock">
     <strong>{{ time(now()) }}</strong>
     <span>{{ date(now()) }}</span>

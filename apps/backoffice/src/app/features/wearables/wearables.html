@@ -66,8 +66,23 @@
             <svg lucideUnlink [size]="16"></svg>
             Liberar
           </button>
-        } @else if (w.status !== 'MAINTENANCE') {
-          <button mat-flat-button type="button" (click)="assign(w)">Asignar a un turno</button>
+        } @else {
+          @if (canManage) {
+            <button
+              mat-button
+              type="button"
+              (click)="toggleMaintenance(w)"
+              [attr.aria-label]="
+                (w.status === 'MAINTENANCE' ? 'Volver a disponible ' : 'Pasar a mantenimiento ') + w.code
+              "
+            >
+              <svg lucideWrench [size]="16"></svg>
+              {{ w.status === 'MAINTENANCE' ? 'Volver a disponible' : 'Mantenimiento' }}
+            </button>
+          }
+          @if (w.status !== 'MAINTENANCE') {
+            <button mat-flat-button type="button" (click)="assign(w)">Asignar a un turno</button>
+          }
         }
       </footer>
     </article>

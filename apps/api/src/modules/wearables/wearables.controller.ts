@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiConflictResponse,
@@ -10,7 +10,7 @@ import {
 } from '@nestjs/swagger';
 import { ROLES_CAN_MANAGE_WEARABLES } from '@vitalia/contracts';
 import { Roles } from '../../common/auth/roles.decorator';
-import { AssignWearableDto, CreateWearableDto, WearableDto } from './dto/wearable.dto';
+import { AssignWearableDto, CreateWearableDto, UpdateWearableDto, WearableDto } from './dto/wearable.dto';
 import { WearablesService } from './wearables.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -43,6 +43,15 @@ export class WearablesController {
   @ApiConflictResponse({ description: 'Ya existe una pulsera con ese código o ese número' })
   create(@Body() dto: CreateWearableDto): Promise<WearableDto> {
     return this.wearables.create(dto);
+  }
+
+  @Roles(...ROLES_CAN_MANAGE_WEARABLES)
+  @Patch(':id')
+  @ApiOperation({ summary: 'Cambiar etiqueta o estado (disponible / en mantenimiento)' })
+  @ApiOkResponse({ type: WearableDto })
+  @ApiConflictResponse({ description: 'La pulsera está asignada: liberala antes de cambiarle el estado' })
+  update(@Param('id', uuid) id: string, @Body() dto: UpdateWearableDto): Promise<WearableDto> {
+    return this.wearables.update(id, dto);
   }
 
   @Post(':id/assign')

@@ -5,6 +5,7 @@ import {
   REALTIME_EVENTS,
   WEARABLE_ONLINE_WINDOW_MS,
   type CreateWearableRequest,
+  type UpdateWearableRequest,
   type QueueUpdatedEvent,
   type TelemetryReadingEvent,
   type VitalsAssessment,
@@ -138,6 +139,10 @@ export class WearablesStore {
 
   async assign(w: Wearable, ticketId: string): Promise<Wearable> {
     return this.upsert(await firstValueFrom(this.api.assign(w.id, ticketId)));
+  }
+
+  async update(w: Wearable, req: UpdateWearableRequest): Promise<Wearable> {
+    return this.upsert(await firstValueFrom(this.api.update(w.id, req)));
   }
 
   async release(w: Wearable): Promise<Wearable> {

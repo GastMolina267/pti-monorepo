@@ -32,6 +32,7 @@ import type { Env } from '../../config/env.schema';
 import { ConsultingRoomEntity } from '../catalog/entities/consulting-room.entity';
 import { ServiceAreaEntity } from '../catalog/entities/service-area.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { SyncService } from '../sync/sync.service';
 import { WearablesService } from '../wearables/wearables.service';
 import { PatientEntity } from './entities/patient.entity';
 import { TicketEntity } from './entities/ticket.entity';
@@ -61,6 +62,7 @@ export class TicketsService {
     private readonly config: ConfigService<Env, true>,
     private readonly realtime: RealtimeGateway,
     private readonly wearables: WearablesService,
+    private readonly sync: SyncService,
   ) {}
 
   private today(): string {
@@ -151,10 +153,15 @@ export class TicketsService {
   }
 
   /** Últimos llamados del día para la TV (sin datos clínicos), el más reciente primero. */
-  async recentCalls(): Promise<RecentCallsResponse> {
+  async recentCalls(serviceCode?: string): Promise<RecentCallsResponse> {
     const rows = await this.tickets.find({
-      where: { dayKey: this.today(), calledAt: Not(IsNull()), consultingRoomId: Not(IsNull()) },
-      relations: { consultingRoom: true, calledBy: true },
+      where: {
+        dayKey: this.today(),
+        calledAt: Not(IsNull()),
+        consultingRoomId: Not(IsNull()),
+        ...(serviceCode ? { service: { code: serviceCode.trim().toUpperCase() } } : {}),
+      },
+      relations: { consultingRoom: true, calledBy: true, service: true },
       order: { calledAt: 'DESC' },
       take: RECENT_CALLS_LIMIT,
     });
@@ -163,6 +170,7 @@ export class TicketsService {
       ticketCode: t.code,
       consultingRoom: t.consultingRoom?.name ?? '',
       ...(t.calledBy ? { professionalName: t.calledBy.fullName } : {}),
+      serviceCode: t.service.code,
       calledAt: (t.calledAt as Date).toISOString(),
     }));
   }
@@ -204,6 +212,7 @@ export class TicketsService {
       ticketCode: ticket.code,
       consultingRoom: room.name,
       professionalName: user.fullName,
+      serviceCode: ticket.service.code,
       calledAt: calledAt.toISOString(),
     });
     void this.wearables.showTicket(id, { ticketCode: ticket.code, consultingRoom: room.name });
@@ -265,8 +274,12 @@ export class TicketsService {
     return true;
   }
 
-  /** `queue:updated` a staff y TV, fuera del camino de la respuesta (cuenta la espera). */
+  /**
+   * Todo cambio de un turno pasa por acá: `queue:updated` a staff y TV (fuera del camino de la
+   * respuesta) y el cambio al outbox de la nube (sin DNI: el contrato `Ticket` ya lo omite).
+   */
   private notifyQueue(change: QueueChange, ticket: TicketEntity): void {
+    this.sync.enqueue('ticket.upsert', ticket.id, toTicket(ticket));
     this.tickets
       .countBy({ serviceId: ticket.serviceId, dayKey: ticket.dayKey, status: 'WAITING' })
       .then((waitingCount) =>

@@ -1,9 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import {
   LucideBellRing,
+  LucideChartLine,
   LucideClock,
+  LucidePlus,
   LucideRefreshCw,
   LucideTriangleAlert,
   LucideUsers,
@@ -15,8 +19,11 @@ import { QueueStore } from '../../core/live/queue.store';
 import { WearablesStore, type WearableView } from '../../core/live/wearables.store';
 import { ago, ClockService, hhmm, minutesSince } from '../../core/time/clock.service';
 import { LevelPill } from '../../shared/level-pill';
+import { incremental, ShowMore } from '../../shared/show-more';
 import { TicketActions } from '../../shared/ticket-actions';
 import { Vitals } from '../../shared/vitals';
+import { CheckInDialog } from '../tickets/check-in-dialog';
+import { PatientVitalsDialog } from './patient-vitals-dialog';
 
 export interface TriageRow {
   ticket: Ticket;
@@ -40,13 +47,17 @@ export function toRows(tickets: Ticket[], byTicket: ReadonlyMap<string, Wearable
 @Component({
   selector: 'vt-triage',
   imports: [
+    MatButtonModule,
     MatProgressBarModule,
     RouterLink,
     LevelPill,
+    ShowMore,
     TicketActions,
     Vitals,
     LucideBellRing,
+    LucideChartLine,
     LucideClock,
+    LucidePlus,
     LucideRefreshCw,
     LucideTriangleAlert,
     LucideUsers,
@@ -61,6 +72,7 @@ export class Triage {
   protected readonly wearables = inject(WearablesStore);
   protected readonly alerts = inject(AlertsStore);
   private readonly clock = inject(ClockService);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly statusLabels = TICKET_STATUS_LABELS;
   protected readonly service = signal<string | null>(null);
@@ -75,9 +87,12 @@ export class Triage {
   protected readonly waiting = computed(() =>
     toRows(this.queue.waiting().filter(this.inService), this.wearables.byTicket()),
   );
+  /** La fila puede tener miles de turnos: se dibuja por tandas (ver `incremental`). */
+  protected readonly waitingShown = incremental(this.waiting, this.service);
   protected readonly inCare = computed(() =>
     toRows(this.queue.inCare().filter(this.inService), this.wearables.byTicket()),
   );
+  protected readonly inCareShown = incremental(this.inCare, this.service);
 
   protected wait(t: Ticket): number {
     return minutesSince(t.checkedInAt, this.clock.now());
@@ -86,4 +101,12 @@ export class Triage {
     return ago(w.lastSeenAt, this.clock.now());
   }
   protected readonly hhmm = hhmm;
+
+  protected openCheckIn(): void {
+    this.dialog.open(CheckInDialog, { width: '560px', maxWidth: '94vw' });
+  }
+
+  protected openVitals(t: Ticket): void {
+    this.dialog.open(PatientVitalsDialog, { data: t, width: '760px', maxWidth: '96vw' });
+  }
 }

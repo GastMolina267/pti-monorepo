@@ -18,6 +18,33 @@
   }
 }
 
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.new {
+  border-radius: 999px;
+  svg {
+    margin-right: 6px;
+  }
+}
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  &:hover {
+    color: var(--vt-primary);
+    text-decoration: underline;
+  }
+}
+
 .search {
   display: flex;
   align-items: center;

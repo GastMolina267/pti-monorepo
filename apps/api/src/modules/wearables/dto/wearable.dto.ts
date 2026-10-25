@@ -5,13 +5,14 @@ import {
   WEARABLE_STATUSES,
   type AssignWearableRequest,
   type CreateWearableRequest,
+  type UpdateWearableRequest,
   type TriageLevel,
   type Wearable,
   type WearableLastReading,
   type WearableStatus,
 } from '@vitalia/contracts';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, Length, Matches, ValidateIf } from 'class-validator';
 
 class WearableTicketDto {
   @ApiProperty() id!: string;
@@ -57,6 +58,20 @@ export class CreateWearableDto implements CreateWearableRequest {
   @IsString({ message: 'La etiqueta tiene que ser texto' })
   @Length(1, 80, { message: 'La etiqueta debe tener entre 1 y 80 caracteres' })
   label?: string;
+}
+
+export class UpdateWearableDto implements UpdateWearableRequest {
+  @ApiPropertyOptional({ nullable: true, type: String, example: 'Pulsera 9' })
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsString({ message: 'La etiqueta tiene que ser texto' })
+  @Length(0, 80, { message: 'La etiqueta debe tener hasta 80 caracteres' })
+  label?: string | null;
+
+  @ApiPropertyOptional({ enum: ['AVAILABLE', 'MAINTENANCE'] })
+  @IsOptional()
+  @IsIn(['AVAILABLE', 'MAINTENANCE'], { message: 'El estado tiene que ser AVAILABLE o MAINTENANCE' })
+  status?: 'AVAILABLE' | 'MAINTENANCE';
 }
 
 export class AssignWearableDto implements AssignWearableRequest {

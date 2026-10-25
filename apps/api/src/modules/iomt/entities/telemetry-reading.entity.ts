@@ -26,6 +26,7 @@ const bigintNumber: ValueTransformer = {
 @Index('uq_readings_wearable_seq', ['wearableId', 'seq'], { unique: true })
 @Index('ix_readings_wearable_time', ['wearableId', 'measuredAt'])
 @Index('ix_readings_ticket_time', ['ticketId', 'measuredAt'])
+@Index('ix_readings_measured_at', ['measuredAt'])
 export class TelemetryReadingEntity {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id!: string;

@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import type { AuthUser } from '../../common/auth/auth-user';
 import { AlertEntity } from '../iomt/entities/alert.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { SyncService } from '../sync/sync.service';
 import { toAlert } from './alerts.mapper';
 
 const RELATIONS = { wearable: true, ticket: { patient: true }, acknowledgedBy: true } as const;
@@ -37,6 +38,7 @@ export class AlertsService implements OnModuleInit {
   constructor(
     @InjectRepository(AlertEntity) private readonly alerts: Repository<AlertEntity>,
     private readonly realtime: RealtimeGateway,
+    private readonly sync: SyncService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -88,7 +90,9 @@ export class AlertsService implements OnModuleInit {
     if (created.length === 0) return Promise.resolve();
     return this.alerts
       .insert(created)
-      .then(() => undefined)
+      .then(() => {
+        for (const a of created) this.sync.enqueue('alert.upsert', a.id, this.toSyncAlert(a, source));
+      })
       .catch((err: Error) => {
         for (const a of created) this.active.delete(key(a.wearableId, a.kind));
         this.logger.error(`No se pudieron guardar ${created.length} alerta(s): ${err.message}`);
@@ -118,6 +122,26 @@ export class AlertsService implements OnModuleInit {
       by: { id: user.id, fullName: user.fullName },
       at: at.toISOString(),
     });
-    return toAlert(await this.alerts.findOneOrFail({ where: { id }, relations: RELATIONS }));
+    const acknowledged = toAlert(await this.alerts.findOneOrFail({ where: { id }, relations: RELATIONS }));
+    this.sync.enqueue('alert.upsert', id, acknowledged);
+    return acknowledged;
+  }
+
+  /** Forma de `Alert` para la nube sin volver a consultar la base en el camino de la ingesta. */
+  private toSyncAlert(a: AlertEntity, source: AlertSource): Alert {
+    return {
+      id: a.id,
+      kind: a.kind,
+      level: a.level,
+      status: a.status,
+      message: a.message,
+      wearableId: source.wearableCode,
+      ticketId: a.ticketId,
+      ticketCode: source.ticketCode,
+      patientDisplayName: null,
+      detectedAt: a.detectedAt.toISOString(),
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+    };
   }
 }

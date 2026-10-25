@@ -1,21 +1,28 @@
+import { DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { LucideVolume2, LucideWifi, LucideWifiOff } from '@lucide/angular';
-import { API_PREFIX, type RecentCallsResponse } from '@vitalia/contracts';
+import { API_PREFIX, type RecentCallsResponse, type ServiceArea } from '@vitalia/contracts';
 import { Logo } from '@vitalia/ui';
-import { catchError, EMPTY, startWith, switchMap } from 'rxjs';
+import { catchError, EMPTY, filter, map, of, startWith, switchMap } from 'rxjs';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { AnnouncerService } from '../../core/sound/announcer.service';
 import { applyCall, type CallBoard, EMPTY_BOARD, fromRecent } from './call-board';
 
 const BOARD_KEY = 'vitalia_tv_board';
+
+/** `?servicio=GUARDIA`: la TV de una sala muestra solo los llamados de ese servicio. */
+export function serviceFromUrl(search: string): string | null {
+  const v = new URLSearchParams(search).get('servicio')?.trim().toUpperCase();
+  return v || null;
+}
 /** Cuánto dura el destello del llamado nuevo. */
 const HIGHLIGHT_MS = 8000;
 
-function readBoard(): CallBoard {
+function readBoard(key: string): CallBoard {
   try {
-    const raw = localStorage.getItem(BOARD_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as CallBoard) : EMPTY_BOARD;
   } catch {
     return EMPTY_BOARD;
@@ -39,8 +46,20 @@ export class Display {
   protected readonly announcer = inject(AnnouncerService);
   private readonly http = inject(HttpClient);
 
+  /** Servicio filtrado (o null = todos). Cada servicio guarda su propio tablero. */
+  protected readonly service = serviceFromUrl(inject(DOCUMENT).location?.search ?? '');
+  private readonly boardKey = this.service ? `${BOARD_KEY}:${this.service}` : BOARD_KEY;
+  protected readonly serviceName = toSignal(
+    this.service
+      ? this.http.get<ServiceArea[]>(`/${API_PREFIX}/services`).pipe(
+          map((list) => list.find((s) => s.code === this.service)?.name ?? this.service),
+          catchError(() => of(this.service)),
+        )
+      : of(null),
+  );
+
   protected readonly now = signal(new Date());
-  protected readonly board = signal<CallBoard>(readBoard());
+  protected readonly board = signal<CallBoard>(readBoard(this.boardKey));
   protected readonly highlight = signal(false);
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -58,23 +77,30 @@ export class Display {
         startWith(undefined),
         switchMap(() =>
           this.http
-            .get<RecentCallsResponse>(`/${API_PREFIX}/tickets/recent-calls`)
+            .get<RecentCallsResponse>(`/${API_PREFIX}/tickets/recent-calls`, {
+              params: this.service ? { serviceCode: this.service } : {},
+            })
             .pipe(catchError(() => EMPTY)),
         ),
         takeUntilDestroyed(destroyRef),
       )
       .subscribe((list) => this.board.set(fromRecent(list)));
 
-    this.realtime.ticketCalled$.pipe(takeUntilDestroyed(destroyRef)).subscribe((e) => {
-      this.board.update((b) => applyCall(b, e));
-      this.announcer.announce(e);
-      this.flash();
-    });
+    this.realtime.ticketCalled$
+      .pipe(
+        filter((e) => !this.service || e.serviceCode === this.service),
+        takeUntilDestroyed(destroyRef),
+      )
+      .subscribe((e) => {
+        this.board.update((b) => applyCall(b, e));
+        this.announcer.announce(e);
+        this.flash();
+      });
 
     effect(() => {
       const b = this.board();
       try {
-        localStorage.setItem(BOARD_KEY, JSON.stringify(b));
+        localStorage.setItem(this.boardKey, JSON.stringify(b));
       } catch {
         /* sin storage */
       }

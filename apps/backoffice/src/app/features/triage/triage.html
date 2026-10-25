@@ -3,6 +3,10 @@
     <span class="vt-eyebrow">Sala de espera</span>
     <h1>Fila de triaje</h1>
   </div>
+  <button mat-flat-button type="button" class="new" (click)="openCheckIn()">
+    <svg lucidePlus [size]="18"></svg>
+    Nuevo turno
+  </button>
   @if (services().length > 1) {
     <div class="filters" role="group" aria-label="Filtrar por servicio">
       <button type="button" [class.on]="!service()" (click)="service.set(null)">Todos</button>
@@ -64,12 +68,17 @@
     En espera <span class="n">{{ waiting().length }}</span>
   </h2>
   <ul class="rows">
-    @for (row of waiting(); track row.ticket.id; let i = $index) {
+    @for (row of waitingShown.items(); track row.ticket.id; let i = $index) {
       <li class="row" [class]="'row lvl-' + row.ticket.triageLevel.toLowerCase()">
         <span class="pos" aria-label="Posición">{{ i + 1 }}</span>
         <span class="code">{{ row.ticket.code }}</span>
-        <span class="who">
-          <strong>{{ row.ticket.patient.displayName }}</strong>
+        <button
+          type="button"
+          class="who"
+          (click)="openVitals(row.ticket)"
+          [attr.aria-label]="'Ver signos vitales de ' + row.ticket.code"
+        >
+          <strong>{{ row.ticket.patient.displayName }} <svg lucideChartLine [size]="14"></svg></strong>
           <small>
             {{ row.ticket.service.name }} · <svg lucideClock [size]="12"></svg> espera
             {{ wait(row.ticket) }} min
@@ -77,7 +86,7 @@
               · {{ row.ticket.reason }}
             }
           </small>
-        </span>
+        </button>
         <span class="clin">
           @if (row.wearable; as w) {
             <vt-vitals [reading]="w.lastReading" />
@@ -99,6 +108,7 @@
       <li class="empty">No hay pacientes en espera{{ service() ? ' en este servicio' : '' }}.</li>
     }
   </ul>
+  <vt-show-more [rest]="waitingShown.rest()" (more)="waitingShown.more()" />
 </section>
 
 <section class="block" aria-labelledby="care-title">
@@ -106,18 +116,23 @@
     Llamados y en atención <span class="n">{{ inCare().length }}</span>
   </h2>
   <ul class="rows">
-    @for (row of inCare(); track row.ticket.id) {
+    @for (row of inCareShown.items(); track row.ticket.id) {
       <li class="row care" [class]="'row care lvl-' + row.ticket.triageLevel.toLowerCase()">
         <span class="status" [class.progress]="row.ticket.status === 'IN_PROGRESS'">
           {{ statusLabels[row.ticket.status] }}
         </span>
         <span class="code">{{ row.ticket.code }}</span>
-        <span class="who">
-          <strong>{{ row.ticket.patient.displayName }}</strong>
+        <button
+          type="button"
+          class="who"
+          (click)="openVitals(row.ticket)"
+          [attr.aria-label]="'Ver signos vitales de ' + row.ticket.code"
+        >
+          <strong>{{ row.ticket.patient.displayName }} <svg lucideChartLine [size]="14"></svg></strong>
           <small
             >{{ row.ticket.consultingRoom?.name ?? '—' }} · llamado {{ hhmm(row.ticket.calledAt) }}</small
           >
-        </span>
+        </button>
         <span class="clin">
           @if (row.wearable; as w) {
             <vt-vitals [reading]="w.lastReading" />
@@ -130,4 +145,5 @@
       <li class="empty">Ningún turno llamado todavía.</li>
     }
   </ul>
+  <vt-show-more [rest]="inCareShown.rest()" (more)="inCareShown.more()" />
 </section>

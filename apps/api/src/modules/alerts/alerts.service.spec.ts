@@ -3,6 +3,7 @@ import type { Repository } from 'typeorm';
 import type { AuthUser } from '../../common/auth/auth-user';
 import type { AlertEntity } from '../iomt/entities/alert.entity';
 import type { RealtimeGateway } from '../realtime/realtime.gateway';
+import type { SyncService } from '../sync/sync.service';
 import { AlertsService, type AlertSource } from './alerts.service';
 
 const SOURCE: AlertSource = {
@@ -26,15 +27,27 @@ async function setup(activeRows: Partial<AlertEntity>[] = []) {
     findOneOrFail: jest.fn(),
   };
   const realtime = { emitAlertEmergency: jest.fn(), emitAlertAcknowledged: jest.fn() };
+  const sync = { enqueue: jest.fn() };
   const service = new AlertsService(
     repo as unknown as Repository<AlertEntity>,
     realtime as unknown as RealtimeGateway,
+    sync as unknown as SyncService,
   );
   await service.onModuleInit();
-  return { service, repo, realtime };
+  return { service, repo, realtime, sync };
 }
 
 describe('AlertsService.raise', () => {
+  it('una vez guardada, la manda al outbox de la nube sin datos del paciente', async () => {
+    const { service, sync } = await setup();
+    await service.raise(SOURCE, [FALL], new Date());
+    expect(sync.enqueue).toHaveBeenCalledWith(
+      'alert.upsert',
+      expect.any(String),
+      expect.objectContaining({ kind: 'FALL', wearableId: 'wb-02-5e0002', patientDisplayName: null }),
+    );
+  });
+
   it('emite alert:emergency antes de guardar, con el mismo id', async () => {
     const { service, repo, realtime } = await setup();
     const detectedAt = new Date('2026-10-18T12:00:00Z');

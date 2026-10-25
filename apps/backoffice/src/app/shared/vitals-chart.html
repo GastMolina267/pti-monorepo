@@ -1,0 +1,86 @@
+<div class="chart" (pointerleave)="hover.set(null)">
+  @for (p of panels(); track p.spec.key; let last = $last) {
+    <section class="panel">
+      <header>
+        <span class="title">{{ p.spec.label }}</span>
+        <span class="now">
+          @if (p.last !== null) {
+            <strong>{{ fmt(p.last, p.spec.decimals) }}</strong> {{ p.spec.unit }}
+          } @else {
+            <span class="muted">sin datos</span>
+          }
+        </span>
+      </header>
+      <svg
+        [attr.width]="width()"
+        [attr.height]="panelH + (last ? axisH : 0)"
+        [attr.viewBox]="'0 0 ' + width() + ' ' + (panelH + (last ? axisH : 0))"
+        role="img"
+        [attr.aria-label]="p.spec.label + ' en la ventana elegida; detalle en la vista de tabla'"
+        (pointermove)="onMove($event)"
+        (pointerdown)="onMove($event)"
+      >
+        <rect
+          class="band"
+          [attr.x]="pad.left"
+          [attr.y]="p.band.y"
+          [attr.width]="width() - pad.left - pad.right"
+          [attr.height]="p.band.h"
+        />
+        @for (t of p.ticks; track $index) {
+          <line
+            class="grid"
+            [attr.x1]="pad.left"
+            [attr.x2]="width() - pad.right"
+            [attr.y1]="t.y"
+            [attr.y2]="t.y"
+          />
+          <text class="tick" [attr.x]="pad.left - 6" [attr.y]="t.y + 4" text-anchor="end">{{ t.label }}</text>
+        }
+        @for (m of markers(); track $index) {
+          <line class="marker" [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="pad.top - 4" [attr.y2]="panelH" />
+          @if (p.spec.key === 'hr') {
+            <text class="marker-label" [attr.x]="m.x + 4" [attr.y]="pad.top + 4">{{ m.label }}</text>
+          }
+        }
+        <path class="line" [attr.d]="p.path" />
+        @for (c of p.critical; track $index) {
+          <circle class="critical" [attr.cx]="c.x" [attr.cy]="c.y" r="4" />
+        }
+        @if (hovered(); as h) {
+          <line
+            class="crosshair"
+            [attr.x1]="h.x"
+            [attr.x2]="h.x"
+            [attr.y1]="pad.top - 4"
+            [attr.y2]="panelH"
+          />
+        }
+        @if (last) {
+          @for (t of xTicks(); track $index) {
+            <text class="tick" [attr.x]="t.x" [attr.y]="panelH + 16" [attr.text-anchor]="t.anchor">
+              {{ t.label }}
+            </text>
+          }
+        }
+        <!-- Área de captura más grande que la línea -->
+        <rect class="hit" x="0" y="0" [attr.width]="width()" [attr.height]="panelH + (last ? axisH : 0)" />
+      </svg>
+    </section>
+  }
+
+  @if (hovered(); as h) {
+    <div class="tooltip" role="status" [style.left.px]="tooltipLeft(h.x)">
+      <strong>{{ time(h.point.at) }}</strong>
+      <span>FC {{ fmt(h.point.hr, 0) }} lpm</span>
+      <span>SpO₂ {{ fmt(h.point.spo2, 0) }} %</span>
+      <span>Temp {{ fmt(h.point.temp, 1) }} °C</span>
+      @if (h.point.fall) {
+        <span class="fall">Caída</span>
+      }
+      @if (h.point.samples > 1) {
+        <small>promedio de {{ h.point.samples }} lecturas</small>
+      }
+    </div>
+  }
+</div>
