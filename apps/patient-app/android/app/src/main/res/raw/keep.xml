@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El ícono de las notificaciones se busca por nombre: que el shrinker de recursos no lo borre. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_vitalia" />

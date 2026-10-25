@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signa
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { LucideSmartphone } from '@lucide/angular';
-import type { PairingCode } from '@vitalia/contracts';
+import { pairingQrText, type PairingCode } from '@vitalia/contracts';
+import qrcode from 'qrcode-generator';
 import { firstValueFrom } from 'rxjs';
 import { apiErrorMessage } from '../core/api/api-error';
 import { TicketsApi } from '../core/api/tickets.api';
@@ -15,6 +16,22 @@ export interface PairingDialogData {
 /** `K7M2QX` → `K7M 2QX`: se dicta y se lee en dos partes. */
 export function formatPairingCode(code: string): string {
   return code.length > 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+}
+
+/**
+ * Trazado SVG del QR (un cuadrado de 1×1 por módulo oscuro) y su tamaño en módulos. Se dibuja
+ * con la librería `qrcode-generator` (sin red, sin canvas): sirve igual en el gateway offline.
+ */
+export function qrPath(text: string): { size: number; d: string } {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const size = qr.getModuleCount();
+  let d = '';
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+  }
+  return { size, d };
 }
 
 /** `mm:ss` que faltan hasta `expiresAt` (0:00 si ya venció). */
@@ -35,11 +52,24 @@ export function remaining(expiresAt: string, now: number): string {
     <h2 mat-dialog-title>Vincular la app del paciente</h2>
     <mat-dialog-content>
       <p class="lead">
-        En la app Vitalia: <strong>Ya tengo turno</strong> → escribir este código para el turno
+        En la app Vitalia: <strong>Ya tengo turno</strong> → escanear el QR o escribir el código del turno
         <strong>{{ data.ticketCode }}</strong
         >.
       </p>
       @if (pairing(); as p) {
+        @if (qr(); as q) {
+          <svg
+            class="qr"
+            [class.expired]="expired()"
+            [attr.viewBox]="'-2 -2 ' + (q.size + 4) + ' ' + (q.size + 4)"
+            shape-rendering="crispEdges"
+            role="img"
+            [attr.aria-label]="'QR para vincular el turno ' + data.ticketCode"
+          >
+            <rect x="-2" y="-2" [attr.width]="q.size + 4" [attr.height]="q.size + 4" fill="#fff" />
+            <path [attr.d]="q.d" fill="#0f172a" />
+          </svg>
+        }
         <div class="code" [class.expired]="expired()" role="status" aria-live="polite">
           <svg lucideSmartphone [size]="22" aria-hidden="true"></svg>
           <span class="digits" [attr.aria-label]="'Código ' + p.code.split('').join(' ')">{{
@@ -65,6 +95,16 @@ export function remaining(expiresAt: string, now: number): string {
     </mat-dialog-actions>
   `,
   styles: `
+    .qr {
+      display: block;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 14px;
+      border-radius: var(--vt-r-sm);
+      &.expired {
+        opacity: 0.25;
+      }
+    }
     .lead {
       margin: 0 0 16px;
       color: var(--vt-muted);
@@ -113,6 +153,10 @@ export class PairingDialog {
     return p ? remaining(p.expiresAt, this.now()) : '';
   });
   protected readonly expired = computed(() => this.left() === '0:00');
+  protected readonly qr = computed(() => {
+    const p = this.pairing();
+    return p ? qrPath(pairingQrText(p.code)) : null;
+  });
   protected readonly format = formatPairingCode;
 
   constructor() {

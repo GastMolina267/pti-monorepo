@@ -19,6 +19,11 @@ dependencies:
   socket_io_client: ^3.1.2
   # Sesión, historial, agenda y ficha de salud cifrados en el teléfono (Keystore de Android)
   flutter_secure_storage: ^9.2.4
+  # Aviso del llamado con la app minimizada y recordatorios de la agenda (notificaciones locales)
+  flutter_local_notifications: ^19.4.2
+  timezone: ^0.10.1
+  # Escanear el QR de vinculación que muestra el Backoffice
+  mobile_scanner: ^7.1.2
 
 dev_dependencies:
   flutter_test:

@@ -30,7 +30,7 @@ class AgendaScreen extends StatelessWidget {
                 title: 'Tu agenda de salud',
                 message:
                     'Anotá tus próximos turnos médicos: cuándo, dónde y con quién. '
-                    'Los vas a ver también en la pestaña Turno.',
+                    'Te avisamos con una notificación 2 h antes de cada uno.',
               ),
             if (upcoming.isNotEmpty) ...[
               const SectionLabel('Próximos'),

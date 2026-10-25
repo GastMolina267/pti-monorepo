@@ -74,6 +74,7 @@ abstract final class VtPatient {
   static const pairingCodeLength = 6;
   static const pairingCodeTtlMinutes = 10;
   static const pairingCodeAlphabet = '2346789ABCDEFGHJKMNPQRTUVWXYZ';
+  static const pairingQrPrefix = 'vitalia://vincular?codigo=';
 }
 
 const ticketStatuses = <String>['WAITING', 'CALLED', 'IN_PROGRESS', 'DONE', 'NO_SHOW', 'CANCELLED'];

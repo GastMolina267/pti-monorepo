@@ -153,6 +153,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
+            const SectionLabel('Notificaciones'),
+            Text(
+              'Te avisamos cuando te llaman (aunque tengas la app minimizada) y 2 h antes de cada turno '
+              'de tu agenda. Si las bloqueaste, permitilas acá o en los ajustes de Android.',
+              style: TextStyle(color: scheme.onSurfaceVariant, height: 1.4),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: app.notifier == null
+                  ? null
+                  : () async {
+                      final ok = await app.notifier!.requestPermission();
+                      if (context.mounted) {
+                        showMessage(context, ok ? 'Notificaciones permitidas' : 'Android no dio el permiso');
+                      }
+                    },
+              icon: const Icon(Icons.notifications_active_outlined),
+              label: const Text('Permitir notificaciones'),
+            ),
             const SectionLabel('Mis datos'),
             Text(
               'Tus visitas, tu agenda y tu ficha se guardan cifradas solo en este teléfono.',

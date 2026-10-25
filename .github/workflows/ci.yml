@@ -168,5 +168,16 @@ jobs:
       - if: steps.changes.outputs.app == 'true'
         run: flutter test
 
+      # APK instalable (firmado con la clave de depuración, sin tiendas: tesis 4.2). La dirección
+      # del gateway se puede fijar con la variable del repo VITALIA_GATEWAY_URL; si no, la de la
+      # VLAN de pacientes de la guía. En la app se cambia desde Ajustes.
       - if: steps.changes.outputs.app == 'true'
-        run: flutter build apk --debug
+        run: flutter build apk --release --dart-define=VITALIA_API_URL=${{ vars.VITALIA_GATEWAY_URL || 'http://10.0.20.1:8080' }}
+
+      - if: steps.changes.outputs.app == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitalia-paciente-apk
+          path: apps/patient-app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+          if-no-files-found: error

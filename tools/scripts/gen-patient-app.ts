@@ -20,6 +20,7 @@ import {
 import {
   PAIRING_CODE_ALPHABET,
   PAIRING_CODE_LENGTH,
+  PAIRING_QR_PREFIX,
   PAIRING_CODE_TTL_MINUTES,
   PATIENT_PRIORITY_LABELS,
   PATIENT_SESSION_HOURS,
@@ -125,6 +126,7 @@ export function renderDart(): string {
     `  static const pairingCodeLength = ${PAIRING_CODE_LENGTH};`,
     `  static const pairingCodeTtlMinutes = ${PAIRING_CODE_TTL_MINUTES};`,
     `  static const pairingCodeAlphabet = ${dartString(PAIRING_CODE_ALPHABET)};`,
+    `  static const pairingQrPrefix = ${dartString(PAIRING_QR_PREFIX)};`,
     '}',
     '',
     dartConst('const ticketStatuses = <String>', '[', ']', TICKET_STATUSES.map(dartString)),

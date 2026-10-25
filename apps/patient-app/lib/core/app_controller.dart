@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'api_client.dart';
 import 'config.dart';
 import 'models.dart';
+import 'notifications.dart';
 import 'realtime.dart';
 import 'storage.dart';
 
@@ -18,8 +19,17 @@ const calledNoticeWindow = Duration(minutes: 3);
 /// Estado de la app: sesión del turno, su vista en vivo y los datos locales (visitas, agenda,
 /// ficha). Un solo `ChangeNotifier`: la app es chica y así no suma dependencias.
 class AppController extends ChangeNotifier {
-  AppController({required this.store, this.httpClient, this.realtimeFactory, DateTime Function()? clock, this.onCalled})
-    : _clock = clock ?? DateTime.now;
+  AppController({
+    required this.store,
+    this.httpClient,
+    this.realtimeFactory,
+    this.notifier,
+    DateTime Function()? clock,
+    this.onCalled,
+  }) : _clock = clock ?? DateTime.now;
+
+  /// Notificaciones locales; `null` en los tests.
+  final Notifier? notifier;
 
   /// Almacenamiento cifrado (o en memoria en los tests).
   final KeyValueStore store;
@@ -101,6 +111,7 @@ class AppController extends ChangeNotifier {
       ready = true;
       _notify();
     }
+    unawaited(_syncReminders());
     if (session != null) {
       await refresh();
       _startLive();
@@ -179,6 +190,7 @@ class AppController extends ChangeNotifier {
     _notifiedCalledAt = null;
     await store.writeJson(StoreKeys.session, s.toJson());
     _notify();
+    unawaited(_askNotifications());
     await refresh();
     _startLive();
   }
@@ -221,6 +233,8 @@ class AppController extends ChangeNotifier {
       if (fresh) {
         calledNotice = true;
         onCalled?.call();
+        // Con la app minimizada, el aviso va como notificación del sistema.
+        if (!_foreground) unawaited(_safe(() => notifier?.showCalled(t)));
       }
     }
     if (t.isFinal) _stopPolling();
@@ -260,23 +274,28 @@ class AppController extends ChangeNotifier {
 
   // ---------------------------------------------------------------- en vivo
 
-  /// La UI avisa si la app está en primer plano: en segundo plano no se consulta.
+  bool get isForeground => _foreground;
+
+  /// La UI avisa si la app está en primer plano. En segundo plano no se consulta cada 10 s,
+  /// pero el WebSocket queda abierto mientras Android mantenga vivo el proceso: si llaman el
+  /// turno, se avisa con una notificación.
   void setForeground(bool value) {
     if (_foreground == value) return;
     _foreground = value;
-    if (value && session != null) {
+    if (session == null) return;
+    if (value) {
       unawaited(refresh());
       _startLive();
     } else {
-      _stopLive();
+      _stopPolling();
     }
   }
 
   void _startLive() {
     _stopLive();
     final s = session;
-    if (s == null || !_foreground) return;
-    if (!(overview?.ticket.isFinal ?? false)) {
+    if (s == null) return;
+    if (_foreground && !(overview?.ticket.isFinal ?? false)) {
       _poll = Timer.periodic(AppConfig.pollInterval, (_) => unawaited(refresh()));
     }
     final factory = realtimeFactory;
@@ -323,12 +342,29 @@ class AppController extends ChangeNotifier {
     agenda = sortAgenda([a, ...agenda.where((x) => x.id != a.id)], now());
     await store.writeJson(StoreKeys.agenda, [for (final x in agenda) x.toJson()]);
     _notify();
+    await _askNotifications();
+    await _syncReminders();
   }
 
   Future<void> deleteAppointment(String id) async {
     agenda = agenda.where((x) => x.id != id).toList();
     await store.writeJson(StoreKeys.agenda, [for (final x in agenda) x.toJson()]);
     _notify();
+    await _syncReminders();
+  }
+
+  /// Recordatorio de cada turno de la agenda (`reminderLead` antes).
+  Future<void> _syncReminders() => _safe(() => notifier?.syncReminders(agenda, now()));
+
+  Future<void> _askNotifications() => _safe(() => notifier?.requestPermission());
+
+  /// Las notificaciones son un extra: si fallan (permiso negado, plugin), la app sigue.
+  Future<void> _safe(Future<Object?>? Function() action) async {
+    try {
+      await action();
+    } on Object catch (e) {
+      debugPrint('Notificaciones: $e');
+    }
   }
 
   Future<void> saveHealthCard(HealthCard card) async {
@@ -350,6 +386,7 @@ class AppController extends ChangeNotifier {
       await store.delete(key);
     }
     _notify();
+    await _syncReminders();
   }
 
   void _notify() {

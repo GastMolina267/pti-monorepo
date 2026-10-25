@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- La app habla con la API del gateway del hospital (red local). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Notificaciones: aviso del llamado y recordatorios de la agenda (Android 13+ lo pide). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Reprogramar los recordatorios después de reiniciar el teléfono. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Escanear el QR de vinculación. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
     <!-- El gateway sirve HTTP en la LAN del hospital (VLAN de pacientes, sin TLS todavía):
          se permite tráfico en claro. Ver apps/patient-app/AGENTS.md y ADR 0019. -->
@@ -27,6 +34,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Recordatorios programados (flutter_local_notifications). -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
         <!-- No borrar: lo usa Flutter para generar GeneratedPluginRegistrant. -->
         <meta-data
             android:name="flutterEmbedding"

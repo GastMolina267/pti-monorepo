@@ -5,6 +5,7 @@ import '../../core/api_client.dart';
 import '../../core/app_controller.dart';
 import '../../generated/vitalia_contracts.g.dart';
 import '../../widgets/common.dart';
+import 'scan_screen.dart';
 
 /// Vincular un turno sacado en el portal cautivo o en recepción: el personal genera un código
 /// de un solo uso en el Backoffice (Turnos → ⋮ → «Vincular app del paciente»).
@@ -49,6 +50,13 @@ class _PairScreenState extends State<PairScreen> {
     super.dispose();
   }
 
+  Future<void> _scan() async {
+    final code = await Navigator.of(context).push(ScanScreen.route());
+    if (code == null || !mounted) return;
+    _code.text = code;
+    await _submit();
+  }
+
   Future<void> _submit() async {
     if (!_complete || _saving) return;
     setState(() {
@@ -79,14 +87,30 @@ class _PairScreenState extends State<PairScreen> {
           children: [
             const EmptyState(
               icon: Icons.link_rounded,
-              title: 'Escribí el código del personal',
+              title: 'Vinculá tu turno',
               message:
-                  'Si sacaste turno en el portal del Wi-Fi o en recepción, pedile al personal un código '
-                  'para la app. Vale 10 minutos y una sola vez.',
+                  'Si sacaste turno en el portal del Wi-Fi o en recepción, pedile al personal el QR o el '
+                  'código para la app. Vale 10 minutos y una sola vez.',
             ),
+            FilledButton.icon(
+              onPressed: _saving ? null : _scan,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Escanear el QR'),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('o escribí el código', style: TextStyle(color: scheme.onSurfaceVariant)),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _code,
-              autofocus: true,
               textAlign: TextAlign.center,
               textCapitalization: TextCapitalization.characters,
               keyboardType: TextInputType.visiblePassword,
@@ -104,7 +128,7 @@ class _PairScreenState extends State<PairScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            FilledButton(
+            OutlinedButton(
               onPressed: _complete && !_saving ? _submit : null,
               child: _saving
                   ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))

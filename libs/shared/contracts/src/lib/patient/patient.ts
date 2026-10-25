@@ -22,6 +22,28 @@ export const PAIRING_CODE_TTL_MINUTES = 10;
 /** Sin 0/O, 1/I/L ni 5/S: se dicta y se escribe sin confusiones. */
 export const PAIRING_CODE_ALPHABET = '2346789ABCDEFGHJKMNPQRTUVWXYZ';
 
+/**
+ * Texto del QR de vinculación que muestra el Backoffice: la app lo escanea con la cámara y
+ * canjea el código. La app también acepta el código suelto.
+ */
+export const PAIRING_QR_PREFIX = 'vitalia://vincular?codigo=';
+
+export function pairingQrText(code: string): string {
+  return `${PAIRING_QR_PREFIX}${code}`;
+}
+
+/** Código de un QR (o de un texto pegado). `null` si no parece un código de vinculación. */
+export function parsePairingCode(raw: string): string | null {
+  const text = raw.trim();
+  const value = text.toLowerCase().startsWith(PAIRING_QR_PREFIX)
+    ? text.slice(PAIRING_QR_PREFIX.length)
+    : text;
+  const code = value.toUpperCase().replace(/[\s-]/g, '');
+  const valid =
+    code.length === PAIRING_CODE_LENGTH && [...code].every((c) => PAIRING_CODE_ALPHABET.includes(c));
+  return valid ? code : null;
+}
+
 /** Sesión del paciente: `Authorization: Bearer <token>` en `/api/patient/*`. */
 export interface PatientSession {
   token: string;
