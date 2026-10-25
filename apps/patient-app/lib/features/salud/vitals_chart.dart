@@ -61,6 +61,16 @@ final vitalSeries = <VitalSeries>[
   ),
 ];
 
+/// Tramo de tiempo que se dibuja: la ventana pedida, pero empezando en la primera lectura si
+/// la espera es más corta (así la curva ocupa el ancho y no queda una rayita a la derecha).
+(DateTime, DateTime) timeDomain(VitalsHistory h) {
+  if (h.points.isEmpty) return (h.from, h.to);
+  final first = h.points.first.at.subtract(Duration(seconds: h.bucketSeconds));
+  final from = first.isAfter(h.from) ? first : h.from;
+  const minSpan = Duration(minutes: 5);
+  return h.to.difference(from) < minSpan ? (h.to.subtract(minSpan), h.to) : (from, h.to);
+}
+
 /// Rango del eje: el fijo, ampliado si algún valor se sale.
 (double, double) domainFor(VitalSeries s, List<VitalsPoint> points) {
   var lo = s.min;
@@ -160,11 +170,13 @@ class _PanelPainter extends CustomPainter {
     final points = history.points;
     final (lo, hi) = domainFor(series, points);
     final w = size.width - leftAxis;
+    const pad = 8.0;
     final h = size.height;
-    final t0 = history.from.millisecondsSinceEpoch.toDouble();
-    final span = math.max(1.0, history.to.millisecondsSinceEpoch - t0);
+    final (from, to) = timeDomain(history);
+    final t0 = from.millisecondsSinceEpoch.toDouble();
+    final span = math.max(1.0, to.millisecondsSinceEpoch - t0);
     double x(DateTime t) => leftAxis + (t.millisecondsSinceEpoch - t0) / span * w;
-    double y(double v) => h - (v - lo) / (hi - lo) * h;
+    double y(double v) => h - pad - (v - lo) / (hi - lo) * (h - 2 * pad);
 
     // Banda normal y grilla con rótulos (mín, máx)
     final bandTop = y(math.min(series.normalHigh, hi));
@@ -184,6 +196,7 @@ class _PanelPainter extends CustomPainter {
       ..strokeWidth = 1.5;
     for (final p in points.where((p) => p.fall)) {
       final px = x(p.at);
+      if (px < leftAxis) continue;
       for (var dy = 0.0; dy < h; dy += 6) {
         canvas.drawLine(Offset(px, dy), Offset(px, math.min(h, dy + 3)), fallPaint);
       }
@@ -242,15 +255,16 @@ class TimeAxis extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant);
-    final mid = history.from.add(history.to.difference(history.from) ~/ 2);
+    final (from, to) = timeDomain(history);
+    final mid = from.add(to.difference(from) ~/ 2);
     return Padding(
       padding: const EdgeInsets.only(left: _PanelPainter.leftAxis, top: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(hhmm(history.from), style: style),
+          Text(hhmm(from), style: style),
           Text(hhmm(mid), style: style),
-          Text(hhmm(history.to), style: style),
+          Text(hhmm(to), style: style),
         ],
       ),
     );

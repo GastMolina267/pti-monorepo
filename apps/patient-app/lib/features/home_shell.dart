@@ -39,10 +39,16 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
-  /// Mensajes de una sola vez (por ejemplo, sesión vencida).
+  bool _wasCalled = false;
+
+  /// Mensajes de una sola vez (por ejemplo, sesión vencida) y, si lo llaman, la pestaña Turno.
   void _showFlash() {
+    if (!mounted) return;
     final message = widget.app.takeFlash();
-    if (message != null && mounted) showMessage(context, message);
+    if (message != null) showMessage(context, message);
+    final called = widget.app.calledNotice;
+    if (called && !_wasCalled && _tab != 0) setState(() => _tab = 0);
+    _wasCalled = called;
   }
 
   @override

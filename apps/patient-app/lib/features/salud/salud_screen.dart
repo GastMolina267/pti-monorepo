@@ -22,7 +22,9 @@ class SaludScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final overview = app.overview;
     final vitals = overview?.vitals;
-    final withVitals = app.visits.where((v) => v.lastVitals != null).toList();
+    final withVitals = app.visits
+        .where((v) => v.lastVitals != null && v.ticketId != overview?.ticket.id)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: app.refresh,
@@ -54,13 +56,16 @@ class SaludScreen extends StatelessWidget {
           ],
           if (withVitals.isNotEmpty) ...[
             const SectionLabel('En visitas anteriores'),
-            for (final v in withVitals.where((v) => v.ticketId != overview?.ticket.id)) _VisitVitals(visit: v),
+            for (final v in withVitals) _VisitVitals(visit: v),
           ],
         ],
       ),
     );
   }
 }
+
+/// Estado de la última lectura (distinto de la prioridad del turno, que solo sube).
+const readingLabels = {'STABLE': 'En rango', 'ATTENTION': 'A controlar', 'CRITICAL': 'Fuera de rango'};
 
 class _VitalsNow extends StatelessWidget {
   const _VitalsNow({required this.vitals, required this.now});
@@ -79,7 +84,7 @@ class _VitalsNow extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text('Ahora', style: Theme.of(context).textTheme.titleLarge)),
-              PriorityPill(level),
+              Pill(label: readingLabels[level] ?? level, color: triageColor(level), dot: true),
             ],
           ),
           const SizedBox(height: 4),
@@ -199,7 +204,7 @@ class _CurveCard extends StatefulWidget {
 class _CurveCardState extends State<_CurveCard> {
   static const windows = [(30, '30 min'), (120, '2 h'), (480, '8 h')];
 
-  int _minutes = 120;
+  int _minutes = 30;
   VitalsHistory? _history;
   String? _error;
   Timer? _timer;
@@ -340,7 +345,7 @@ class _VisitVitals extends StatelessWidget {
                 ],
               ),
             ),
-            PriorityPill(v.level),
+            Pill(label: readingLabels[v.level] ?? v.level, color: triageColor(v.level), dot: true),
           ],
         ),
       ),
