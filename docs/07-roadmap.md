@@ -5,15 +5,16 @@
 
 ## Resumen
 
-| Fase | Objetivo                                | Fechas    | Resp.  | Estado                 |
-| ---- | --------------------------------------- | --------- | ------ | ---------------------- |
-| 0    | Fundaciones del monorepo                | 3 oct     | G      | ✅ Completa            |
-| 1    | Núcleo de datos, turnos y auth          | 3–4 oct   | G      | ✅ Completa            |
-| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct  | G (+F) | ✅ Software · ⏳ placa |
-| 3    | Backoffice y llamador TV funcionales    | 12–18 oct | G (T)  | ✅ Completa            |
-| 4    | Despliegue e integración del software   | 18 oct    | G      | ✅ Software completo   |
-| 5    | Resiliencia, carga y validación         | 1–15 nov  | Eq     | Pendiente              |
-| 6    | Landing, memoria y defensa (**Hito 4**) | nov       | Eq     | Pendiente              |
+| Fase | Objetivo                                | Fechas        | Resp.  | Estado                 |
+| ---- | --------------------------------------- | ------------- | ------ | ---------------------- |
+| 0    | Fundaciones del monorepo                | 3 oct         | G      | ✅ Completa            |
+| 1    | Núcleo de datos, turnos y auth          | 3–4 oct       | G      | ✅ Completa            |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct      | G (+F) | ✅ Software · ⏳ placa |
+| 3    | Backoffice y llamador TV funcionales    | 12–18 oct     | G (T)  | ✅ Completa            |
+| 4    | Despliegue e integración del software   | 18 oct        | G      | ✅ Software completo   |
+| —    | Red, router y portal cautivo            | —             | Eq     | ✅ Proyecto aparte     |
+| 5    | Software pendiente, carga y validación  | 26 oct–15 nov | Eq     | En curso               |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | Pendiente              |
 
 ```mermaid
 gantt
@@ -117,7 +118,13 @@ gantt
 
 ## Fase 4 · Despliegue e integración del software (G) ✅
 
-> Alcance acordado el 18/10: desarrollo del monorepo y validación con simuladores. Portal cautivo, router, VLANs, walled garden, servicio NTP de la red, montaje y calibración física quedan fuera de esta fase de desarrollo. El firmware entra como código, compilación y tests sin placa. La demo física completa del Hito 3 conserva esas dependencias externas; no se las acredita con una prueba de software.
+> Alcance acordado el 18/10: desarrollo del monorepo y validación con simuladores. El firmware entra como código, compilación y tests sin placa.
+>
+> **25/10: red y portal cautivo fuera de este monorepo.** El router RUT956, las VLANs, el portal cautivo con su walled garden y el NTP de la red se resuelven en otro proyecto del equipo, prácticamente terminado. Acá se dan por resueltos; el contrato que usa el portal (`GET /api/services`, `POST /api/check-in`, `GET /api/tickets/:id/public` y el socket `{ ticketId }`) sigue en [04-contratos.md](04-contratos.md).
+>
+> - [x] ~~Portal cautivo → check-in y estado del turno contra la API~~ → proyecto de red y portal
+> - [x] ~~RUT956: VLANs 10/20/30/40 apuntando al gateway, walled garden y NTP local para la VLAN 10~~ → proyecto de red y portal
+> - [x] ~~Escaneo de puertos en la red guest~~ → proyecto de red y portal
 
 ### 4a · Despliegue reproducible del gateway — completo (18/10)
 
@@ -166,18 +173,38 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 **Cierre de software acreditado:** desde una copia limpia se levanta el gateway Docker y se completa el recorrido de 4d con checks en verde, sin depender del portal, router ni hardware físico. La restauración se probó en una base aislada; no se acredita un traslado completo a otra máquina. CI incorpora verificación y prueba operativa, con ejecución remota todavía pendiente. La prueba WAN de 24 h, carga, latencias y sincronización Cloud continúan en Fase 5. Guía: [09-despliegue-gateway.md](09-despliegue-gateway.md).
 
-## Fase 5 · Resiliencia, carga y validación (Eq)
+## Fase 5 · Software pendiente, carga y validación (Eq)
 
+> Solo desarrollo del monorepo (Backoffice, TV, API, firmware y herramientas). Red y portal cautivo: proyecto aparte.
+
+### 5a · Backoffice y API: lo que le falta a la consola (G)
+
+- [ ] Check-in desde recepción en el Backoffice (`source: RECEPTION`, ya previsto en el contrato) para pacientes que no usan el portal
+- [ ] Detalle del paciente con la curva de signos vitales: `GET /api/tickets/:id/readings` + gráfico en el Backoffice (base de RF-D3)
+- [ ] Pulsera en mantenimiento: cambiar el estado desde el Backoffice (`PATCH /api/wearables/:id`) y sacarla de la asignación
+- [ ] TV por servicio (`?servicio=GUARDIA`) para tener una pantalla por sala de espera
+
+### 5b · API: operación de largo plazo (G)
+
+- [ ] Retención de telemetría: con 50 pulseras cada 3 s son ~1,4 M de lecturas por día. Política de borrado o agregación configurable para operar 24 h+ sin degradar la base
 - [ ] Módulo `sync`: outbox local → réplica a la nube al volver la WAN (RF-O6, capa Cloud)
-- [ ] Firmware: buffer propio para cortes del broker de más de 30 s (el outbox de ESP-MQTT descarta a los 30 s, ADR 0012) (F)
-- [ ] Hardware: pasar el circuito de la protoboard a una protoboard chica o a una placa perforada con pistas soldadas y montarlo en la pulsera impresa. En la protoboard los golpes aflojan el bus I²C (prueba del 21/10) (F)
-- [ ] Firmware: con la pulsera, calibrar caídas (`FALL_*` de `config.h`, falsos positivos), volver a medir la latencia de la caída (< 2 s) y ver la prioridad de la caída sobre el llamado en el OLED (F)
-- [ ] Prueba de corte de WAN durante 24 h (RNF-O2)
+- [ ] Gateway: publicar Mosquitto en la interfaz de las pulseras de forma configurable (hoy solo loopback; la prueba del 21/10 usó un puente temporal)
+
+### 5c · Validación con números para la tesis (G)
+
 - [ ] Carga: 50 pulseras cada 3 s (simulador) y 0 % de pérdida con QoS 1
 - [ ] Medición de latencias (alerta < 500 ms, REST < 50 ms, llamado < 100 ms) con reporte
 - [ ] Estrés con > 10.000 registros simulados en la consola
-- [ ] Escaneo de puertos en la red guest (aislamiento al 100 %)
+- [ ] Prueba de corte de WAN durante 24 h (RNF-O2)
 - [ ] Resultados volcados al capítulo 12 de la tesis
+
+### 5d · Firmware y pulsera (F)
+
+- [ ] MAX30102: frecuencia cardíaca y SpO₂ reales (RF-O1, Hito 5; hoy los aporta el simulador)
+- [ ] Buffer propio para cortes del broker de más de 30 s (el outbox de ESP-MQTT descarta a los 30 s, ADR 0012)
+- [ ] Hardware: pasar el circuito de la protoboard a una protoboard chica o a una placa perforada con pistas soldadas y montarlo en la pulsera impresa. En la protoboard los golpes aflojan el bus I²C (prueba del 21/10)
+- [ ] Con la pulsera, calibrar caídas (`FALL_*` de `config.h`, falsos positivos), volver a medir la latencia de la caída (< 2 s) y ver la prioridad de la caída sobre el llamado en el OLED
+- [ ] Confirmar la potencia de Wi-Fi (8,5 dBm provisional) comparando arranques seguidos con el router estable
 
 ## Fase 6 · Cierre y defensa — Hito 4 (Eq)
 
