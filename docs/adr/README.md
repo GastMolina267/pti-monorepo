@@ -22,3 +22,4 @@ Formato y proceso: skill `vitalia-docs`. Un ADR aceptado no se edita: se reempla
 | [0016](0016-validar-gateway-con-navegadores-reales.md)     | E2E del gateway y snapshots de reconexión          | Aceptado           |
 | [0017](0017-operar-y-recuperar-el-gateway.md)              | Operación, recuperación y respaldos del gateway    | Aceptado           |
 | [0018](0018-operacion-de-largo-plazo-y-red-del-gateway.md) | Retención, réplica por outbox y red del gateway    | Aceptado           |
+| [0019](0019-app-del-paciente-en-flutter.md)                | App del paciente en Flutter con sesión de turno    | Aceptado           |

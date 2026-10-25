@@ -15,7 +15,7 @@ Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint sa
 | GET    | `/api/auth/me`                           | staff                        | Usuario autenticado (`StaffUser`)                                                                                                                | ✅ F1      |
 | GET    | `/api/services`                          | público                      | Servicios de atención (`ServiceArea[]`) para elegir en el check-in                                                                               | ✅ F1      |
 | GET    | `/api/consulting-rooms`                  | staff                        | Consultorios activos (`ConsultingRoom[]`)                                                                                                        | ✅ F1      |
-| POST   | `/api/check-in`                          | público (10/min por IP)      | Check-in (`CheckInRequest`) → `PublicTicket`. Idempotente por DNI                                                                                | ✅ F1      |
+| POST   | `/api/check-in`                          | público (10/min por IP)      | Check-in (`CheckInRequest`) → `CheckInResponse`. Idempotente por DNI. Con `source: PATIENT_APP` y turno nuevo, trae `patientSession`             | ✅ F1 · F5 |
 | GET    | `/api/tickets?status=&serviceCode=`      | staff                        | Fila del día (por defecto, turnos abiertos), ordenada por triaje y llegada (`Ticket[]`)                                                          | ✅ F1      |
 | GET    | `/api/tickets/:id`                       | staff                        | Detalle de un turno (`Ticket`)                                                                                                                   | ✅ F1      |
 | GET    | `/api/tickets/:id/public`                | público                      | Estado para el paciente (`PublicTicket`: posición y espera estimada)                                                                             | ✅ F1      |
@@ -33,6 +33,10 @@ Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint sa
 | GET    | `/api/alerts?active=true`                | staff                        | Alertas activas (`active=false`: las últimas 100 de cualquier estado) (`Alert[]`)                                                                | ✅ F2      |
 | POST   | `/api/alerts/:id/ack`                    | staff                        | Reconocer una alerta → `Alert` y `alert:acknowledged`. Ya reconocida → 409. Recién emitida y todavía sin guardar (pocos ms) → 404                | ✅ F2      |
 | GET    | `/api/sync/status`                       | `ADMIN`                      | Estado de la réplica a la nube (`SyncStatus`: pendientes, último envío, error, próximo intento)                                                  | ✅ F5      |
+| POST   | `/api/tickets/:id/pairing`               | staff                        | Código de vinculación de un solo uso (10 min) para la app del paciente (`PairingCode`)                                                           | ✅ F5      |
+| POST   | `/api/patient/pair`                      | público (10/min por IP)      | Canjea el código → `PatientSession` (24 h, solo ese turno)                                                                                       | ✅ F5      |
+| GET    | `/api/patient/me`                        | sesión del paciente          | Su turno: estado, posición, consultorio, profesional, prioridad y últimos signos (`PatientOverview`)                                             | ✅ F5      |
+| GET    | `/api/patient/me/readings?minutes=`      | sesión del paciente          | Su curva de signos vitales (`VitalsHistory`)                                                                                                     | ✅ F5      |
 
 ### Ciclo de vida del turno
 
@@ -274,6 +278,15 @@ El gateway envía los cambios con `POST <CLOUD_SYNC_URL>`, header `Authorization
 - Hasta `SYNC_BATCH_SIZE` (100) eventos por envío, en orden de `id`. La nube responde 2xx para confirmar. Cualquier otro código o un timeout de 10 s → reintento con backoff (máx. 5 min).
 - Entrega al menos una vez: la nube deduplica por `gatewayId` + `id` y se queda con el `occurredAt` más nuevo por `entityId`.
 - `pnpm cloud:sink` implementa este receptor para pruebas.
+
+## App del paciente ↔ API (ADR 0019)
+
+La app Flutter (`apps/patient-app`) no tiene cuenta: usa una **sesión de turno** (`PatientSession`, JWT de 24 h firmado con una clave derivada, que no sirve en endpoints del personal) en `Authorization: Bearer` de `/api/patient/*`.
+
+- **Check-in desde la app:** `POST /api/check-in` con `source: 'PATIENT_APP'`. La sesión llega en `patientSession` solo si el turno se creó en ese pedido. Un DNI repetido devuelve el turno sin sesión.
+- **Vincular un turno existente:** el personal genera `POST /api/tickets/:id/pairing` → `{ code, expiresAt, ticketCode }` (6 caracteres de `PAIRING_CODE_ALPHABET`, un solo uso, 10 min). La app canjea `POST /api/patient/pair { code }` (ignora mayúsculas, espacios y guiones).
+- **En vivo:** socket `{ ticketId }` → sala `patient:<ticketId>` (`ticket:called`), más `GET /api/patient/me` cada 10 s con la app abierta.
+- Al paciente se le muestra prioridad (`PATIENT_PRIORITY_LABELS`), no el nombre del nivel de triaje. La respuesta nunca incluye el DNI.
 
 ## Portal cautivo ↔ API
 
