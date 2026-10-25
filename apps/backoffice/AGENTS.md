@@ -15,11 +15,11 @@ src/app/
     sound/      # AlarmService (alarma Web Audio de alertas críticas)
     time/       # ClockService (reloj cada 5 s) + ago()/hhmm()/minutesSince()
     layout/     # shell: navegación, conexión en vivo, sonido, usuario, AlertOverlay
-  shared/       # LevelPill, Vitals, AlertKindIcon, TicketActions, CallDialog
+  shared/       # LevelPill, Vitals, AlertKindIcon, TicketActions, CallDialog, VitalsChart (curva SVG), ShowMore/incremental
   features/
     login/      # login del personal
-    triage/     # fila priorizada en vivo con signos vitales
-    tickets/    # todos los turnos del día (filtro y búsqueda)
+    triage/     # fila priorizada en vivo con signos vitales; PatientVitalsDialog (curva 30 min–24 h)
+    tickets/    # todos los turnos del día (filtro y búsqueda); CheckInDialog (recepción)
     alerts/     # alertas activas + historial; alert-overlay (aviso rojo + alarma)
     wearables/  # pulseras: alta, asignar, liberar, última lectura
 src/testing/    # dobles para specs (FakeSocket); fuera del build de la app
@@ -40,6 +40,8 @@ Cada feature es una carpeta con componentes standalone y su ruta lazy (`loadComp
 - **Alertas críticas:** contraste alto, animación `vt-crit-pulse`, sonido y respeto de `prefers-reduced-motion`.
 - **Accesibilidad:** `aria-label` en botones de ícono y foco visible. Responsivo de móvil a escritorio (RNF-O4).
 - **Tests:** vitest + TestBed (`pnpm nx test backoffice`). Socket con `FakeSocket` por `SOCKET_FACTORY`; HTTP con `provideHttpClientTesting`. La lógica pura (ordenar, filtrar, aplicar lecturas) va en funciones exportadas y se prueba sin TestBed.
+- **Listas largas:** toda lista que pueda tener cientos de filas (fila de triaje, Turnos) se dibuja con `incremental()` + `<vt-show-more>` (tandas de 50) y los contadores muestran los totales. Con 10.000 turnos, dibujar todo tardaba 7–12 s (`pnpm perf:stress --ui=…`, `docs/10-validacion.md`).
+- **Gráficos:** SVG propio (`shared/vitals-chart`), sin librerías de charts: paneles chicos por signo, bandas normales de `CLINICAL_THRESHOLDS`, cortes en los huecos, tooltip sincronizado y vista de tabla.
 - **E2E (4d):** `pnpm gateway:e2e` prueba la UI compilada contra Docker (asignar, reconocer, llamar y reconectar sin recarga). `AlertsStore` reconcilia por IDs y versión de consulta; no recuperar alertas conocidas ausentes del snapshot ni reconocidas desde una respuesta vieja. Ver ADR 0016 y `docs/09-despliegue-gateway.md`.
 
 ## Comandos

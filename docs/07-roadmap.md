@@ -5,16 +5,16 @@
 
 ## Resumen
 
-| Fase | Objetivo                                | Fechas        | Resp.  | Estado                 |
-| ---- | --------------------------------------- | ------------- | ------ | ---------------------- |
-| 0    | Fundaciones del monorepo                | 3 oct         | G      | ✅ Completa            |
-| 1    | Núcleo de datos, turnos y auth          | 3–4 oct       | G      | ✅ Completa            |
-| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct      | G (+F) | ✅ Software · ⏳ placa |
-| 3    | Backoffice y llamador TV funcionales    | 12–18 oct     | G (T)  | ✅ Completa            |
-| 4    | Despliegue e integración del software   | 18 oct        | G      | ✅ Software completo   |
-| —    | Red, router y portal cautivo            | —             | Eq     | ✅ Proyecto aparte     |
-| 5    | Software pendiente, carga y validación  | 26 oct–15 nov | Eq     | En curso               |
-| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | Pendiente              |
+| Fase | Objetivo                                | Fechas        | Resp.  | Estado                                |
+| ---- | --------------------------------------- | ------------- | ------ | ------------------------------------- |
+| 0    | Fundaciones del monorepo                | 3 oct         | G      | ✅ Completa                           |
+| 1    | Núcleo de datos, turnos y auth          | 3–4 oct       | G      | ✅ Completa                           |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct      | G (+F) | ✅ Software · ⏳ placa                |
+| 3    | Backoffice y llamador TV funcionales    | 12–18 oct     | G (T)  | ✅ Completa                           |
+| 4    | Despliegue e integración del software   | 18 oct        | G      | ✅ Software completo                  |
+| —    | Red, router y portal cautivo            | —             | Eq     | ✅ Proyecto aparte                    |
+| 5    | Software pendiente, carga y validación  | 25 oct–15 nov | Eq     | ✅ Software (5a–5c) · ⏳ 24 h WAN, 5d |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | Pendiente                             |
 
 ```mermaid
 gantt
@@ -27,7 +27,7 @@ gantt
   F3 Backoffice y TV       :done, f3, 2026-10-12, 7d
   section Equipo
   F4 Integración software :done, f4, 2026-10-18, 1d
-  F5 Validación            :f5, 2026-11-01, 15d
+  F5 Software y validación :active, f5, 2026-10-25, 21d
   F6 Cierre y defensa      :f6, 2026-11-15, 10d
 ```
 
@@ -177,26 +177,33 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 > Solo desarrollo del monorepo (Backoffice, TV, API, firmware y herramientas). Red y portal cautivo: proyecto aparte.
 
-### 5a · Backoffice y API: lo que le falta a la consola (G)
+### 5a · Backoffice y API: lo que le falta a la consola (G) — completo (25/10)
 
-- [ ] Check-in desde recepción en el Backoffice (`source: RECEPTION`, ya previsto en el contrato) para pacientes que no usan el portal
-- [ ] Detalle del paciente con la curva de signos vitales: `GET /api/tickets/:id/readings` + gráfico en el Backoffice (base de RF-D3)
-- [ ] Pulsera en mantenimiento: cambiar el estado desde el Backoffice (`PATCH /api/wearables/:id`) y sacarla de la asignación
-- [ ] TV por servicio (`?servicio=GUARDIA`) para tener una pantalla por sala de espera
+- [x] Check-in desde recepción en el Backoffice (`source: RECEPTION`, ya previsto en el contrato) para pacientes que no usan el portal
+- [x] Detalle del paciente con la curva de signos vitales: `GET /api/tickets/:id/readings` + gráfico en el Backoffice (base de RF-D3)
+- [x] Pulsera en mantenimiento: cambiar el estado desde el Backoffice (`PATCH /api/wearables/:id`) y sacarla de la asignación
+- [x] TV por servicio (`?servicio=GUARDIA`) para tener una pantalla por sala de espera
 
-### 5b · API: operación de largo plazo (G)
+**Verificado localmente (25/10):** se probó en Chromium contra la API compilada, con broker y simulador: la curva de 30 min a 24 h (tooltip sincronizado, bandas normales, marca de la caída y vista de tabla), el check-in de recepción con la posición en la fila, una pulsera puesta en mantenimiento y devuelta, y una TV en `?servicio=guardia` que mostró el llamado de Guardia e ignoró el de Clínica. La API tiene 107 tests y el Backoffice 36.
 
-- [ ] Retención de telemetría: con 50 pulseras cada 3 s son ~1,4 M de lecturas por día. Política de borrado o agregación configurable para operar 24 h+ sin degradar la base
-- [ ] Módulo `sync`: outbox local → réplica a la nube al volver la WAN (RF-O6, capa Cloud)
-- [ ] Gateway: publicar Mosquitto en la interfaz de las pulseras de forma configurable (hoy solo loopback; la prueba del 21/10 usó un puente temporal)
+### 5b · API: operación de largo plazo (G) — completo (25/10)
 
-### 5c · Validación con números para la tesis (G)
+- [x] Retención de telemetría: con 50 pulseras cada 3 s son ~1,4 M de lecturas por día. Política de borrado o agregación configurable para operar 24 h+ sin degradar la base
+- [x] Módulo `sync`: outbox local → réplica a la nube al volver la WAN (RF-O6, capa Cloud)
+- [x] Gateway: publicar Mosquitto en la interfaz de las pulseras de forma configurable (hoy solo loopback; la prueba del 21/10 usó un puente temporal)
+- [x] `TRUST_PROXY` detrás de Nginx: antes, el rate limit era uno solo para todos los clientes
 
-- [ ] Carga: 50 pulseras cada 3 s (simulador) y 0 % de pérdida con QoS 1
-- [ ] Medición de latencias (alerta < 500 ms, REST < 50 ms, llamado < 100 ms) con reporte
-- [ ] Estrés con > 10.000 registros simulados en la consola
-- [ ] Prueba de corte de WAN durante 24 h (RNF-O2)
-- [ ] Resultados volcados al capítulo 12 de la tesis
+**Verificado localmente (25/10):** la retención borra en tandas de 5.000 (índice `ix_readings_measured_at`, 72 h por defecto). El outbox replica turnos y alertas sin DNI a una nube de prueba (`pnpm cloud:sink`). Con la nube caída, el health queda en `degraded` y los pendientes se acumulan; cuando vuelve, se envían. `GATEWAY_MQTT_BIND`, `GATEWAY_HTTP_BIND` y `GATEWAY_EXTRA_CORS_ORIGINS` se validaron con `docker compose config`. Todo está cubierto por la integración contra PostgreSQL. Ver [ADR 0018](adr/0018-operacion-de-largo-plazo-y-red-del-gateway.md) y la sección 5b de [09-despliegue-gateway.md](09-despliegue-gateway.md).
+
+### 5c · Validación con números para la tesis (G) — software completo (25/10)
+
+- [x] Carga: 50 pulseras cada 3 s (simulador) y 0 % de pérdida con QoS 1
+- [x] Medición de latencias (alerta < 500 ms, REST < 50 ms, llamado < 100 ms) con reporte
+- [x] Estrés con > 10.000 registros simulados en la consola
+- [ ] Prueba de corte de WAN durante 24 h (RNF-O2): procedimiento listo en [10-validacion.md](10-validacion.md); se corre en el gateway real (Eq)
+- [ ] Resultados volcados al capítulo 12 de la tesis (las tablas de [10-validacion.md](10-validacion.md) ya tienen el formato para pegar)
+
+**Medido (25/10, 2 vCPU):** 50 pulseras cada 3 s durante 10 min, con 10.043 lecturas y 0 % de pérdida. Lectura → WS p95 7 ms; caída → alerta p95 6 ms (40/40); `GET /api/tickets` p95 8,7 ms; llamado → TV p95 13 ms. Con 10.000 turnos, la consola tardaba 7–12 s en dibujar las listas: ahora se dibujan por tandas y la fila aparece en 755 ms, Turnos en 1,6 s y la curva de 24 h (28.800 lecturas) responde en 32 ms (p95). El Backoffice no hizo pedidos fuera del gateway (`pnpm perf:load`, `pnpm perf:stress`).
 
 ### 5d · Firmware y pulsera (F)
 

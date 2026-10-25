@@ -8,28 +8,31 @@ Swagger interactivo: `http://localhost:3000/api/docs`.
 
 Autenticación: header `Authorization: Bearer <accessToken>` en todo endpoint salvo los marcados como **público**. Roles: `ADMIN`, `NURSE`, `DOCTOR`, `RECEPTION`.
 
-| Método | Ruta                                | Acceso                       | Descripción                                                                             | Estado |
-| ------ | ----------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------- | ------ |
-| GET    | `/api/health`                       | público                      | Estado del gateway, PostgreSQL y MQTT (`HealthResponse`)                                | ✅ F2  |
-| POST   | `/api/auth/login`                   | público (5/min por IP)       | Login del personal → `LoginResponse` (JWT de 8 h)                                       | ✅ F1  |
-| GET    | `/api/auth/me`                      | staff                        | Usuario autenticado (`StaffUser`)                                                       | ✅ F1  |
-| GET    | `/api/services`                     | público                      | Servicios de atención (`ServiceArea[]`) para elegir en el check-in                      | ✅ F1  |
-| GET    | `/api/consulting-rooms`             | staff                        | Consultorios activos (`ConsultingRoom[]`)                                               | ✅ F1  |
-| POST   | `/api/check-in`                     | público (10/min por IP)      | Check-in (`CheckInRequest`) → `PublicTicket`. Idempotente por DNI                       | ✅ F1  |
-| GET    | `/api/tickets?status=&serviceCode=` | staff                        | Fila del día (por defecto, turnos abiertos), ordenada por triaje y llegada (`Ticket[]`) | ✅ F1  |
-| GET    | `/api/tickets/:id`                  | staff                        | Detalle de un turno (`Ticket`)                                                          | ✅ F1  |
-| GET    | `/api/tickets/:id/public`           | público                      | Estado para el paciente (`PublicTicket`: posición y espera estimada)                    | ✅ F1  |
-| GET    | `/api/tickets/recent-calls`         | público                      | Últimos 6 llamados del día para la TV (`RecentCallsResponse`, sin datos clínicos)       | ✅ F3  |
-| POST   | `/api/tickets/:id/call`             | `DOCTOR` · `NURSE` · `ADMIN` | Llamar a un consultorio (`CallTicketRequest`)                                           | ✅ F1  |
-| PATCH  | `/api/tickets/:id/status`           | staff                        | Cambiar el estado (`UpdateTicketStatusRequest`) según las transiciones permitidas       | ✅ F1  |
-| PATCH  | `/api/tickets/:id/triage`           | `NURSE` · `DOCTOR` · `ADMIN` | Triaje manual (`UpdateTriageRequest`)                                                   | ✅ F1  |
-| GET    | `/api/wearables`                    | staff                        | Pulseras con turno, conexión (`online`), sala y última lectura (`Wearable[]`)           | ✅ F2  |
-| GET    | `/api/wearables/:id`                | staff                        | Detalle de una pulsera (`Wearable`)                                                     | ✅ F2  |
-| POST   | `/api/wearables`                    | `ADMIN` · `NURSE`            | Alta (`CreateWearableRequest`): código `wb-<NN>-<mac>` y número sin repetir → 409       | ✅ F2  |
-| POST   | `/api/wearables/:id/assign`         | staff                        | Asignar a un turno abierto (`AssignWearableRequest`). Si ya lo llamaron, va al OLED     | ✅ F2  |
-| POST   | `/api/wearables/:id/release`        | staff                        | Liberar la pulsera (también se libera sola al finalizar o cancelar el turno)            | ✅ F2  |
-| GET    | `/api/alerts?active=true`           | staff                        | Alertas activas (`active=false`: las últimas 100 de cualquier estado) (`Alert[]`)       | ✅ F2  |
-| POST   | `/api/alerts/:id/ack`               | staff                        | Reconocer una alerta → `Alert` y `alert:acknowledged`. Ya reconocida → 409              | ✅ F2  |
+| Método | Ruta                                     | Acceso                       | Descripción                                                                                                                                      | Estado     |
+| ------ | ---------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| GET    | `/api/health`                            | público                      | Estado del gateway, PostgreSQL y MQTT (`HealthResponse`)                                                                                         | ✅ F2      |
+| POST   | `/api/auth/login`                        | público (5/min por IP)       | Login del personal → `LoginResponse` (JWT de 8 h)                                                                                                | ✅ F1      |
+| GET    | `/api/auth/me`                           | staff                        | Usuario autenticado (`StaffUser`)                                                                                                                | ✅ F1      |
+| GET    | `/api/services`                          | público                      | Servicios de atención (`ServiceArea[]`) para elegir en el check-in                                                                               | ✅ F1      |
+| GET    | `/api/consulting-rooms`                  | staff                        | Consultorios activos (`ConsultingRoom[]`)                                                                                                        | ✅ F1      |
+| POST   | `/api/check-in`                          | público (10/min por IP)      | Check-in (`CheckInRequest`) → `PublicTicket`. Idempotente por DNI                                                                                | ✅ F1      |
+| GET    | `/api/tickets?status=&serviceCode=`      | staff                        | Fila del día (por defecto, turnos abiertos), ordenada por triaje y llegada (`Ticket[]`)                                                          | ✅ F1      |
+| GET    | `/api/tickets/:id`                       | staff                        | Detalle de un turno (`Ticket`)                                                                                                                   | ✅ F1      |
+| GET    | `/api/tickets/:id/public`                | público                      | Estado para el paciente (`PublicTicket`: posición y espera estimada)                                                                             | ✅ F1      |
+| GET    | `/api/tickets/recent-calls?serviceCode=` | público                      | Últimos 6 llamados del día para la TV (`RecentCallsResponse`, sin datos clínicos); `serviceCode` filtra una TV por servicio                      | ✅ F3 · F5 |
+| GET    | `/api/tickets/:id/readings?minutes=`     | staff                        | Curva de signos vitales del turno (`VitalsHistory`): promedios por intervalo (≤ 600 puntos), caídas y alertas. `minutes` 1–1440, 120 por defecto | ✅ F5      |
+| POST   | `/api/tickets/:id/call`                  | `DOCTOR` · `NURSE` · `ADMIN` | Llamar a un consultorio (`CallTicketRequest`)                                                                                                    | ✅ F1      |
+| PATCH  | `/api/tickets/:id/status`                | staff                        | Cambiar el estado (`UpdateTicketStatusRequest`) según las transiciones permitidas                                                                | ✅ F1      |
+| PATCH  | `/api/tickets/:id/triage`                | `NURSE` · `DOCTOR` · `ADMIN` | Triaje manual (`UpdateTriageRequest`)                                                                                                            | ✅ F1      |
+| GET    | `/api/wearables`                         | staff                        | Pulseras con turno, conexión (`online`), sala y última lectura (`Wearable[]`)                                                                    | ✅ F2      |
+| GET    | `/api/wearables/:id`                     | staff                        | Detalle de una pulsera (`Wearable`)                                                                                                              | ✅ F2      |
+| POST   | `/api/wearables`                         | `ADMIN` · `NURSE`            | Alta (`CreateWearableRequest`): código `wb-<NN>-<mac>` y número sin repetir → 409                                                                | ✅ F2      |
+| PATCH  | `/api/wearables/:id`                     | `ADMIN` · `NURSE`            | Etiqueta y estado (`UpdateWearableRequest`: `AVAILABLE` ↔ `MAINTENANCE`). Asignada → 409: liberala primero                                       | ✅ F5      |
+| POST   | `/api/wearables/:id/assign`              | staff                        | Asignar a un turno abierto (`AssignWearableRequest`). Si ya lo llamaron, va al OLED                                                              | ✅ F2      |
+| POST   | `/api/wearables/:id/release`             | staff                        | Liberar la pulsera (también se libera sola al finalizar o cancelar el turno)                                                                     | ✅ F2      |
+| GET    | `/api/alerts?active=true`                | staff                        | Alertas activas (`active=false`: las últimas 100 de cualquier estado) (`Alert[]`)                                                                | ✅ F2      |
+| POST   | `/api/alerts/:id/ack`                    | staff                        | Reconocer una alerta → `Alert` y `alert:acknowledged`. Ya reconocida → 409. Recién emitida y todavía sin guardar (pocos ms) → 404                | ✅ F2      |
+| GET    | `/api/sync/status`                       | `ADMIN`                      | Estado de la réplica a la nube (`SyncStatus`: pendientes, último envío, error, próximo intento)                                                  | ✅ F5      |
 
 ### Ciclo de vida del turno
 
@@ -107,13 +110,13 @@ io({ path: '/socket.io', auth: { ticketId } }); // paciente → sala patient:<ti
 
 ### Eventos
 
-| Evento               | Salas                               | Payload                                                                                                              | Estado |
-| -------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
-| `ticket:called`      | `tv`, `staff`, `patient:<ticketId>` | `TicketCalledEvent { ticketId, ticketCode, consultingRoom, professionalName?, calledAt }`                            | ✅ F2  |
-| `queue:updated`      | `staff`, `tv`                       | `QueueUpdatedEvent { change, ticketId, ticketCode, serviceCode, status, waitingCount, at }`: aviso para re-consultar | ✅ F2  |
-| `telemetry:reading`  | `staff`                             | `TelemetryReadingEvent { wearableId, ticketId, ticketCode, reading, assessment, receivedAt }`                        | ✅ F2  |
-| `alert:emergency`    | `staff`                             | `AlertEmergencyEvent { alertId, wearableId, ticketId?, patientId?, ticketCode?, kind, level, message, detectedAt }`  | ✅ F2  |
-| `alert:acknowledged` | `staff`                             | `AlertAcknowledgedEvent { alertId, by: { id, fullName }, at }`                                                       | ✅ F2  |
+| Evento               | Salas                               | Payload                                                                                                                                              | Estado     |
+| -------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `ticket:called`      | `tv`, `staff`, `patient:<ticketId>` | `TicketCalledEvent { ticketId, ticketCode, serviceCode?, consultingRoom, professionalName?, calledAt }`: la TV por servicio filtra por `serviceCode` | ✅ F2 · F5 |
+| `queue:updated`      | `staff`, `tv`                       | `QueueUpdatedEvent { change, ticketId, ticketCode, serviceCode, status, waitingCount, at }`: aviso para re-consultar                                 | ✅ F2      |
+| `telemetry:reading`  | `staff`                             | `TelemetryReadingEvent { wearableId, ticketId, ticketCode, reading, assessment, receivedAt }`                                                        | ✅ F2      |
+| `alert:emergency`    | `staff`                             | `AlertEmergencyEvent { alertId, wearableId, ticketId?, patientId?, ticketCode?, kind, level, message, detectedAt }`                                  | ✅ F2      |
+| `alert:acknowledged` | `staff`                             | `AlertAcknowledgedEvent { alertId, by: { id, fullName }, at }`                                                                                       | ✅ F2      |
 
 - Los signos vitales **solo** se emiten a la sala `staff`. `queue:updated` no lleva triaje ni datos del paciente (lo ve la TV).
 - `change` de `queue:updated`: `CHECK_IN`, `CALLED`, `STATUS` o `TRIAGE` (manual o escalado por la telemetría).
@@ -239,6 +242,38 @@ Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSIO
 Desde 4c, el firmware se suscribe con QoS 1 a `hospital/+/wearable/<id propio>/cmd` en cada conexión, incluso al reconectar. El receptor valida el objeto completo con esos tres campos, `type` conocido y textos UTF-8 no vacíos sin controles. Los límites `WEARABLE_COMMAND_LIMITS` se generan a C++: 512 bytes de JSON, 16 de código y 320 de consultorio (sin terminadores). El formato del mensaje no cambia.
 
 Los fragmentos se reensamblan dentro del límite; mensajes retenidos, incompletos, ajenos, desconocidos o inválidos se descartan sin cambiar el último llamado. La tarea MQTT pasa una copia por cola al `loop()`, que muestra `TE LLAMAN`, código y consultorio. Los nombres largos se desplazan y las tildes/ñ se transliteran para la fuente básica del OLED. Una caída local reciente conserva prioridad; sin broker se indica `LLAMADO SIN RED` y se conserva lo recibido. El llamado dura hasta reemplazo o reinicio: todavía no hay `CLEAR_TICKET` ni recuperación automática de llamados perdidos durante una desconexión. [ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md).
+
+## Réplica a la nube (RF-O6, ADR 0018)
+
+El gateway envía los cambios con `POST <CLOUD_SYNC_URL>`, header `Authorization: Bearer <CLOUD_SYNC_TOKEN>` y cuerpo `SyncBatch` (`libs/shared/contracts/src/lib/sync`):
+
+```json
+{
+  "gatewayId": "gateway-local",
+  "sentAt": "2026-10-25T14:00:00.000Z",
+  "events": [
+    {
+      "id": 41,
+      "topic": "ticket.upsert",
+      "entityId": "<uuid>",
+      "occurredAt": "…",
+      "payload": { "…": "Ticket" }
+    },
+    {
+      "id": 42,
+      "topic": "alert.upsert",
+      "entityId": "<uuid>",
+      "occurredAt": "…",
+      "payload": { "…": "Alert" }
+    }
+  ]
+}
+```
+
+- Tópicos (`SYNC_TOPICS`): `ticket.upsert` (payload `Ticket`) y `alert.upsert` (payload `Alert`). Siempre el estado completo y ya minimizado: nombre visible, nunca el DNI.
+- Hasta `SYNC_BATCH_SIZE` (100) eventos por envío, en orden de `id`. La nube responde 2xx para confirmar. Cualquier otro código o un timeout de 10 s → reintento con backoff (máx. 5 min).
+- Entrega al menos una vez: la nube deduplica por `gatewayId` + `id` y se queda con el `occurredAt` más nuevo por `entityId`.
+- `pnpm cloud:sink` implementa este receptor para pruebas.
 
 ## Portal cautivo ↔ API
 

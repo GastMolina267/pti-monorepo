@@ -92,31 +92,44 @@ erDiagram
     timestamptz detected_at
     timestamptz acknowledged_at
   }
+  sync_outbox {
+    bigint id PK
+    sync_topic topic "ticket.upsert | alert.upsert"
+    uuid entity_id "sin FK: sobrevive a la purga"
+    jsonb payload "contrato minimizado"
+    timestamptz occurred_at
+    timestamptz sent_at "NULL = pendiente"
+    int attempts
+  }
 ```
 
 ## Reglas del modelo
 
-| Regla                                                                             | Implementación                                                                           |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| La numeración de turnos reinicia por servicio y día operativo (hora de Argentina) | `UNIQUE (service_id, day_key, number)`, con reintento ante colisión en el check-in       |
-| Una pulsera se asigna a un solo turno a la vez                                    | `wearables.ticket_id UNIQUE`                                                             |
-| La fila se consulta por estado, triaje y llegada                                  | Índice `ix_tickets_queue (status, triage_level, checked_in_at)`                          |
-| La telemetría se consulta por pulsera o turno en el tiempo                        | Índices `(wearable_id, measured_at)` y `(ticket_id, measured_at)`                        |
-| Una lectura no se guarda dos veces (reenvíos de QoS 1)                            | `UNIQUE (wearable_id, seq)` + `INSERT … ON CONFLICT DO NOTHING`                          |
-| `seq` = arranque × 2^24 + contador                                                | `bigint` (supera int32 desde el arranque 128); TypeORM lo convierte a `number`           |
-| No se abre una alerta igual a una activa                                          | Índice `(wearable_id, status)` + control en memoria en `AlertsService`                   |
-| Datos mínimos del paciente (Ley 25.326)                                           | Solo nombre, apellido y DNI opcional. Las respuestas muestran `displayName` ("Lucía G.") |
-| Contraseñas                                                                       | Hash bcrypt (`password_hash`, `select: false`)                                           |
-| IDs                                                                               | `uuid` con `gen_random_uuid()`. Las lecturas usan `bigint` autoincremental por volumen   |
+| Regla                                                                             | Implementación                                                                                 |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| La numeración de turnos reinicia por servicio y día operativo (hora de Argentina) | `UNIQUE (service_id, day_key, number)`, con reintento ante colisión en el check-in             |
+| Una pulsera se asigna a un solo turno a la vez                                    | `wearables.ticket_id UNIQUE`                                                                   |
+| La fila se consulta por estado, triaje y llegada                                  | Índice `ix_tickets_queue (status, triage_level, checked_in_at)`                                |
+| La telemetría se consulta por pulsera o turno en el tiempo                        | Índices `(wearable_id, measured_at)` y `(ticket_id, measured_at)`                              |
+| Las lecturas viejas se borran (retención, 72 h por defecto)                       | Índice `ix_readings_measured_at`; borrado en tandas de 5.000 (`TelemetryRetentionService`)     |
+| La curva de 24 h no viaja completa                                                | `date_bin` en la base: ≤ 600 puntos por consulta, sin importar la ventana                      |
+| Réplica a la nube sin perder cambios en un corte de WAN                           | `sync_outbox` + índice `ix_sync_outbox_pending (sent_at, id)`; enviados se purgan a los 7 días |
+| Una lectura no se guarda dos veces (reenvíos de QoS 1)                            | `UNIQUE (wearable_id, seq)` + `INSERT … ON CONFLICT DO NOTHING`                                |
+| `seq` = arranque × 2^24 + contador                                                | `bigint` (supera int32 desde el arranque 128); TypeORM lo convierte a `number`                 |
+| No se abre una alerta igual a una activa                                          | Índice `(wearable_id, status)` + control en memoria en `AlertsService`                         |
+| Datos mínimos del paciente (Ley 25.326)                                           | Solo nombre, apellido y DNI opcional. Las respuestas muestran `displayName` ("Lucía G.")       |
+| Contraseñas                                                                       | Hash bcrypt (`password_hash`, `select: false`)                                                 |
+| IDs                                                                               | `uuid` con `gen_random_uuid()`. Las lecturas usan `bigint` autoincremental por volumen         |
 
-Los enums de PostgreSQL (`staff_role`, `ticket_status`, `triage_level`, `check_in_source`, `wearable_status`, `alert_kind`, `alert_status`) usan los mismos valores que `@vitalia/contracts`.
+Los enums de PostgreSQL (`staff_role`, `ticket_status`, `triage_level`, `check_in_source`, `wearable_status`, `alert_kind`, `alert_status`, `sync_topic`) usan los mismos valores que `@vitalia/contracts`.
 
 ## Tablas por fase
 
-| Tabla                                                                     | Se usa desde                          |
-| ------------------------------------------------------------------------- | ------------------------------------- |
-| `staff_users`, `service_areas`, `consulting_rooms`, `patients`, `tickets` | Fase 1 ✅                             |
-| `wearables`, `telemetry_readings`, `alerts`                               | Fase 2 ✅ (el seed asigna 4 pulseras) |
+| Tabla                                                                     | Se usa desde                           |
+| ------------------------------------------------------------------------- | -------------------------------------- |
+| `staff_users`, `service_areas`, `consulting_rooms`, `patients`, `tickets` | Fase 1 ✅                              |
+| `wearables`, `telemetry_readings`, `alerts`                               | Fase 2 ✅ (el seed asigna 4 pulseras)  |
+| `sync_outbox` (vacía si `CLOUD_SYNC_URL` no está configurada)             | Fase 5 ✅ (migración `Fase5Operacion`) |
 
 ## Comandos
 
