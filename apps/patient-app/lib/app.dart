@@ -34,6 +34,7 @@ class _Splash extends StatelessWidget {
   const _Splash();
 
   @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: VitaliaLogo(size: 56, subtitle: 'Tu turno, siempre a mano')));
+  Widget build(BuildContext context) => const Scaffold(
+    body: Center(child: VitaliaLogo(size: 56, subtitle: 'Tu turno, siempre a mano')),
+  );
 }

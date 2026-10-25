@@ -88,11 +88,7 @@ const ticketStatusLabels = <String, String>{
 };
 
 const triageLevels = <String>['STABLE', 'ATTENTION', 'CRITICAL'];
-const triageLevelLabels = <String, String>{
-  'STABLE': 'Estable',
-  'ATTENTION': 'Atención',
-  'CRITICAL': 'Crítico',
-};
+const triageLevelLabels = <String, String>{'STABLE': 'Estable', 'ATTENTION': 'Atención', 'CRITICAL': 'Crítico'};
 
 /// Cómo se le muestra el triaje al paciente: prioridad, no diagnóstico.
 const patientPriorityLabels = <String, String>{

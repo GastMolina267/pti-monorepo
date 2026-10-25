@@ -206,10 +206,7 @@ class _HealthCardEditorState extends State<HealthCardEditor> {
   }
 
   Future<void> _save() async {
-    final card = HealthCard.fromJson({
-      for (final f in _fields) f: _c[f]!.text.trim(),
-      'bloodType': _bloodType,
-    });
+    final card = HealthCard.fromJson({for (final f in _fields) f: _c[f]!.text.trim(), 'bloodType': _bloodType});
     await widget.app.saveHealthCard(card);
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -291,7 +288,12 @@ class EmergencyCardScreen extends StatelessWidget {
               children: [
                 Text(
                   label.toUpperCase(),
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.4, color: color ?? VtLight.muted),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    color: color ?? VtLight.muted,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(value.trim(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.3)),
@@ -305,7 +307,10 @@ class EmergencyCardScreen extends StatelessWidget {
         data: VitaliaTheme.light(),
         child: Scaffold(
           backgroundColor: Colors.white,
-          appBar: AppBar(backgroundColor: Colors.white, title: const VitaliaLogo(size: 28, subtitle: 'Ficha del paciente')),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            title: const VitaliaLogo(size: 28, subtitle: 'Ficha del paciente'),
+          ),
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -316,7 +321,10 @@ class EmergencyCardScreen extends StatelessWidget {
                 block('Alergias', card.allergies, color: VtColors.dangerDeep),
                 block('Enfermedades o condiciones', card.conditions),
                 block('Medicación habitual', card.medications),
-                block('Obra social', [card.insurance, card.insuranceNumber].where((s) => s.trim().isNotEmpty).join(' · ')),
+                block(
+                  'Obra social',
+                  [card.insurance, card.insuranceNumber].where((s) => s.trim().isNotEmpty).join(' · '),
+                ),
                 block('Contacto de emergencia', '${card.emergencyName} ${card.emergencyPhone}'),
                 block('Notas', card.notes),
                 const SizedBox(height: 8),

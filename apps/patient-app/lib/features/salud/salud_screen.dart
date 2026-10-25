@@ -78,9 +78,7 @@ class _VitalsNow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text('Ahora', style: Theme.of(context).textTheme.titleLarge),
-              ),
+              Expanded(child: Text('Ahora', style: Theme.of(context).textTheme.titleLarge)),
               PriorityPill(level),
             ],
           ),
@@ -97,7 +95,12 @@ class _VitalsNow extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _Metric(icon: Icons.water_drop_outlined, label: 'SpO₂', value: vitals.spo2?.toString(), unit: '%'),
+                child: _Metric(
+                  icon: Icons.water_drop_outlined,
+                  label: 'SpO₂',
+                  value: vitals.spo2?.toString(),
+                  unit: '%',
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -144,10 +147,7 @@ class _Metric extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -168,8 +168,14 @@ class _Metric extends StatelessWidget {
           Text.rich(
             TextSpan(
               children: [
-                TextSpan(text: value ?? '–', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-                TextSpan(text: ' $unit', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                TextSpan(
+                  text: value ?? '–',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                ),
+                TextSpan(
+                  text: ' $unit',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
               ],
             ),
           ),
@@ -254,7 +260,10 @@ class _CurveCardState extends State<_CurveCard> {
           ),
           const SizedBox(height: 14),
           if (history == null && _error == null)
-            const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (history == null)
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))
           else if (history.points.isEmpty)

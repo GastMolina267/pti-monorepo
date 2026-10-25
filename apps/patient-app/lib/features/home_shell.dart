@@ -51,12 +51,7 @@ class _HomeShellState extends State<HomeShell> {
     return ListenableBuilder(
       listenable: app,
       builder: (context, _) {
-        final pages = [
-          TurnoScreen(app: app),
-          SaludScreen(app: app),
-          AgendaScreen(app: app),
-          FichaScreen(app: app),
-        ];
+        final pages = [TurnoScreen(app: app), SaludScreen(app: app), AgendaScreen(app: app), FichaScreen(app: app)];
         return Scaffold(
           appBar: AppBar(
             title: const VitaliaLogo(size: 30),
@@ -68,16 +63,16 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ],
           ),
-          body: SafeArea(top: false, child: IndexedStack(index: _tab, children: pages)),
+          body: SafeArea(
+            top: false,
+            child: IndexedStack(index: _tab, children: pages),
+          ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _tab,
             onDestinationSelected: (i) => setState(() => _tab = i),
             destinations: [
               NavigationDestination(
-                icon: Badge(
-                  isLabelVisible: app.calledNotice,
-                  child: const Icon(Icons.confirmation_number_outlined),
-                ),
+                icon: Badge(isLabelVisible: app.calledNotice, child: const Icon(Icons.confirmation_number_outlined)),
                 selectedIcon: const Icon(Icons.confirmation_number),
                 label: 'Turno',
               ),

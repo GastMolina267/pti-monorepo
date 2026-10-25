@@ -31,7 +31,12 @@ void main() {
       httpClient: fakeApi({
         'POST /api/patient/pair': (_) => jsonResponse(sessionJson()),
         'GET /api/patient/me': (_) => jsonResponse(
-          overviewJson(status: 'CALLED', position: null, room: 'Box de Guardia 1', professional: 'Dra. Laura Fernández'),
+          overviewJson(
+            status: 'CALLED',
+            position: null,
+            room: 'Box de Guardia 1',
+            professional: 'Dra. Laura Fernández',
+          ),
         ),
       }),
     );

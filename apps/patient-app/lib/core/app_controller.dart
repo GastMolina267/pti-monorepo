@@ -18,13 +18,8 @@ const calledNoticeWindow = Duration(minutes: 3);
 /// Estado de la app: sesión del turno, su vista en vivo y los datos locales (visitas, agenda,
 /// ficha). Un solo `ChangeNotifier`: la app es chica y así no suma dependencias.
 class AppController extends ChangeNotifier {
-  AppController({
-    required this.store,
-    this.httpClient,
-    this.realtimeFactory,
-    DateTime Function()? clock,
-    this.onCalled,
-  }) : _clock = clock ?? DateTime.now;
+  AppController({required this.store, this.httpClient, this.realtimeFactory, DateTime Function()? clock, this.onCalled})
+    : _clock = clock ?? DateTime.now;
 
   /// Almacenamiento cifrado (o en memoria en los tests).
   final KeyValueStore store;

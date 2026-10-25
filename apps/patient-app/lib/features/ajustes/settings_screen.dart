@@ -38,7 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final status = await widget.app.testConnection(_url.text);
       if (!mounted) return;
-      setState(() => _status = status == 'ok' ? '✓ Conectado al hospital' : '✓ Conectado (servidor con avisos: $status)');
+      setState(
+        () => _status = status == 'ok' ? '✓ Conectado al hospital' : '✓ Conectado (servidor con avisos: $status)',
+      );
     } on ApiException catch (e) {
       if (mounted) setState(() => _status = e.message);
     } finally {
@@ -96,7 +98,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             if (_status != null) ...[
               const SizedBox(height: 8),
-              Text(_status!, style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant)),
+              Text(
+                _status!,
+                style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+              ),
             ],
             const SizedBox(height: 12),
             Row(
@@ -110,7 +115,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: FilledButton(onPressed: _save, child: const Text('Guardar'))),
+                Expanded(
+                  child: FilledButton(onPressed: _save, child: const Text('Guardar')),
+                ),
               ],
             ),
             const SectionLabel('Turno vinculado'),

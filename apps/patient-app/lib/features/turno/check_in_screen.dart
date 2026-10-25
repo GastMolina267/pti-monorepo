@@ -189,7 +189,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 4),
-                Text(_error!, style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600),
+                ),
               ],
               const SizedBox(height: 16),
               FilledButton(
@@ -223,10 +226,7 @@ class _ServicesError extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(13),
-      ),
+      decoration: BoxDecoration(color: scheme.error.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(13)),
       child: Row(
         children: [
           Icon(Icons.wifi_off_rounded, color: scheme.error),

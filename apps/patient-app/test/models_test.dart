@@ -20,7 +20,13 @@ void main() {
 
   test('la visita guardada conserva consultorio, profesional y signos', () {
     final o = PatientOverview.fromJson(
-      overviewJson(status: 'CALLED', position: null, room: 'Box 1', professional: 'Dra. Laura Fernández', vitals: vitalsJson),
+      overviewJson(
+        status: 'CALLED',
+        position: null,
+        room: 'Box 1',
+        professional: 'Dra. Laura Fernández',
+        vitals: vitalsJson,
+      ),
     );
     final v = Visit.fromJson(Visit.fromOverview(o, DateTime.utc(2026, 10, 25, 15)).toJson());
     expect(v.consultingRoomName, 'Box 1');

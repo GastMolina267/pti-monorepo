@@ -24,7 +24,12 @@ void main() {
         }, 201),
       }, log: log),
     );
-    final result = await api.checkIn(firstName: ' Bruno ', lastName: 'Díaz', serviceCode: 'GUARDIA', documentNumber: '');
+    final result = await api.checkIn(
+      firstName: ' Bruno ',
+      lastName: 'Díaz',
+      serviceCode: 'GUARDIA',
+      documentNumber: '',
+    );
     expect(result.code, 'B-004');
     expect(result.session!.token, 'tok-123');
     final body = jsonDecode(log.single.body) as Map<String, dynamic>;
@@ -48,14 +53,23 @@ void main() {
       client: fakeApi({
         'POST /api/patient/pair': (_) =>
             jsonResponse({'message': 'El código no es válido o venció: pedile uno nuevo al personal'}, 401),
-        'GET /api/services': (_) => jsonResponse({'message': ['servicio inválido', 'otro']}, 400),
+        'GET /api/services': (_) => jsonResponse({
+          'message': ['servicio inválido', 'otro'],
+        }, 400),
       }),
     );
     await expectLater(
       api.pair('AAAAAA'),
-      throwsA(isA<ApiException>().having((e) => e.isUnauthorized, '401', isTrue).having((e) => e.message, 'msg', contains('pedile'))),
+      throwsA(
+        isA<ApiException>()
+            .having((e) => e.isUnauthorized, '401', isTrue)
+            .having((e) => e.message, 'msg', contains('pedile')),
+      ),
     );
-    await expectLater(api.services(), throwsA(isA<ApiException>().having((e) => e.message, 'msg', 'servicio inválido\notro')));
+    await expectLater(
+      api.services(),
+      throwsA(isA<ApiException>().having((e) => e.message, 'msg', 'servicio inválido\notro')),
+    );
     expect(errorMessageFrom(429, ''), contains('Esperá un minuto'));
     expect(errorMessageFrom(502, '<html>'), contains('problema'));
   });

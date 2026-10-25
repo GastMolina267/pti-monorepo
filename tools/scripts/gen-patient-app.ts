@@ -49,12 +49,21 @@ export function dartString(value: string): string {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\$/g, '\\$')}'`;
 }
 
-const stringMap = (entries: Record<string, string>) =>
-  `{\n${Object.entries(entries)
-    .map(([k, v]) => `  ${dartString(k)}: ${dartString(v)},`)
-    .join('\n')}\n}`;
+/** Ancho de línea de `dart format` (analysis_options.yaml de la app). */
+const PAGE_WIDTH = 120;
 
-const stringList = (values: readonly string[]) => `[${values.map(dartString).join(', ')}]`;
+/**
+ * `const nombre = <K, V>{...};` igual que lo deja `dart format`: en una línea si entra en
+ * {@link PAGE_WIDTH}; si no, una entrada por línea con coma final.
+ */
+export function dartConst(head: string, open: string, close: string, items: string[]): string {
+  const oneLine = `${head}${open}${items.join(', ')}${close};`;
+  if (oneLine.length <= PAGE_WIDTH) return oneLine;
+  return `${head}${open}\n${items.map((i) => `  ${i},`).join('\n')}\n${close};`;
+}
+
+const mapEntries = (entries: Record<string, string>) =>
+  Object.entries(entries).map(([k, v]) => `${dartString(k)}: ${dartString(v)}`);
 
 const colorFields = (obj: Record<string, string>, indent = '  ') =>
   Object.entries(obj)
@@ -118,19 +127,22 @@ export function renderDart(): string {
     `  static const pairingCodeAlphabet = ${dartString(PAIRING_CODE_ALPHABET)};`,
     '}',
     '',
-    `const ticketStatuses = <String>${stringList(TICKET_STATUSES)};`,
-    `const openTicketStatuses = <String>${stringList(OPEN_TICKET_STATUSES)};`,
-    `const ticketStatusLabels = <String, String>${stringMap(TICKET_STATUS_LABELS)};`,
+    dartConst('const ticketStatuses = <String>', '[', ']', TICKET_STATUSES.map(dartString)),
+    dartConst('const openTicketStatuses = <String>', '[', ']', OPEN_TICKET_STATUSES.map(dartString)),
+    dartConst('const ticketStatusLabels = <String, String>', '{', '}', mapEntries(TICKET_STATUS_LABELS)),
     '',
-    `const triageLevels = <String>${stringList(TRIAGE_LEVELS)};`,
-    `const triageLevelLabels = <String, String>${stringMap(TRIAGE_LEVEL_LABELS)};`,
+    dartConst('const triageLevels = <String>', '[', ']', TRIAGE_LEVELS.map(dartString)),
+    dartConst('const triageLevelLabels = <String, String>', '{', '}', mapEntries(TRIAGE_LEVEL_LABELS)),
     '',
     '/// Cómo se le muestra el triaje al paciente: prioridad, no diagnóstico.',
-    `const patientPriorityLabels = <String, String>${stringMap(PATIENT_PRIORITY_LABELS)};`,
+    dartConst('const patientPriorityLabels = <String, String>', '{', '}', mapEntries(PATIENT_PRIORITY_LABELS)),
     '',
-    'const triageColors = <String, Color>{',
-    ...Object.entries(TRIAGE_COLORS).map(([k, v]) => `  ${dartString(k)}: ${dartColor(v)},`),
-    '};',
+    dartConst(
+      'const triageColors = <String, Color>',
+      '{',
+      '}',
+      Object.entries(TRIAGE_COLORS).map(([k, v]) => `${dartString(k)}: ${dartColor(v)}`),
+    ),
     '',
   ].join('\n');
 }

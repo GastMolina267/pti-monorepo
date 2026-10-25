@@ -220,15 +220,17 @@ class _PanelPainter extends CustomPainter {
 
   void _text(Canvas canvas, String text, Offset at) {
     final tp = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: 10.5, color: label, fontFamily: 'PlusJakartaSans')),
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: 10.5, color: label, fontFamily: 'PlusJakartaSans'),
+      ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: leftAxis - 4);
     tp.paint(canvas, at);
   }
 
   @override
-  bool shouldRepaint(covariant _PanelPainter old) =>
-      old.history != history || old.line != line || old.series != series;
+  bool shouldRepaint(covariant _PanelPainter old) => old.history != history || old.line != line || old.series != series;
 }
 
 /// Rótulos de tiempo debajo de los paneles (inicio, medio, fin).

@@ -35,7 +35,12 @@ void main() {
     expect(app.ticket!.code, 'B-004');
     expect(app.visits.single.status, 'WAITING');
 
-    body = overviewJson(status: 'CALLED', position: null, room: 'Box de Guardia 1', calledAt: '2026-10-25T14:09:30.000Z');
+    body = overviewJson(
+      status: 'CALLED',
+      position: null,
+      room: 'Box de Guardia 1',
+      calledAt: '2026-10-25T14:09:30.000Z',
+    );
     await app.refresh();
     expect(app.calledNotice, isTrue);
     expect(calls, 1);

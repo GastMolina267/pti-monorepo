@@ -28,7 +28,10 @@ class VitaliaLogo extends StatelessWidget {
                 TextSpan(
                   children: [
                     const TextSpan(text: 'Vital'),
-                    TextSpan(text: 'ia', style: TextStyle(color: scheme.secondary)),
+                    TextSpan(
+                      text: 'ia',
+                      style: TextStyle(color: scheme.secondary),
+                    ),
                   ],
                 ),
                 style: TextStyle(fontSize: size * 0.56, fontWeight: FontWeight.w800, letterSpacing: -0.4, height: 1.1),
@@ -95,16 +98,26 @@ class Pill extends StatelessWidget {
     final fg = isDark ? Color.lerp(color, Colors.white, 0.35)! : Color.lerp(color, Colors.black, 0.25)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withValues(alpha: isDark ? 0.22 : 0.13), borderRadius: BorderRadius.circular(99)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.22 : 0.13),
+        borderRadius: BorderRadius.circular(99),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (dot) ...[
-            Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 6),
           ],
           if (icon != null) ...[Icon(icon, size: 14, color: fg), const SizedBox(width: 5)],
-          Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fg),
+          ),
         ],
       ),
     );
@@ -144,7 +157,13 @@ class StatusPill extends StatelessWidget {
 
 /// Estado vacío con ícono, título, texto y acciones.
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.icon, required this.title, required this.message, this.actions = const []});
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actions = const [],
+  });
 
   final IconData icon;
   final String title;
@@ -161,7 +180,10 @@ class EmptyState extends StatelessWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Icon(icon, size: 30, color: scheme.primary),
           ),
           const SizedBox(height: 16),
@@ -201,7 +223,10 @@ class InfoRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 2),
                 Text(value, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, height: 1.35)),
               ],
@@ -224,7 +249,10 @@ class VtCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     clipBehavior: Clip.antiAlias,
-    child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(padding: padding, child: child),
+    ),
   );
 }
 

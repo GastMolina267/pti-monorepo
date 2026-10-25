@@ -68,6 +68,5 @@ extension JsonStore on KeyValueStore {
     }
   }
 
-  Future<void> writeJson(String key, Object? value) =>
-      value == null ? delete(key) : write(key, jsonEncode(value));
+  Future<void> writeJson(String key, Object? value) => value == null ? delete(key) : write(key, jsonEncode(value));
 }

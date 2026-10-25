@@ -29,7 +29,10 @@ class PairingCodeFormatter extends TextInputFormatter {
         .where((c) => VtPatient.pairingCodeAlphabet.contains(c))
         .take(VtPatient.pairingCodeLength)
         .join();
-    return TextEditingValue(text: clean, selection: TextSelection.collapsed(offset: clean.length));
+    return TextEditingValue(
+      text: clean,
+      selection: TextSelection.collapsed(offset: clean.length),
+    );
   }
 }
 

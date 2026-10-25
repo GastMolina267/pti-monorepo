@@ -38,10 +38,7 @@ class TurnoScreen extends StatelessWidget {
             _TicketDetails(ticket: overview.ticket),
             const SizedBox(height: 10),
             _SyncLine(app: app),
-            if (overview.ticket.isFinal) ...[
-              const SizedBox(height: 12),
-              _FinishedCard(app: app),
-            ],
+            if (overview.ticket.isFinal) ...[const SizedBox(height: 12), _FinishedCard(app: app)],
           ],
           if (app.upcoming.isNotEmpty) ...[
             const SectionLabel('Próximos turnos en tu agenda'),
@@ -80,10 +77,7 @@ class _Welcome extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: VitaliaTheme.brandGradient,
-            borderRadius: BorderRadius.circular(26),
-          ),
+          decoration: BoxDecoration(gradient: VitaliaTheme.brandGradient, borderRadius: BorderRadius.circular(26)),
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -128,7 +122,10 @@ class _Loading extends StatelessWidget {
   Widget build(BuildContext context) {
     final error = app.error;
     if (error == null) {
-      return const Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()));
+      return const Padding(
+        padding: EdgeInsets.all(48),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
     return EmptyState(
       icon: Icons.wifi_off_rounded,
@@ -196,8 +193,12 @@ class _TicketHero extends StatelessWidget {
     final t = overview.ticket;
     final (headline, detail) = switch (t.status) {
       'WAITING' => (
-        t.position == 0 ? 'Sos el próximo' : '${t.position ?? '–'} ${t.position == 1 ? 'persona' : 'personas'} antes que vos',
-        t.estimatedWaitMinutes == null ? 'Te avisamos cuando te llamen' : 'Espera estimada ${waitLabel(t.estimatedWaitMinutes!)}',
+        t.position == 0
+            ? 'Sos el próximo'
+            : '${t.position ?? '–'} ${t.position == 1 ? 'persona' : 'personas'} antes que vos',
+        t.estimatedWaitMinutes == null
+            ? 'Te avisamos cuando te llamen'
+            : 'Espera estimada ${waitLabel(t.estimatedWaitMinutes!)}',
       ),
       'CALLED' => (
         t.consultingRoomName ?? 'Te llamaron',
@@ -230,7 +231,12 @@ class _TicketHero extends StatelessWidget {
                 child: Text(
                   'HOLA, ${overview.firstName.toUpperCase()} · ${t.serviceName.toUpperCase()}',
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.4),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                  ),
                 ),
               ),
               _HeroPill(label: t.statusLabel),
@@ -248,7 +254,10 @@ class _TicketHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(headline, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+          Text(
+            headline,
+            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+          ),
           if (detail.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(detail, style: TextStyle(color: Colors.white.withValues(alpha: 0.92), fontSize: 15.5)),
@@ -268,7 +277,10 @@ class _HeroPill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(99)),
-    child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700)),
+    child: Text(
+      label,
+      style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700),
+    ),
   );
 }
 
@@ -297,7 +309,8 @@ class _TicketDetails extends StatelessWidget {
           InfoRow(
             icon: Icons.schedule,
             label: 'Llegada',
-            value: '${hhmm(ticket.checkedInAt)}${ticket.calledAt == null ? '' : ' · llamado ${hhmm(ticket.calledAt!)}'}',
+            value:
+                '${hhmm(ticket.checkedInAt)}${ticket.calledAt == null ? '' : ' · llamado ${hhmm(ticket.calledAt!)}'}',
           ),
           if (ticket.reason != null) InfoRow(icon: Icons.notes, label: 'Motivo', value: ticket.reason!),
           Padding(
@@ -324,7 +337,11 @@ class _SyncLine extends StatelessWidget {
     final text = error ?? (updated == null ? 'Actualizando…' : 'Actualizado ${ago(updated, app.now())}');
     return Row(
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -416,7 +433,10 @@ class _DateBadge extends StatelessWidget {
       decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(13)),
       child: Column(
         children: [
-          Text('${l.day}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: scheme.primary)),
+          Text(
+            '${l.day}',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: scheme.primary),
+          ),
           Text(
             shortDate(l).split(' ')[1].toUpperCase(),
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: scheme.primary, letterSpacing: 1),
@@ -452,7 +472,10 @@ class _VisitTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${v.code} · ${v.serviceName}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5)),
+                Text(
+                  '${v.code} · ${v.serviceName}',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   [
