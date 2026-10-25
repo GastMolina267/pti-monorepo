@@ -18,6 +18,23 @@ describe('validateEnv', () => {
     expect(validateEnv({ ...required, API_PORT: '3100' }).API_PORT).toBe(3100);
   });
 
+  it('interpreta TRUST_PROXY como saltos, booleano o lista', () => {
+    expect(validateEnv(required).TRUST_PROXY).toBeUndefined();
+    expect(validateEnv({ ...required, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
+    expect(validateEnv({ ...required, TRUST_PROXY: 'false' }).TRUST_PROXY).toBe(false);
+    expect(validateEnv({ ...required, TRUST_PROXY: 'loopback, uniquelocal' }).TRUST_PROXY).toBe(
+      'loopback, uniquelocal',
+    );
+  });
+
+  it('retención y sync con valores por defecto seguros', () => {
+    const env = validateEnv(required);
+    expect(env.TELEMETRY_RETENTION_HOURS).toBe(72);
+    expect(env.CLOUD_SYNC_URL).toBeUndefined();
+    expect(validateEnv({ ...required, CLOUD_SYNC_URL: '' }).CLOUD_SYNC_URL).toBeUndefined();
+    expect(() => validateEnv({ ...required, CLOUD_SYNC_URL: 'no-es-url' })).toThrow(/CLOUD_SYNC_URL/);
+  });
+
   it('convierte PORT a número', () => {
     expect(validateEnv({ ...required, PORT: '8080' }).PORT).toBe(8080);
   });

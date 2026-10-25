@@ -3,15 +3,21 @@
     <span class="vt-eyebrow">Día operativo</span>
     <h1>Turnos</h1>
   </div>
-  <label class="search">
-    <svg lucideSearch [size]="16"></svg>
-    <input
-      type="search"
-      placeholder="Buscar código, paciente o consultorio"
-      (input)="onSearch($event)"
-      aria-label="Buscar turnos"
-    />
-  </label>
+  <div class="tools">
+    <button mat-flat-button type="button" class="new" (click)="openCheckIn()">
+      <svg lucidePlus [size]="18"></svg>
+      Nuevo turno
+    </button>
+    <label class="search">
+      <svg lucideSearch [size]="16"></svg>
+      <input
+        type="search"
+        placeholder="Buscar código, paciente o consultorio"
+        (input)="onSearch($event)"
+        aria-label="Buscar turnos"
+      />
+    </label>
+  </div>
 </header>
 
 <div class="filters" role="group" aria-label="Filtrar por estado">
@@ -42,11 +48,18 @@
     <span role="columnheader">Llamado</span>
     <span role="columnheader"><span class="sr-only">Acciones</span></span>
   </div>
-  @for (t of view(); track t.id) {
+  @for (t of shown.items(); track t.id) {
     <div class="tr" role="row">
       <span class="code" role="cell">{{ t.code }}</span>
       <span class="who" role="cell">
-        <strong>{{ t.patient.displayName }}</strong>
+        <button
+          type="button"
+          class="link"
+          (click)="openVitals(t)"
+          [attr.aria-label]="'Ver signos vitales de ' + t.code"
+        >
+          {{ t.patient.displayName }}
+        </button>
         <small>{{ t.service.name }}</small>
       </span>
       <span role="cell"
@@ -71,3 +84,4 @@
     }
   }
 </div>
+<vt-show-more [rest]="shown.rest()" (more)="shown.more()" />

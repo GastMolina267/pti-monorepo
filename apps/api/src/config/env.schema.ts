@@ -52,6 +52,36 @@ export const envSchema = z.object({
     .regex(/^[0-9a-fA-F]{64}$/, 'Debe ser una clave hex de 64 caracteres (32 bytes)')
     .optional()
     .or(z.literal('').transform(() => undefined)),
+
+  // --- Fase 5: operación de largo plazo ---
+  /**
+   * `trust proxy` de Express. Detrás de Nginx (gateway) tiene que ser `1`: si no, todos los
+   * pedidos llegan con la IP del proxy y los límites de login y check-in se comparten entre
+   * todos. Acepta un número de saltos, `true`/`false` o una lista (`loopback, uniquelocal`).
+   */
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((v): boolean | number | string | undefined => {
+      if (v === undefined || v === '') return undefined;
+      if (v === 'true' || v === 'false') return v === 'true';
+      return /^\d+$/.test(v) ? Number(v) : v;
+    }),
+  /** Horas que se conservan las lecturas de telemetría (0 = no borrar nunca). */
+  TELEMETRY_RETENTION_HOURS: z.coerce.number().int().min(0).default(72),
+  /** Cada cuántos minutos corre la limpieza de lecturas viejas. */
+  TELEMETRY_RETENTION_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+  /** Identificador de este gateway en la nube (sync). */
+  GATEWAY_ID: z.string().min(1).default('gateway-local'),
+  /** Endpoint de la nube que recibe los lotes del outbox. Vacío: sync deshabilitado. */
+  CLOUD_SYNC_URL: z
+    .url('CLOUD_SYNC_URL debe ser una URL http(s)://…')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  /** Token Bearer para la nube. */
+  CLOUD_SYNC_TOKEN: z.string().optional(),
+  /** Segundos entre envíos cuando la nube responde (con cortes, espera más, hasta 5 min). */
+  CLOUD_SYNC_INTERVAL_SECONDS: z.coerce.number().int().positive().default(15),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -5,6 +5,7 @@ import type { HealthCheck, HealthResponse, ServiceStatus } from '@vitalia/contra
 import { DataSource } from 'typeorm';
 import type { Env } from '../../config/env.schema';
 import { MqttService } from '../mqtt/mqtt.service';
+import { SyncService } from '../sync/sync.service';
 
 const DB_TIMEOUT_MS = 1500;
 
@@ -14,6 +15,7 @@ export class HealthService {
     private readonly config: ConfigService<Env, true>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly mqtt: MqttService,
+    private readonly sync: SyncService,
   ) {}
 
   /**
@@ -25,6 +27,7 @@ export class HealthService {
       { name: 'process', status: 'ok' },
       await this.checkDatabase(),
       this.checkMqtt(),
+      ...(this.sync.enabled ? [await this.checkSync()] : []),
     ];
     return {
       status: this.aggregate(checks),
@@ -77,6 +80,27 @@ export class HealthService {
       };
     }
     return { name: 'mqtt', status: 'ok' };
+  }
+
+  /** La nube caída no es una falla del gateway (RNF-O2): queda `degraded` y acumula en el outbox. */
+  private async checkSync(): Promise<HealthCheck> {
+    try {
+      const s = await this.sync.status();
+      if (s.consecutiveFailures > 0) {
+        return {
+          name: 'sync',
+          status: 'degraded',
+          detail: `Sin conexión con la nube: ${s.pending} cambio(s) en espera (${s.lastError ?? 'sin detalle'})`,
+        };
+      }
+      return {
+        name: 'sync',
+        status: 'ok',
+        ...(s.pending ? { detail: `${s.pending} cambio(s) por enviar` } : {}),
+      };
+    } catch (err) {
+      return { name: 'sync', status: 'degraded', detail: (err as Error).message };
+    }
   }
 
   private aggregate(checks: HealthCheck[]): ServiceStatus {

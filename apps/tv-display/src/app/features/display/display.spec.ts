@@ -5,7 +5,7 @@ import { REALTIME_EVENTS, REALTIME_READY_EVENT, type TicketCalledEvent } from '@
 import { FakeSocket } from '../../../testing/fake-socket';
 import { SOCKET_FACTORY } from '../../core/realtime/realtime.service';
 import { AnnouncerService } from '../../core/sound/announcer.service';
-import { Display } from './display';
+import { Display, serviceFromUrl } from './display';
 
 const call = (code: string, room: string): TicketCalledEvent => ({
   ticketId: code,
@@ -67,5 +67,13 @@ describe('Display (llamador)', () => {
     await fixture.whenStable();
     expect(el.querySelector('.call .code')?.textContent).toBe('C-007');
     expect(el.querySelector('.conn')?.textContent).toContain('Reconectando');
+  });
+});
+
+describe('serviceFromUrl', () => {
+  it('lee ?servicio= sin importar mayúsculas', () => {
+    expect(serviceFromUrl('?servicio=guardia')).toBe('GUARDIA');
+    expect(serviceFromUrl('')).toBeNull();
+    expect(serviceFromUrl('?servicio=')).toBeNull();
   });
 });

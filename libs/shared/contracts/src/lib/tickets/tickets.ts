@@ -133,8 +133,8 @@ export interface UpdateTicketStatusRequest {
 export const RECENT_CALLS_LIMIT = 6;
 
 /**
- * `GET /api/tickets/recent-calls` (público): últimos llamados del día, el más reciente
- * primero. Lo usa la TV al arrancar o reconectarse. Mismo formato que `ticket:called`
+ * `GET /api/tickets/recent-calls?serviceCode=` (público): últimos llamados del día, el más
+ * reciente primero; con `serviceCode`, solo los de ese servicio. Lo usa la TV al arrancar o reconectarse. Mismo formato que `ticket:called`
  * (sin datos clínicos).
  */
 export type RecentCallsResponse = TicketCalledEvent[];

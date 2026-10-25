@@ -21,7 +21,7 @@ src/
     migrations/              # migraciones + index.ts (REGISTRO, en orden)
     seeds/                   # seed.ts (idempotente, datos simulados) + run-seed.ts
   modules/
-    health/                  # GET /health (PostgreSQL + MQTT)                  ✅ F0–F2
+    health/                  # GET /health (PostgreSQL + MQTT + sync si está activa)  ✅ F0–F5
     auth/                    # login JWT, /auth/me, entidad StaffUser           ✅ F1
     catalog/                 # servicios y consultorios                         ✅ F1
     tickets/                 # turnos, fila, llamado, estados; emite ticket:called/queue:updated ✅ F1–F2
@@ -29,8 +29,10 @@ src/
     realtime/                # gateway Socket.IO (global): salas staff/tv/patient, emit*()     ✅ F2
     mqtt/                    # cliente MQTT único (global): subscribe/publishJson/status     ✅ F2
     telemetry/               # ingesta: sobre AES-GCM → zod → dedupe → WS → persistencia    ✅ F2
+                             # + retención (borrado por tandas) y curva GET /tickets/:id/readings ✅ F5
     alerts/                  # alertas CRÍTICAS, GET /alerts, POST /alerts/:id/ack          ✅ F2
-    wearables/               # alta, asignar/liberar, última lectura, SHOW_TICKET a .../cmd ✅ F2
+    wearables/               # alta, asignar/liberar, mantenimiento (PATCH), SHOW_TICKET a .../cmd ✅ F2–F5
+    sync/                    # outbox → nube (RF-O6): enqueue fire-and-forget, flush con backoff, /sync/status ✅ F5
     iomt/entities/           # Wearable, TelemetryReading, Alert (compartidas por los módulos IoMT)
   testing/                   # helpers SOLO para specs (sobres cifrados de prueba)
   app.int.spec.ts            # integración: PostgreSQL real + broker aedes + Socket.IO (requiere TEST_DATABASE_URL)
@@ -60,6 +62,8 @@ modules/<dominio>/
 - **Tiempo real:** los services inyectan `RealtimeGateway` (módulo global) y llaman a `emit*()`; el gateway elige la sala y nunca lanza. Signos vitales y alertas, solo a `staff`.
 - **MQTT:** un solo cliente (`MqttService`, global). Sin `MQTT_URL` queda deshabilitado y el health marca `degraded`; un broker caído nunca rompe un endpoint (`publishJson` devuelve `false`).
 - **Gateway MQTT (4b):** API y health tienen cuentas separadas, cada pulsera su código como usuario y ACL propia. `gateway:up` aprovisiona sin rotar secretos y recrea contenedores para aplicar bajas. Simulador con `--gateway`; detalles en `docs/09-despliegue-gateway.md`.
+- **Largo plazo (5b, ADR 0018):** `TELEMETRY_RETENTION_HOURS` acota las lecturas (borrado en tandas, nunca lanza). `TRUST_PROXY` va en `1` detrás de Nginx, así el throttler cuenta por cliente. `SyncService` es global: los services llaman a `enqueue(topic, id, contrato)` **después** de guardar y nunca esperan a la nube. Sin `CLOUD_SYNC_URL` no hace nada. El payload es el contrato minimizado (sin DNI).
+- **Rendimiento (5c):** `pnpm perf:load` y `pnpm perf:stress` (`docs/10-validacion.md`). Antes de cerrar un cambio que toque ingesta, alertas o la fila, volvé a correr `perf:load --duration=60`.
 - **Dependencias entre módulos:** `telemetry` → `tickets` → `wearables`; `telemetry` → `alerts`. `wearables` y `alerts` no importan `tickets` (usan repositorios), así no hay ciclos.
 - **Errores:** excepciones de Nest con mensaje en español (`NotFoundException('Turno no encontrado')`, `ConflictException` para transiciones inválidas).
 - **Tests:** jest. Unitarios con mocks. El flujo completo va en `app.int.spec.ts` contra PostgreSQL real (CI con service container), con un broker MQTT en proceso (`aedes` 0.51, la última versión CommonJS) y clientes `socket.io-client`. El descifrado se prueba con `GCM_TEST_VECTORS` de `@vitalia/contracts/testing`. ⚠️ Jest corre en CommonJS: **no uses dependencias solo-ESM** en código que se testea (ej. `@faker-js/faker` v10).

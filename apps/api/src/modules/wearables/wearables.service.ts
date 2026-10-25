@@ -13,6 +13,7 @@ import {
   parseWearableCode,
   TICKET_STATUS_LABELS,
   type CreateWearableRequest,
+  type UpdateWearableRequest,
   type ShowTicketCommand,
   type Wearable,
 } from '@vitalia/contracts';
@@ -130,6 +131,23 @@ export class WearablesService {
         consultingRoom: ticket.consultingRoom.name,
       });
     }
+    return this.findOne(id);
+  }
+
+  /** Etiqueta y mantenimiento. Una pulsera asignada no pasa a mantenimiento: primero se libera. */
+  async update(id: string, req: UpdateWearableRequest): Promise<Wearable> {
+    const wearable = await this.getEntity(id);
+    const changes: Partial<WearableEntity> = {};
+    if (req.label !== undefined) changes.label = req.label?.trim() || null;
+    if (req.status !== undefined && req.status !== wearable.status) {
+      if (wearable.ticket) {
+        throw new ConflictException(
+          `La pulsera está asignada al turno ${wearable.ticket.code}: liberala antes de cambiarle el estado`,
+        );
+      }
+      changes.status = req.status;
+    }
+    if (Object.keys(changes).length) await this.wearables.update(id, changes);
     return this.findOne(id);
   }
 

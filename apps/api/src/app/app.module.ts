@@ -11,6 +11,7 @@ import { CheckInModule } from '../modules/check-in/check-in.module';
 import { HealthModule } from '../modules/health/health.module';
 import { MqttModule } from '../modules/mqtt/mqtt.module';
 import { RealtimeModule } from '../modules/realtime/realtime.module';
+import { SyncModule } from '../modules/sync/sync.module';
 import { TelemetryModule } from '../modules/telemetry/telemetry.module';
 import { TicketsModule } from '../modules/tickets/tickets.module';
 import { WearablesModule } from '../modules/wearables/wearables.module';
@@ -32,6 +33,7 @@ import { WearablesModule } from '../modules/wearables/wearables.module';
     DatabaseModule,
     RealtimeModule,
     MqttModule,
+    SyncModule,
     AuthModule,
     HealthModule,
     CatalogModule,

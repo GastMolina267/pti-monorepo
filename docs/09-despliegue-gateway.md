@@ -234,3 +234,34 @@ Si `pg_restore` falla, la transacción revierte: mantené API/web detenidos y re
 - **Respaldo inválido:** conservá el directorio para diagnóstico y generá otro; no edites hashes para hacer pasar el check.
 
 CI ejecuta `gateway:verify`, `gateway:operations` y smoke final sobre una instalación nueva. Los respaldos, configuración, diarios y capturas permanecen locales al job; no se publican como artifacts. La prueba de 24 h sin WAN, carga, latencias, sincronización Cloud y hardware siguen pendientes en sus fases correspondientes.
+
+## Operación de largo plazo y red (5b)
+
+Decisiones en [ADR 0018](adr/0018-operacion-de-largo-plazo-y-red-del-gateway.md). Todas las variables van en `.gateway/.env` y se aplican con `pnpm gateway:up`.
+
+| Variable                              | Por defecto     | Para qué                                                                                                       |
+| ------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
+| `GATEWAY_MQTT_BIND`                   | `127.0.0.1`     | Interfaz donde escucha Mosquitto. En el hospital, la IP del gateway en la VLAN de wearables (ej. `10.0.20.1`). |
+| `GATEWAY_HTTP_BIND`                   | `127.0.0.1`     | Interfaz de Backoffice y TV (VLAN del personal / de las pantallas). `0.0.0.0` las publica en todas.            |
+| `GATEWAY_EXTRA_CORS_ORIGINS`          | —               | Orígenes extra separados por coma, ej. `http://10.0.30.1:8080,http://10.0.30.1:8081`.                          |
+| `TELEMETRY_RETENTION_HOURS`           | `72`            | Antigüedad máxima de las lecturas. El borrado corre cada hora, en tandas de 5.000.                             |
+| `GATEWAY_ID`                          | `gateway-local` | Nombre del gateway en la nube (la nube deduplica por `GATEWAY_ID` + id del cambio).                            |
+| `CLOUD_SYNC_URL` / `CLOUD_SYNC_TOKEN` | —               | Réplica a la nube (RF-O6). Vacío = apagada. Con valor, turnos y alertas se encolan y se envían con backoff.    |
+
+La API corre con `TRUST_PROXY=1` (fijo en el compose), así el rate limit cuenta por cliente y no por Nginx. No publiques el puerto de la API sin Nginx delante.
+
+Con la pulsera real conectada a la VLAN de wearables, `GATEWAY_MQTT_BIND` reemplaza el puente temporal de la prueba del 21/10. La ACL por pulsera (4b) sigue exigiendo usuario y contraseña propios.
+
+### Réplica a la nube y cortes de WAN
+
+```bash
+pnpm cloud:sink --token=prueba            # nube de prueba en :4900/ingest → .cloud-sink/events.jsonl
+# .gateway/.env: CLOUD_SYNC_URL=http://<ip-del-host>:4900/ingest  CLOUD_SYNC_TOKEN=prueba
+curl -s localhost:8080/api/health | jq '.checks[] | select(.name=="sync")'
+```
+
+Si cortás la nube (Ctrl+C en `cloud:sink`), el health pasa a `degraded` con «N cambio(s) en espera» y los turnos y alertas siguen funcionando. Cuando la volvés a levantar, los pendientes se envían en orden. Con sesión de ADMIN, `GET /api/sync/status` muestra los pendientes, el último error y el próximo intento.
+
+## Validación de rendimiento (5c)
+
+Procedimiento y resultados en [10-validacion.md](10-validacion.md): `pnpm perf:load` (50 pulseras, latencias) y `pnpm perf:stress` (más de 10.000 registros en la consola).

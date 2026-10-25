@@ -57,7 +57,16 @@ export class TicketCalledDto implements TicketCalledEvent {
   @ApiProperty({ example: 'A-024' }) ticketCode!: string;
   @ApiProperty({ example: 'Consultorio 4' }) consultingRoom!: string;
   @ApiPropertyOptional({ example: 'Dra. Laura Fernández' }) professionalName?: string;
+  @ApiPropertyOptional({ example: 'GUARDIA' }) serviceCode?: string;
   @ApiProperty() calledAt!: string;
+}
+
+export class RecentCallsQueryDto {
+  @ApiPropertyOptional({ example: 'GUARDIA', description: 'Solo los llamados de ese servicio' })
+  @IsOptional()
+  @IsString({ message: 'serviceCode tiene que ser texto' })
+  @MaxLength(20, { message: 'serviceCode es demasiado largo' })
+  serviceCode?: string;
 }
 
 export class CheckInDto implements CheckInRequest {

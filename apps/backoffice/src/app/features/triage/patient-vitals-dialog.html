@@ -1,0 +1,98 @@
+<header class="head" mat-dialog-title>
+  <div>
+    <span class="code">{{ ticket.code }}</span>
+    <span class="who">{{ ticket.patient.displayName }} · {{ ticket.service.name }}</span>
+  </div>
+  <vt-level-pill [level]="ticket.triageLevel" />
+</header>
+
+<mat-dialog-content>
+  <div class="bar">
+    <div class="windows" role="group" aria-label="Ventana de tiempo">
+      @for (w of windows; track w.minutes) {
+        <button type="button" [class.on]="minutes() === w.minutes" (click)="setWindow(w.minutes)">
+          {{ w.label }}
+        </button>
+      }
+    </div>
+    <span class="device">
+      @if (history(); as h) {
+        {{ h.wearableCode ? 'Pulsera ' + h.wearableCode : 'Sin pulsera asignada ahora' }}
+      }
+    </span>
+  </div>
+
+  @if (error(); as msg) {
+    <p class="error" role="alert">{{ msg }}</p>
+  } @else if (history() === null) {
+    <mat-progress-bar mode="indeterminate" />
+  } @else if (history(); as h) {
+    @if (h.points.length === 0) {
+      <p class="empty">No hay lecturas de este turno en la ventana elegida.</p>
+    } @else {
+      <vt-vitals-chart [history]="h" />
+      <p class="legend">
+        <span class="sw band"></span> rango normal · <span class="sw crit"></span> valor crítico ·
+        <span class="sw mark"></span> alerta o caída
+        @if (h.bucketSeconds > 3) {
+          · cada punto promedia {{ h.bucketSeconds }} s
+        }
+      </p>
+    }
+
+    @if (h.alerts.length) {
+      <ul class="alerts" aria-label="Alertas en la ventana">
+        @for (a of h.alerts; track a.id) {
+          <li>
+            <strong>{{ alertLabels[a.kind] }}</strong> · {{ hhmm(a.detectedAt) }} ·
+            {{ a.status === 'ACTIVE' ? 'activa' : 'reconocida' }}
+          </li>
+        }
+      </ul>
+    }
+
+    @if (h.points.length) {
+      <button
+        type="button"
+        class="toggle"
+        (click)="showTable.set(!showTable())"
+        [attr.aria-expanded]="showTable()"
+      >
+        {{ showTable() ? 'Ocultar tabla' : 'Ver como tabla' }}
+      </button>
+      @if (showTable()) {
+        <table class="table">
+          <caption>
+            Últimas lecturas (más recientes primero)
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Hora</th>
+              <th scope="col">FC (lpm)</th>
+              <th scope="col">SpO₂ (%)</th>
+              <th scope="col">Temp (°C)</th>
+              <th scope="col">Pico (g)</th>
+              <th scope="col">Caída</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of rows(); track p.at) {
+              <tr [class.crit]="p.level === 'CRITICAL'">
+                <td>{{ hhmm(p.at) }}</td>
+                <td>{{ fmt(p.hr, 0) }}</td>
+                <td>{{ fmt(p.spo2, 0) }}</td>
+                <td>{{ fmt(p.temp, 1) }}</td>
+                <td>{{ fmt(p.accPeakG, 2) }}</td>
+                <td>{{ p.fall ? 'Sí' : '' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button">Cerrar</button>
+</mat-dialog-actions>

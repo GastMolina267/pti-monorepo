@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { LucidePlus, LucideRadio, LucideUnlink } from '@lucide/angular';
+import { LucidePlus, LucideRadio, LucideUnlink, LucideWrench } from '@lucide/angular';
 import { ROLES_CAN_MANAGE_WEARABLES, WEARABLE_STATUS_LABELS, type Wearable } from '@vitalia/contracts';
 import { apiErrorMessage } from '../../core/api/api-error';
 import { AuthService } from '../../core/auth/auth.service';
@@ -17,7 +17,16 @@ import { CreateWearableDialog } from './create-wearable-dialog';
 /** Pulseras IoMT: conexión, turno asignado y última lectura en vivo. */
 @Component({
   selector: 'vt-wearables',
-  imports: [MatButtonModule, MatProgressBarModule, LevelPill, Vitals, LucidePlus, LucideRadio, LucideUnlink],
+  imports: [
+    MatButtonModule,
+    MatProgressBarModule,
+    LevelPill,
+    Vitals,
+    LucidePlus,
+    LucideRadio,
+    LucideUnlink,
+    LucideWrench,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './wearables.html',
   styleUrl: './wearables.scss',
@@ -61,6 +70,21 @@ export class Wearables {
           res?.ticket &&
           this.snack.open(`Pulsera ${res.code} asignada a ${res.ticket.code}`, 'OK', { duration: 3000 }),
       );
+  }
+
+  /** Mantenimiento (correa rota, batería, etc.): la pulsera no se puede asignar hasta volver. */
+  protected async toggleMaintenance(w: Wearable): Promise<void> {
+    const status = w.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+    try {
+      await this.store.update(w, { status });
+      this.snack.open(
+        status === 'MAINTENANCE' ? `Pulsera ${w.code} en mantenimiento` : `Pulsera ${w.code} disponible`,
+        'OK',
+        { duration: 3000 },
+      );
+    } catch (err) {
+      this.snack.open(apiErrorMessage(err, 'No se pudo cambiar el estado'), 'Cerrar', { duration: 5000 });
+    }
   }
 
   protected async release(w: Wearable): Promise<void> {

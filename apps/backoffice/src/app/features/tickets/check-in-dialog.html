@@ -1,0 +1,76 @@
+@if (created(); as t) {
+  <h2 mat-dialog-title>Turno registrado</h2>
+  <mat-dialog-content>
+    <div class="done" role="status">
+      <span class="code">{{ t.code }}</span>
+      <span>{{ t.serviceName }}</span>
+      @if (t.position !== null) {
+        <small>
+          {{ t.position === 0 ? 'Es el próximo en la fila' : t.position + ' paciente(s) adelante' }} · espera
+          estimada {{ t.estimatedWaitMinutes }} min
+        </small>
+      }
+    </div>
+    <p class="hint">Entregale el número al paciente. Si va a usar pulsera, asignala desde Pulseras.</p>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="another()">Registrar otro</button>
+    <button mat-flat-button type="button" (click)="ref.close(t)">Listo</button>
+  </mat-dialog-actions>
+} @else {
+  <h2 mat-dialog-title>Nuevo turno en recepción</h2>
+  <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <mat-dialog-content>
+      <div class="row">
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre</mat-label>
+          <input matInput formControlName="firstName" autocomplete="off" cdkFocusInitial />
+          @if (form.controls.firstName.invalid) {
+            <mat-error>Entre 2 y 80 caracteres</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Apellido</mat-label>
+          <input matInput formControlName="lastName" autocomplete="off" />
+          @if (form.controls.lastName.invalid) {
+            <mat-error>Entre 2 y 80 caracteres</mat-error>
+          }
+        </mat-form-field>
+      </div>
+      <div class="row">
+        <mat-form-field appearance="outline">
+          <mat-label>DNI (opcional)</mat-label>
+          <input matInput formControlName="documentNumber" inputmode="numeric" autocomplete="off" />
+          <mat-hint>Sin puntos. Evita turnos duplicados</mat-hint>
+          @if (form.controls.documentNumber.invalid) {
+            <mat-error>Entre 7 y 9 dígitos, sin puntos</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Servicio</mat-label>
+          <mat-select formControlName="serviceCode">
+            @for (s of services(); track s.code) {
+              <mat-option [value]="s.code">{{ s.name }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.serviceCode.invalid) {
+            <mat-error>Elegí un servicio</mat-error>
+          }
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Motivo de consulta (opcional)</mat-label>
+        <input matInput formControlName="reason" maxlength="280" autocomplete="off" />
+      </mat-form-field>
+      @if (error(); as msg) {
+        <p class="error" role="alert">{{ msg }}</p>
+      }
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button mat-dialog-close type="button">Cancelar</button>
+      <button mat-flat-button type="submit" [disabled]="saving()">
+        {{ saving() ? 'Registrando…' : 'Registrar turno' }}
+      </button>
+    </mat-dialog-actions>
+  </form>
+}

@@ -9,6 +9,8 @@ out-tsc
 node_modules
 .pnpm-store/
 .gateway/
+.cloud-sink/
+.perf/
 
 # IDEs and editors
 /.idea

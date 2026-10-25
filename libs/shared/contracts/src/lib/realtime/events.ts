@@ -49,6 +49,8 @@ export interface TicketCalledEvent {
   ticketCode: string;
   consultingRoom: string;
   professionalName?: string;
+  /** Código del servicio (`ServiceArea.code`): la TV de una sala filtra por este campo. */
+  serviceCode?: string;
   calledAt: string;
 }
 

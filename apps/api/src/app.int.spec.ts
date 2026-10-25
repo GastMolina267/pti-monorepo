@@ -24,8 +24,11 @@ import {
   type RealtimeHandshakeAuth,
   type TelemetryReading,
   type TelemetryReadingEvent,
+  type SyncBatch,
+  type SyncStatus,
   type Ticket,
   type TicketCalledEvent,
+  type VitalsHistory,
   type Wearable,
   type WearableCommand,
 } from '@vitalia/contracts';
@@ -33,6 +36,7 @@ import type Aedes from 'aedes';
 import { createBroker } from 'aedes';
 import mqtt, { type MqttClient } from 'mqtt';
 import { randomBytes } from 'node:crypto';
+import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
 import { createServer, type AddressInfo, type Server as NetServer } from 'node:net';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
 import request from 'supertest';
@@ -40,6 +44,8 @@ import { DataSource } from 'typeorm';
 import { createValidationPipe } from './common/validation';
 import { buildDataSourceOptions } from './database/options';
 import { DEV_PASSWORD, seed } from './database/seeds/seed';
+import { SyncService } from './modules/sync/sync.service';
+import { TelemetryRetentionService } from './modules/telemetry/telemetry-retention.service';
 import { TelemetryService } from './modules/telemetry/telemetry.service';
 import { sealReading } from './testing/telemetry';
 
@@ -89,6 +95,10 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
   let doctorToken: string;
   let receptionToken: string;
   let nurseToken: string;
+  let adminToken: string;
+  // "Nube" de prueba para el sync (RF-O6): guarda los lotes o responde 503 si está "caída".
+  const cloud = { batches: [] as SyncBatch[], down: false, auth: [] as (string | undefined)[] };
+  let cloudServer: HttpServer;
   let broker: Aedes;
   let brokerServer: NetServer;
   let apiUrl: string;
@@ -109,6 +119,26 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
     process.env['MQTT_USERNAME'] = '';
     process.env['MQTT_PASSWORD'] = '';
     process.env['TELEMETRY_AES_KEY'] = AES_KEY.toString('hex');
+
+    cloudServer = createHttpServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => {
+        cloud.auth.push(req.headers.authorization);
+        if (cloud.down) {
+          res.writeHead(503).end();
+          return;
+        }
+        cloud.batches.push(JSON.parse(body) as SyncBatch);
+        res.writeHead(202).end();
+      });
+    });
+    await new Promise<void>((resolve) => cloudServer.listen(0, '127.0.0.1', resolve));
+    process.env['CLOUD_SYNC_URL'] = `http://127.0.0.1:${(cloudServer.address() as AddressInfo).port}/ingest`;
+    process.env['CLOUD_SYNC_TOKEN'] = 'token-de-prueba';
+    process.env['GATEWAY_ID'] = 'gateway-test';
+    // El ciclo automático casi no corre: los tests llaman a flush() cuando lo necesitan.
+    process.env['CLOUD_SYNC_INTERVAL_SECONDS'] = '3600';
 
     const ds = new DataSource(buildDataSourceOptions(TEST_DB as string));
     await ds.initialize();
@@ -137,6 +167,7 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
     doctorToken = await login('medico@vitalia.local');
     receptionToken = await login('recepcion@vitalia.local');
     nurseToken = await login('enfermeria@vitalia.local');
+    adminToken = await login('admin@vitalia.local');
 
     // La API se conecta al broker en segundo plano: esperar a que el health lo vea.
     await eventually(async () => {
@@ -150,6 +181,7 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
     await app?.close();
     await new Promise<void>((resolve) => broker?.close(() => resolve()));
     await new Promise<void>((resolve) => brokerServer?.close(() => resolve()));
+    await new Promise<void>((resolve) => cloudServer?.close(() => resolve()));
   });
 
   /** Socket.IO conectado y ya unido a su sala (`realtime:ready`). */
@@ -657,6 +689,140 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
         await request(app.getHttpServer()).get(`/api/wearables/${wearable.id}`).set(authed(doctorToken))
       ).body as Wearable;
       expect(w).toMatchObject({ status: 'AVAILABLE', ticket: null });
+    });
+  });
+
+  describe('Fase 5: consola, operación de largo plazo y nube', () => {
+    const http = () => request(app.getHttpServer());
+
+    it('curva de signos vitales del turno, con la caída y su alerta marcadas', async () => {
+      const [row] = await app
+        .get(DataSource)
+        .query(`SELECT ticket_id FROM telemetry_readings WHERE fall AND ticket_id IS NOT NULL LIMIT 1`);
+      const res = await http()
+        .get(`/api/tickets/${row.ticket_id}/readings?minutes=60`)
+        .set(authed(nurseToken))
+        .expect(200);
+      const history = res.body as VitalsHistory;
+      expect(history.bucketSeconds).toBe(6);
+      expect(history.points.length).toBeGreaterThan(0);
+      expect(history.points.some((p) => p.fall && p.level === 'CRITICAL')).toBe(true);
+      expect(history.alerts).toContainEqual(expect.objectContaining({ kind: 'FALL' }));
+
+      await http()
+        .get('/api/tickets/3f2b6c1e-0000-4000-8000-000000000000/readings')
+        .set(authed(nurseToken))
+        .expect(404);
+      await http()
+        .get(`/api/tickets/${row.ticket_id}/readings?minutes=99999`)
+        .set(authed(nurseToken))
+        .expect(400);
+    });
+
+    it('pulsera en mantenimiento: no se asigna y una asignada no cambia de estado', async () => {
+      const list = (await http().get('/api/wearables').set(authed(nurseToken))).body as Wearable[];
+      const free = list.find((w) => w.status === 'AVAILABLE') as Wearable;
+      const busy = list.find((w) => w.ticket !== null) as Wearable;
+
+      await http()
+        .patch(`/api/wearables/${free.id}`)
+        .set(authed(receptionToken))
+        .send({ status: 'MAINTENANCE' })
+        .expect(403);
+      const res = await http()
+        .patch(`/api/wearables/${free.id}`)
+        .set(authed(nurseToken))
+        .send({ status: 'MAINTENANCE', label: 'Correa rota' })
+        .expect(200);
+      expect(res.body).toMatchObject({ status: 'MAINTENANCE', label: 'Correa rota' });
+
+      const queue = (await http().get('/api/tickets?status=WAITING').set(authed(nurseToken)))
+        .body as Ticket[];
+      const target = queue.find((t) => !list.some((w) => w.ticket?.id === t.id)) as Ticket;
+      const blocked = await http()
+        .post(`/api/wearables/${free.id}/assign`)
+        .set(authed(nurseToken))
+        .send({ ticketId: target.id })
+        .expect(409);
+      expect(blocked.body.message).toBe('La pulsera está en mantenimiento');
+
+      const conflict = await http()
+        .patch(`/api/wearables/${busy.id}`)
+        .set(authed(nurseToken))
+        .send({ status: 'MAINTENANCE' })
+        .expect(409);
+      expect(conflict.body.message).toContain('liberala');
+
+      await http()
+        .patch(`/api/wearables/${free.id}`)
+        .set(authed(nurseToken))
+        .send({ status: 'AVAILABLE' })
+        .expect(200);
+    });
+
+    it('llamados recientes por servicio, para la TV de cada sala', async () => {
+      const all = (await http().get('/api/tickets/recent-calls').expect(200)).body as TicketCalledEvent[];
+      expect(all.length).toBeGreaterThan(0);
+      const code = all[0].serviceCode as string;
+      expect(code).toBeTruthy();
+      const mine = (await http().get(`/api/tickets/recent-calls?serviceCode=${code}`).expect(200))
+        .body as TicketCalledEvent[];
+      expect(mine.every((c) => c.serviceCode === code)).toBe(true);
+      const none = (await http().get('/api/tickets/recent-calls?serviceCode=NO-EXISTE').expect(200)).body;
+      expect(none).toEqual([]);
+    });
+
+    it('sync: replica turnos y alertas a la nube, sin DNI, con token y deduplicable por id', async () => {
+      await app.get(SyncService).flush();
+      const events = cloud.batches.flatMap((b) => b.events);
+      expect(cloud.batches.every((b) => b.gatewayId === 'gateway-test')).toBe(true);
+      expect(cloud.auth).toContain('Bearer token-de-prueba');
+      expect(events.some((e) => e.topic === 'ticket.upsert')).toBe(true);
+      expect(events.some((e) => e.topic === 'alert.upsert')).toBe(true);
+      expect(new Set(events.map((e) => e.id)).size).toBe(events.length);
+      expect(JSON.stringify(cloud.batches)).not.toContain('40111222'); // DNI del check-in de la Fase 1
+
+      await http().get('/api/sync/status').set(authed(nurseToken)).expect(403);
+      const status = (await http().get('/api/sync/status').set(authed(adminToken)).expect(200))
+        .body as SyncStatus;
+      expect(status).toMatchObject({ enabled: true, gatewayId: 'gateway-test', pending: 0 });
+    });
+
+    it('sync: sin nube los cambios esperan en el outbox y salen al volver', async () => {
+      const sync = app.get(SyncService);
+      cloud.down = true;
+      const queue = (await http().get('/api/tickets?status=WAITING').set(authed(nurseToken)))
+        .body as Ticket[];
+      const target = queue[queue.length - 1];
+      await http()
+        .patch(`/api/tickets/${target.id}/triage`)
+        .set(authed(nurseToken))
+        .send({ triageLevel: target.triageLevel === 'ATTENTION' ? 'STABLE' : 'ATTENTION' })
+        .expect(200);
+      await eventually(async () => expect((await sync.status()).pending).toBeGreaterThan(0));
+      await expect(sync.flush()).rejects.toThrow('HTTP 503');
+      expect((await sync.status()).pending).toBeGreaterThan(0);
+
+      cloud.down = false;
+      const before = cloud.batches.length;
+      await sync.flush();
+      expect((await sync.status()).pending).toBe(0);
+      const last = cloud.batches.slice(before).flatMap((b) => b.events);
+      expect(last).toContainEqual(expect.objectContaining({ topic: 'ticket.upsert', entityId: target.id }));
+    });
+
+    it('retención: borra las lecturas vencidas y deja alertas y turnos', async () => {
+      const db = app.get(DataSource);
+      const count = async (table: string) =>
+        Number((await db.query(`SELECT count(*)::int AS n FROM ${table}`))[0].n);
+      const [readings, alerts] = [await count('telemetry_readings'), await count('alerts')];
+      expect(readings).toBeGreaterThan(0);
+
+      const retention = app.get(TelemetryRetentionService);
+      await expect(retention.purge()).resolves.toBe(0); // nada tiene más de 72 h
+      await expect(retention.purge(new Date(Date.now() + 100 * 3_600_000))).resolves.toBe(readings);
+      expect(await count('telemetry_readings')).toBe(0);
+      expect(await count('alerts')).toBe(alerts);
     });
   });
 });

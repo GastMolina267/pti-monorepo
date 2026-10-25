@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { API_PREFIX } from '@vitalia/contracts';
 import { AppModule } from './app/app.module';
@@ -9,8 +10,12 @@ import type { Env } from './config/env.schema';
 import { RealtimeIoAdapter } from './modules/realtime/realtime-io.adapter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get<ConfigService<Env, true>>(ConfigService);
+
+  // Detrás de Nginx: la IP real del cliente sale de X-Forwarded-For (rate limit por persona).
+  const trustProxy = config.get('TRUST_PROXY', { infer: true });
+  if (trustProxy !== undefined) app.set('trust proxy', trustProxy);
 
   app.setGlobalPrefix(API_PREFIX);
   app.enableShutdownHooks();
