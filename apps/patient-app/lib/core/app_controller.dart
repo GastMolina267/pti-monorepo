@@ -19,19 +19,21 @@ const calledNoticeWindow = Duration(minutes: 3);
 /// ficha). Un solo `ChangeNotifier`: la app es chica y así no suma dependencias.
 class AppController extends ChangeNotifier {
   AppController({
-    required KeyValueStore store,
-    http.Client? httpClient,
-    RealtimeFactory? realtimeFactory,
+    required this.store,
+    this.httpClient,
+    this.realtimeFactory,
     DateTime Function()? clock,
     this.onCalled,
-  }) : _store = store,
-       _httpClient = httpClient,
-       _realtimeFactory = realtimeFactory,
-       _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now;
 
-  final KeyValueStore _store;
-  final http.Client? _httpClient;
-  final RealtimeFactory? _realtimeFactory;
+  /// Almacenamiento cifrado (o en memoria en los tests).
+  final KeyValueStore store;
+
+  /// Cliente HTTP inyectable (`MockClient` en los tests).
+  final http.Client? httpClient;
+
+  /// Conexión en vivo; `null` en los tests (solo sondeo).
+  final RealtimeFactory? realtimeFactory;
   final DateTime Function() _clock;
 
   /// Vibración o sonido cuando llaman el turno (lo engancha la UI).
@@ -66,7 +68,7 @@ class AppController extends ChangeNotifier {
   HealthCard healthCard = const HealthCard();
 
   String get apiUrl => _apiUrl;
-  VitaliaApi get api => _api ??= VitaliaApi(baseUrl: _apiUrl, client: _httpClient);
+  VitaliaApi get api => _api ??= VitaliaApi(baseUrl: _apiUrl, client: httpClient);
   DateTime now() => _clock();
 
   bool get hasSession => session != null;
@@ -78,11 +80,11 @@ class AppController extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final url = await _store.read(StoreKeys.apiUrl);
+      final url = await store.read(StoreKeys.apiUrl);
       final normalized = url == null ? null : normalizeApiUrl(url);
       if (normalized != null) _apiUrl = normalized;
 
-      final s = await _store.readJson(StoreKeys.session);
+      final s = await store.readJson(StoreKeys.session);
       if (s is Map<String, dynamic>) {
         try {
           final parsed = PatientSession.fromJson(s);
@@ -90,12 +92,12 @@ class AppController extends ChangeNotifier {
         } on Object {
           // sesión vieja o corrupta: se ignora
         }
-        if (session == null) await _store.delete(StoreKeys.session);
+        if (session == null) await store.delete(StoreKeys.session);
       }
 
-      visits = _list(await _store.readJson(StoreKeys.visits), Visit.fromJson);
-      agenda = sortAgenda(_list(await _store.readJson(StoreKeys.agenda), Appointment.fromJson), now());
-      final card = await _store.readJson(StoreKeys.healthCard);
+      visits = _list(await store.readJson(StoreKeys.visits), Visit.fromJson);
+      agenda = sortAgenda(_list(await store.readJson(StoreKeys.agenda), Appointment.fromJson), now());
+      final card = await store.readJson(StoreKeys.healthCard);
       if (card is Map<String, dynamic>) healthCard = HealthCard.fromJson(card);
     } on Object catch (e) {
       // Si el almacenamiento cifrado falla, la app igual arranca (sin datos guardados).
@@ -132,7 +134,7 @@ class AppController extends ChangeNotifier {
     _apiUrl = url;
     _api?.close();
     _api = null;
-    await _store.write(StoreKeys.apiUrl, url);
+    await store.write(StoreKeys.apiUrl, url);
     if (session != null) _startLive();
     _notify();
   }
@@ -141,7 +143,7 @@ class AppController extends ChangeNotifier {
   Future<String> testConnection(String raw) async {
     final url = normalizeApiUrl(raw);
     if (url == null) throw const ApiException('Escribí una dirección válida, por ejemplo http://10.0.20.1:8080');
-    final probe = VitaliaApi(baseUrl: url, client: _httpClient);
+    final probe = VitaliaApi(baseUrl: url, client: httpClient);
     return probe.health();
   }
 
@@ -180,7 +182,7 @@ class AppController extends ChangeNotifier {
     overview = null;
     error = null;
     _notifiedCalledAt = null;
-    await _store.writeJson(StoreKeys.session, s.toJson());
+    await store.writeJson(StoreKeys.session, s.toJson());
     _notify();
     await refresh();
     _startLive();
@@ -251,7 +253,7 @@ class AppController extends ChangeNotifier {
     overview = null;
     calledNotice = false;
     flash = message;
-    await _store.delete(StoreKeys.session);
+    await store.delete(StoreKeys.session);
     _notify();
   }
 
@@ -282,7 +284,7 @@ class AppController extends ChangeNotifier {
     if (!(overview?.ticket.isFinal ?? false)) {
       _poll = Timer.periodic(AppConfig.pollInterval, (_) => unawaited(refresh()));
     }
-    final factory = _realtimeFactory;
+    final factory = realtimeFactory;
     if (factory == null) return;
     _realtime = factory(_apiUrl)
       ..connect(
@@ -313,30 +315,30 @@ class AppController extends ChangeNotifier {
     final list = [v, ...visits.where((x) => x.ticketId != v.ticketId)]
       ..sort((a, b) => b.checkedInAt.compareTo(a.checkedInAt));
     visits = list.take(maxVisits).toList();
-    await _store.writeJson(StoreKeys.visits, [for (final x in visits) x.toJson()]);
+    await store.writeJson(StoreKeys.visits, [for (final x in visits) x.toJson()]);
   }
 
   Future<void> deleteVisit(String ticketId) async {
     visits = visits.where((v) => v.ticketId != ticketId).toList();
-    await _store.writeJson(StoreKeys.visits, [for (final x in visits) x.toJson()]);
+    await store.writeJson(StoreKeys.visits, [for (final x in visits) x.toJson()]);
     _notify();
   }
 
   Future<void> saveAppointment(Appointment a) async {
     agenda = sortAgenda([a, ...agenda.where((x) => x.id != a.id)], now());
-    await _store.writeJson(StoreKeys.agenda, [for (final x in agenda) x.toJson()]);
+    await store.writeJson(StoreKeys.agenda, [for (final x in agenda) x.toJson()]);
     _notify();
   }
 
   Future<void> deleteAppointment(String id) async {
     agenda = agenda.where((x) => x.id != id).toList();
-    await _store.writeJson(StoreKeys.agenda, [for (final x in agenda) x.toJson()]);
+    await store.writeJson(StoreKeys.agenda, [for (final x in agenda) x.toJson()]);
     _notify();
   }
 
   Future<void> saveHealthCard(HealthCard card) async {
     healthCard = card;
-    await _store.writeJson(StoreKeys.healthCard, card.toJson());
+    await store.writeJson(StoreKeys.healthCard, card.toJson());
     _notify();
   }
 
@@ -350,7 +352,7 @@ class AppController extends ChangeNotifier {
     agenda = const [];
     healthCard = const HealthCard();
     for (final key in [StoreKeys.session, StoreKeys.visits, StoreKeys.agenda, StoreKeys.healthCard]) {
-      await _store.delete(key);
+      await store.delete(key);
     }
     _notify();
   }

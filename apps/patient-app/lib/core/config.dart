@@ -19,6 +19,7 @@ abstract final class AppConfig {
 String? normalizeApiUrl(String raw) {
   var value = raw.trim();
   if (value.isEmpty) return null;
+  if (value.contains('://') && !value.startsWith('http://') && !value.startsWith('https://')) return null;
   if (!value.startsWith('http://') && !value.startsWith('https://')) value = 'http://$value';
   final uri = Uri.tryParse(value);
   if (uri == null || uri.host.isEmpty) return null;

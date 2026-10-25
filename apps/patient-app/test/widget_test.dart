@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalia_paciente/app.dart';
 import 'package:vitalia_paciente/core/app_controller.dart';
