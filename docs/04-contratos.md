@@ -240,6 +240,6 @@ Desde 4c, el firmware se suscribe con QoS 1 a `hospital/+/wearable/<id propio>/c
 
 Los fragmentos se reensamblan dentro del límite; mensajes retenidos, incompletos, ajenos, desconocidos o inválidos se descartan sin cambiar el último llamado. La tarea MQTT pasa una copia por cola al `loop()`, que muestra `TE LLAMAN`, código y consultorio. Los nombres largos se desplazan y las tildes/ñ se transliteran para la fuente básica del OLED. Una caída local reciente conserva prioridad; sin broker se indica `LLAMADO SIN RED` y se conserva lo recibido. El llamado dura hasta reemplazo o reinicio: todavía no hay `CLEAR_TICKET` ni recuperación automática de llamados perdidos durante una desconexión. [ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md).
 
-## Portal cautivo ↔ API (Fase 4)
+## Portal cautivo ↔ API
 
-El portal (`pti-captive-portal`) hoy espera `/auth/*`. En la Fase 4 se alinea con este contrato: `GET /api/services`, `POST /api/check-in` y polling o socket de `GET /api/tickets/:id/public`. Su `VITE_BASE_URL` apunta a la API del gateway (CORS ya incluye `http://localhost:5173`).
+El portal cautivo se integra en el proyecto de red del equipo (fuera de este monorepo). Contrato que consume: `GET /api/services`, `POST /api/check-in` y polling o socket de `GET /api/tickets/:id/public`. Su `VITE_BASE_URL` apunta a la API del gateway (CORS ya incluye `http://localhost:5173`).
