@@ -21,7 +21,7 @@ export const PROBLEMS = [
 export const JOURNEY: readonly JourneyStep[] = [
   {
     title: 'Llegás y te conectás',
-    body: 'Te sumás al Wi-Fi del hospital y se abre el portal. Hacés el check-in y recibís tu turno, con cuántas personas tenés antes. No hace falta instalar nada.',
+    body: 'Te sumás al Wi-Fi del hospital y se abre el portal. Hacés el check-in y recibís tu turno, con cuántas personas tenés antes. Hoy no hace falta instalar nada, y ya estamos desarrollando la app de Vitalia para tenerla en el celular.',
   },
   {
     title: 'Te dan una pulsera',
@@ -43,7 +43,15 @@ export const JOURNEY: readonly JourneyStep[] = [
 
 export const TAGLINE = ['Mientras esperás,', 'el hospital no te', 'pierde de vista.'] as const;
 
-export const PROMISES = [
+export interface PromiseItem {
+  readonly icon: 'shield' | 'offline' | 'phone' | 'stethoscope';
+  readonly title: string;
+  readonly body: string;
+  /** Etiqueta corta junto al título (por ejemplo, algo que está en desarrollo). */
+  readonly tag?: string;
+}
+
+export const PROMISES: readonly PromiseItem[] = [
   {
     icon: 'shield',
     title: 'Tus datos, cifrados y en el hospital',
@@ -56,20 +64,21 @@ export const PROMISES = [
   },
   {
     icon: 'phone',
-    title: 'Sin apps para descargar',
-    body: 'El portal se abre solo al conectarte al Wi-Fi. La pulsera se entrega en la recepción y se devuelve al terminar.',
+    title: 'Sin descargas hoy, con app en camino',
+    tag: 'App en desarrollo',
+    body: 'El portal se abre solo al conectarte al Wi-Fi, sin instalar nada. En paralelo estamos desarrollando la app de Vitalia, para seguir tu turno desde el celular. La pulsera se entrega en la recepción y se devuelve al terminar.',
   },
   {
     icon: 'stethoscope',
     title: 'Ayuda al equipo, no lo reemplaza',
     body: 'La pulsera avisa cuando algo se sale de lo normal; quien decide es el personal de salud. Es un prototipo académico, no un dispositivo certificado.',
   },
-] as const;
+];
 
 export const FAQ_PERSONAS: readonly FaqItem[] = [
   {
     q: '¿Tengo que instalar algo en el celular?',
-    a: 'No. Al conectarte al Wi-Fi del hospital se abre un portal en el navegador. Ahí hacés el check-in y seguís tu turno.',
+    a: 'Hoy no. Al conectarte al Wi-Fi del hospital se abre un portal en el navegador, y ahí hacés el check-in y seguís tu turno. Además estamos desarrollando la app de Vitalia para quien prefiera tenerla instalada. El portal sigue siendo la opción para quien no quiera descargar nada.',
   },
   {
     q: '¿La pulsera me diagnostica?',

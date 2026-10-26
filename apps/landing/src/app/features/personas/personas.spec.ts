@@ -41,4 +41,9 @@ describe('Personas (B2C)', () => {
     expect(el.querySelectorAll('vt-faq details').length).toBe(FAQ_PERSONAS.length);
     expect(el.querySelector('.bridge a')?.getAttribute('href')).toBe('/instituciones');
   });
+
+  it('aclara que hoy no hay que descargar nada y que la app está en desarrollo', async () => {
+    const el = await render();
+    expect(el.querySelector('.promise__tag')?.textContent).toContain('App en desarrollo');
+  });
 });

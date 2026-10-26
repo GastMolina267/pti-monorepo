@@ -71,7 +71,12 @@
               }
             }
           </span>
-          {{ p.title }}
+          <span>
+            {{ p.title }}
+            @if (p.tag) {
+              <span class="promise__tag">{{ p.tag }}</span>
+            }
+          </span>
         </dt>
         <dd>{{ p.body }}</dd>
       </div>

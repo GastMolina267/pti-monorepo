@@ -201,6 +201,24 @@
   }
 }
 
+.promise__tag {
+  display: inline-block;
+  margin-left: var(--lp-s-2);
+  padding: 2px var(--lp-s-2);
+  border: 1px solid var(--vt-primary);
+  border-radius: 999px;
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--vt-primary-deep);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+:host-context([data-theme='dark']) .promise__tag {
+  color: var(--vt-primary-light);
+}
+
 .promise__icon {
   width: 48px;
   height: 48px;

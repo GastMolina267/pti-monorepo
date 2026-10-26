@@ -65,7 +65,7 @@ export const REVENUE_STREAMS: readonly RevenueStream[] = [
     name: 'Abono por pulsera activa',
     how: 'Mensual, por cada pulsera en uso',
     includes:
-      'Software de la consola, el llamador y el portal, actualizaciones, soporte y reposición de pulseras.',
+      'Software de la consola, el llamador, el portal y la app del paciente (en desarrollo), actualizaciones, soporte y reposición de pulseras.',
     reference: 'Licencias de monitoreo remoto: US$ 10 a 40 por paciente y mes.',
     status: 'base',
   },
@@ -149,30 +149,46 @@ export const MEASUREMENTS: readonly Measurement[] = [
   { metric: 'Consola con 10.000 turnos del día', target: '< 2 s', measured: '1,6 s', budget: 1.6 / 2 },
 ];
 
-export const ROADMAP = [
+export interface RoadmapStep {
+  readonly title: string;
+  readonly body: string;
+  /** `done`: terminado · `now`: en desarrollo · `next`: lo que sigue. */
+  readonly state: 'done' | 'now' | 'next';
+}
+
+export const ROADMAP: readonly RoadmapStep[] = [
   {
     title: 'Prototipo validado',
     body: 'Software completo, gateway en Docker y pruebas de carga con números. Es donde estamos hoy (octubre de 2026).',
-    done: true,
+    state: 'done',
+  },
+  {
+    title: 'App del paciente',
+    body: 'La estamos desarrollando: el turno y los llamados en una app instalable. Se suma al portal sin descargas, que sigue siendo la puerta de entrada para todos.',
+    state: 'now',
   },
   {
     title: 'Piloto en un hospital',
     body: 'Instalación en una sala de espera real, con la prueba de 24 h sin internet y la pulsera definitiva.',
-    done: false,
+    state: 'next',
   },
   {
     title: 'Pulsera de producto',
     body: 'Carcasa, batería y calibración clínica de los sensores de pulso, oxígeno y temperatura.',
-    done: false,
+    state: 'next',
   },
   {
     title: 'Certificación e integración',
     body: 'Registro ante ANMAT e integración con la historia clínica electrónica (HL7/FHIR).',
-    done: false,
+    state: 'next',
   },
-] as const;
+];
 
 export const FAQ_INSTITUCIONES: readonly FaqItem[] = [
+  {
+    q: '¿Los pacientes tienen que descargar una app?',
+    a: 'No para usar Vitalia: el portal se abre solo al conectarse al Wi-Fi, así nadie queda afuera por falta de espacio, datos o ganas de instalar algo. En paralelo estamos desarrollando la app del paciente, que suma una opción instalable sin reemplazar al portal.',
+  },
   {
     q: '¿Qué infraestructura necesita el hospital?',
     a: 'Un router gestionado con las redes separadas (pacientes, personal, pulseras y TV) y un equipo chico con Docker para el gateway: una mini PC o una notebook alcanzan.',

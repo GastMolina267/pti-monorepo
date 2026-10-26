@@ -21,6 +21,9 @@ describe('Instituciones (B2B)', () => {
     facts.forEach((f) => expect(f.querySelector('a.lp-source')?.getAttribute('href')).toMatch(/^https:\/\//));
     expect(el.querySelectorAll('.table__row').length).toBe(REVENUE_STREAMS.length);
     expect(el.querySelector('.table__row.is-roadmap .tag')?.textContent).toContain('Hoja de ruta');
+    // La app del paciente se marca como en desarrollo en la hoja de ruta.
+    expect(el.querySelector('.route__step.is-now h3')?.textContent).toContain('App del paciente');
+    expect(el.querySelector('.route__step.is-now .tag--now')?.textContent).toContain('En desarrollo');
   });
 });
 

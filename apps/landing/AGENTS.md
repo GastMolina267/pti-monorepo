@@ -19,6 +19,7 @@ Sitio público de Vitalia con **dos audiencias** y un selector en la navegación
 - **Fondo de luz** (`shared/ambient-light.ts`, en el shell): grilla de puntos tipo monitor, luz que sigue al cursor (o deriva sola en táctiles), un latido de luz cada 3 s y auroras de marca. Es un canvas fijo detrás del contenido (`main` y el pie van en `z-index: 1`), sin `filter: blur` (caro sin GPU), que no dibuja con la pestaña oculta y queda estático con movimiento reducido. Las tarjetas principales llevan `vtSpotlight` (`shared/spotlight.ts`): brillo y borde que siguen al mouse.
 - **Recorrido:** la cámara es cuadrada y el escenario es el cuadrado más grande que entra en el alto visible (`container-type: size`), así no se recorta en ninguna proporción. El timeline sigue a la lista de pasos (`flightWindow`): cada escena queda quieta mientras su texto cruza el centro.
 - Responsivo desde 360 px y sin scroll horizontal (verificado en 360, 390, 768, 1024, 1280, 1366, 1440, 1920 y 2560 px). En móvil, el recorrido muestra el texto del paso activo pegado al escenario (`.caption`).
+- **App del paciente:** el copy dice que hoy no hace falta descargar nada (portal cautivo) y que la app está en desarrollo (`PROMISES` con `tag`, `ROADMAP` con `state: 'now'`). Cuando se publique, actualizalo.
 - Antes de publicar: reemplazar `SITE.contactEmail` y revisar la fecha de las fuentes.
 
 ## Comandos

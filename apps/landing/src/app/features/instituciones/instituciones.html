@@ -182,15 +182,20 @@
   <div class="model__intro">
     <h2 id="ruta-titulo" class="lp-h2">Qué financia una inversión</h2>
     <p class="lp-lead">
-      El software está hecho. Lo que falta para llegar al mercado es llevarlo a una sala real y convertir el
-      prototipo en un producto certificado.
+      El software del prototipo está hecho y la app del paciente está en desarrollo. Lo que falta para llegar
+      al mercado es llevarlo a una sala real y convertir el prototipo en un producto certificado.
     </p>
   </div>
   <ol class="route">
     @for (r of roadmap; track r.title; let i = $index) {
-      <li class="route__step" [class.is-done]="r.done">
+      <li class="route__step" [class.is-done]="r.state === 'done'" [class.is-now]="r.state === 'now'">
         <span class="route__n" aria-hidden="true">{{ i + 1 }}</span>
-        <h3>{{ r.title }}</h3>
+        <h3>
+          {{ r.title }}
+          @if (r.state === 'now') {
+            <span class="tag tag--now">En desarrollo</span>
+          }
+        </h3>
         <p>{{ r.body }}</p>
       </li>
     }
