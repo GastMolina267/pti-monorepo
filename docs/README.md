@@ -13,5 +13,6 @@
 | 08  | [Modelo de datos](08-modelo-datos.md)              | Diagrama ER, reglas, migraciones y seed                |
 | 09  | [Despliegue del gateway](09-despliegue-gateway.md) | Compose, configuración local, seed y smoke             |
 | 10  | [Validación](10-validacion.md)                     | Carga, latencias y estrés con números (Fase 5c)        |
+| 11  | [App del paciente](11-app-paciente.md)             | Flutter/Android: inicializar, funcionamiento, pruebas  |
 | —   | [ADRs](adr/README.md)                              | Decisiones de arquitectura                             |
 | —   | [Guía de desarrollo](guia-desarrollo.md)           | Setup en Windows, flujo de trabajo, IA                 |

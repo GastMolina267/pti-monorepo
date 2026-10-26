@@ -5,16 +5,16 @@
 
 ## Resumen
 
-| Fase | Objetivo                                | Fechas        | Resp.  | Estado                                |
-| ---- | --------------------------------------- | ------------- | ------ | ------------------------------------- |
-| 0    | Fundaciones del monorepo                | 3 oct         | G      | ✅ Completa                           |
-| 1    | Núcleo de datos, turnos y auth          | 3–4 oct       | G      | ✅ Completa                           |
-| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct      | G (+F) | ✅ Software · ⏳ placa                |
-| 3    | Backoffice y llamador TV funcionales    | 12–18 oct     | G (T)  | ✅ Completa                           |
-| 4    | Despliegue e integración del software   | 18 oct        | G      | ✅ Software completo                  |
-| —    | Red, router y portal cautivo            | —             | Eq     | ✅ Proyecto aparte                    |
-| 5    | Software pendiente, carga y validación  | 25 oct–15 nov | Eq     | ✅ Software (5a–5c) · ⏳ 24 h WAN, 5d |
-| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | Pendiente                             |
+| Fase | Objetivo                                | Fechas        | Resp.  | Estado                                        |
+| ---- | --------------------------------------- | ------------- | ------ | --------------------------------------------- |
+| 0    | Fundaciones del monorepo                | 3 oct         | G      | ✅ Completa                                   |
+| 1    | Núcleo de datos, turnos y auth          | 3–4 oct       | G      | ✅ Completa                                   |
+| 2    | Telemetría MQTT, alertas y tiempo real  | 5–18 oct      | G (+F) | ✅ Software · ⏳ placa                        |
+| 3    | Backoffice y llamador TV funcionales    | 12–18 oct     | G (T)  | ✅ Completa                                   |
+| 4    | Despliegue e integración del software   | 18 oct        | G      | ✅ Software completo                          |
+| —    | Red, router y portal cautivo            | —             | Eq     | ✅ Proyecto aparte                            |
+| 5    | Software pendiente, carga y validación  | 25 oct–15 nov | Eq     | ✅ Software (5a–5c, 5e app) · ⏳ 24 h WAN, 5d |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | Pendiente                                     |
 
 ```mermaid
 gantt
@@ -205,6 +205,21 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 **Medido (25/10, 2 vCPU):** 50 pulseras cada 3 s durante 10 min, con 10.043 lecturas y 0 % de pérdida. Lectura → WS p95 7 ms; caída → alerta p95 6 ms (40/40); `GET /api/tickets` p95 8,7 ms; llamado → TV p95 13 ms. Con 10.000 turnos, la consola tardaba 7–12 s en dibujar las listas: ahora se dibujan por tandas y la fila aparece en 755 ms, Turnos en 1,6 s y la curva de 24 h (28.800 lecturas) responde en 32 ms (p95). El Backoffice no hizo pedidos fuera del gateway (`pnpm perf:load`, `pnpm perf:stress`).
 
+### 5e · App del paciente en Flutter (G) — completo (25/10)
+
+> RF-O5 es obligatorio en la tesis y nombra Flutter (alcance 4.1, stack 9.3). El portal cautivo cubre el check-in web, pero el equipo decidió sumar una app Android chica, pensada como **turnero**. [ADR 0019](adr/0019-app-del-paciente-en-flutter.md).
+
+- [x] `apps/patient-app` en el monorepo (targets `flutter-*`, job propio en la CI). Constantes, etiquetas y colores generados desde `@vitalia/contracts` y `@vitalia/design-tokens` (`pnpm app:codegen --check`)
+- [x] API: sesión de turno (`PatientSession`, 24 h, clave derivada que no sirve para el personal), `GET /api/patient/me` y `/me/readings`, check-in `PATIENT_APP` y código de vinculación de un solo uso (`POST /api/tickets/:id/pairing`, `POST /api/patient/pair`)
+- [x] Backoffice: «Vincular app del paciente» en los turnos y en el check-in de recepción, con QR y código
+- [x] Turnero en vivo: número, posición y espera; a dónde y con quién cuando te llaman; aviso con vibración y notificación local con la app minimizada
+- [x] Mi salud: últimos signos de la pulsera, estado de la lectura, prioridad (nunca «Crítico») y curva de 30 min a 8 h
+- [x] Agenda personal con recordatorio 2 h antes, ficha de salud y visitas anteriores, cifradas en el teléfono (Keystore) y sin salir de él
+- [x] APK de release como artefacto de la CI (`vitalia-paciente-apk`)
+- [ ] Probar en un celular real en la red del gateway (`GATEWAY_HTTP_BIND`) y con la cámara (QR) (Eq)
+
+**Verificado (25/10):** en la PC del equipo (Flutter 3.44, emulador Pixel 8 con Android 16), contra la API y un broker de prueba con el simulador, funcionaron: vinculación con un código de enfermería, turno en vivo, signos y curva de la pulsera simulada, y llamado desde el consultorio con aviso en la app. También pasaron `flutter analyze` sin observaciones, los tests de la app y la integración de la API (sesión que no abre endpoints del personal, DNI repetido sin sesión, código de un solo uso). El equipo probó la app en el emulador. Faltan el QR con cámara física y la notificación con la app minimizada en un teléfono real.
+
 ### 5d · Firmware y pulsera (F)
 
 - [ ] MAX30102: frecuencia cardíaca y SpO₂ reales (RF-O1, Hito 5; hoy los aporta el simulador)
@@ -221,6 +236,6 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 ## Backlog opcional
 
-- App del paciente en Flutter (APK + PWA), según la tesis
+- App del paciente: versión web (PWA) con el mismo código Flutter y notificaciones push con servidor (RF-D1, requieren internet)
 - RF-D1 notificaciones push · RF-D3 reportes PDF · RNF-D2 i18n (es/en) · RF-D2 mesh
 - Extraer los módulos de la API a libs `libs/api/<dominio>` si la API crece

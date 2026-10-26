@@ -18,13 +18,13 @@ Diseñar e implementar un ecosistema que optimice la atención hospitalaria comb
 
 ## Objetivos específicos
 
-| Objetivo                                                 | Dónde se materializa                          |
-| -------------------------------------------------------- | --------------------------------------------- |
-| Edge Gateway local autónomo (Wi-Fi + broker MQTT)        | `infra/`, `docker-compose.yml`, router RUT956 |
-| Interfaz multiplataforma de turnos para el paciente      | Portal cautivo (repo aparte) y app/PWA        |
-| Consola web unificada (Backoffice) para el equipo médico | `apps/backoffice`, `apps/tv-display`          |
-| Wearable ESP32-C3 (MAX30102, MLX90614, MPU6050, OLED)    | `apps/wearable-firmware-poc`                  |
-| Persistencia local + cifrado AES-256                     | `apps/api` (PostgreSQL, módulo de telemetría) |
+| Objetivo                                                 | Dónde se materializa                                                    |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Edge Gateway local autónomo (Wi-Fi + broker MQTT)        | `infra/`, `docker-compose.yml`, router RUT956                           |
+| Interfaz multiplataforma de turnos para el paciente      | Portal cautivo (repo aparte) y app Flutter Android (`apps/patient-app`) |
+| Consola web unificada (Backoffice) para el equipo médico | `apps/backoffice`, `apps/tv-display`                                    |
+| Wearable ESP32-C3 (MAX30102, MLX90614, MPU6050, OLED)    | `apps/wearable-firmware-poc`                                            |
+| Persistencia local + cifrado AES-256                     | `apps/api` (PostgreSQL, módulo de telemetría)                           |
 
 ## Alcance
 
@@ -51,5 +51,5 @@ Diseñar e implementar un ecosistema que optimice la atención hospitalaria comb
 Se registran acá para actualizar la memoria final:
 
 - **Nombre de marca:** "Vitalia" (la tesis usa "Ecosistema Digital Hospitalario").
-- **App del paciente:** la tesis la plantea en Flutter. Hoy el paciente usa el **portal cautivo en React** (repo `pti-captive-portal`). La app Flutter queda como opcional (ver roadmap).
+- **App del paciente:** la tesis la plantea en Flutter (APK + PWA). Hay dos caminos: el **portal cautivo en React** (repo `pti-captive-portal`) para el check-in web al conectarse al Wi-Fi, y la **app Flutter para Android** (`apps/patient-app`, [11-app-paciente.md](11-app-paciente.md)), que funciona como turnero, muestra los signos de la pulsera y guarda agenda y ficha de salud en el teléfono. La versión PWA no está configurada.
 - **Cifrado:** se especifica **AES-256-GCM** (modo autenticado) dentro del contenido del mensaje MQTT. La tesis habla de "cifrado en capa de transporte" ([ADR 0006](adr/0006-cifrado-aes-256-gcm.md)).

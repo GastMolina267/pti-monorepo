@@ -1,6 +1,7 @@
 import type { TriageLevel } from '../clinical/triage';
 import type { ConsultingRoom, ServiceArea } from '../catalog/catalog';
 import type { TicketCalledEvent } from '../realtime/events';
+import type { PatientSession } from '../patient/patient';
 
 /** Ciclo de vida de un turno. */
 export const TICKET_STATUSES = ['WAITING', 'CALLED', 'IN_PROGRESS', 'DONE', 'NO_SHOW', 'CANCELLED'] as const;
@@ -36,7 +37,7 @@ export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
 }
 
 /** Origen del check-in. */
-export const CHECK_IN_SOURCES = ['CAPTIVE_PORTAL', 'KIOSK', 'RECEPTION'] as const;
+export const CHECK_IN_SOURCES = ['CAPTIVE_PORTAL', 'KIOSK', 'RECEPTION', 'PATIENT_APP'] as const;
 export type CheckInSource = (typeof CHECK_IN_SOURCES)[number];
 
 /** Código visible del turno: `A` + 24 → `A-024`. */
@@ -98,7 +99,7 @@ export interface PublicTicket {
   calledAt?: string | null;
 }
 
-/** `POST /api/check-in` (público: portal cautivo o kiosk). */
+/** `POST /api/check-in` (público: portal cautivo, kiosk, recepción o app del paciente). */
 export interface CheckInRequest {
   firstName: string;
   lastName: string;
@@ -110,7 +111,13 @@ export interface CheckInRequest {
   reason?: string;
 }
 
-export type CheckInResponse = PublicTicket;
+/**
+ * Respuesta del check-in. `patientSession` solo viene cuando `source` es `PATIENT_APP` y el
+ * turno se creó en ese pedido (ver `PatientSession`).
+ */
+export interface CheckInResponse extends PublicTicket {
+  patientSession?: PatientSession;
+}
 
 /** `GET /api/tickets` (filtros). */
 export interface TicketQuery {

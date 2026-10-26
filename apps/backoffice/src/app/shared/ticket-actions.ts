@@ -18,6 +18,7 @@ import { apiErrorMessage } from '../core/api/api-error';
 import { AuthService } from '../core/auth/auth.service';
 import { QueueStore } from '../core/live/queue.store';
 import { CallDialog } from './call-dialog';
+import { PairingDialog, type PairingDialogData } from './pairing-dialog';
 
 interface StatusAction {
   status: TicketStatus;
@@ -72,6 +73,9 @@ const PRIMARY: Partial<Record<TicketStatus, TicketStatus>> = { CALLED: 'IN_PROGR
         }
         @for (a of secondary(); track a.status) {
           <button mat-menu-item (click)="run(a)">{{ a.label }}</button>
+        }
+        @if (isOpen()) {
+          <button mat-menu-item (click)="openPairing()">Vincular app del paciente</button>
         }
         @if (triageOptions().length) {
           <div class="menu-label">Triaje manual</div>
@@ -150,8 +154,12 @@ export class TicketActions {
     const open = t.status === 'WAITING' || t.status === 'CALLED' || t.status === 'IN_PROGRESS';
     return open && this.auth.can(ROLES_CAN_TRIAGE) ? TRIAGE_LEVELS.filter((l) => l !== t.triageLevel) : [];
   });
+  protected readonly isOpen = computed(() =>
+    ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(this.ticket().status),
+  );
   protected readonly hasMenu = computed(
     () =>
+      this.isOpen() ||
       this.secondary().length > 0 ||
       this.triageOptions().length > 0 ||
       (this.canCall() && this.ticket().status === 'CALLED'),
@@ -167,6 +175,15 @@ export class TicketActions {
             duration: 3500,
           });
       });
+  }
+
+  protected openPairing(): void {
+    const t = this.ticket();
+    this.dialog.open<PairingDialog, PairingDialogData>(PairingDialog, {
+      data: { ticketId: t.id, ticketCode: t.code },
+      width: '440px',
+      maxWidth: '94vw',
+    });
   }
 
   protected async run(a: StatusAction): Promise<void> {

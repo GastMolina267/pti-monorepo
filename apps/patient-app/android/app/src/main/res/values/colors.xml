@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores de la marca Vitalia (libs/shared/design-tokens/src/lib/brand.ts). -->
+<resources>
+    <color name="vt_primary">#0D9488</color>
+    <color name="vt_secondary">#0284C7</color>
+    <color name="vt_bg_light">#F8FAFC</color>
+    <color name="vt_bg_dark">#06111D</color>
+</resources>

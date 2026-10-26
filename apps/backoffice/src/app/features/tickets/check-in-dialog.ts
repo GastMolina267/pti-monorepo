@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -10,6 +10,7 @@ import type { PublicTicket, ServiceArea } from '@vitalia/contracts';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import { apiErrorMessage } from '../../core/api/api-error';
 import { TicketsApi } from '../../core/api/tickets.api';
+import { PairingDialog, type PairingDialogData } from '../../shared/pairing-dialog';
 
 /**
  * Check-in en recepción (RF-O5, `source: RECEPTION`): para quien llega sin celular o no usa
@@ -33,6 +34,7 @@ import { TicketsApi } from '../../core/api/tickets.api';
 export class CheckInDialog {
   private readonly api = inject(TicketsApi);
   protected readonly ref = inject(MatDialogRef<CheckInDialog, PublicTicket>);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly services = toSignal(this.api.services().pipe(catchError(() => of([] as ServiceArea[]))));
   protected readonly saving = signal(false);
@@ -46,6 +48,14 @@ export class CheckInDialog {
     serviceCode: ['', [Validators.required]],
     reason: ['', [Validators.maxLength(280)]],
   });
+
+  protected pair(t: PublicTicket): void {
+    this.dialog.open<PairingDialog, PairingDialogData>(PairingDialog, {
+      data: { ticketId: t.id, ticketCode: t.code },
+      width: '440px',
+      maxWidth: '94vw',
+    });
+  }
 
   protected async save(): Promise<void> {
     if (this.form.invalid) {

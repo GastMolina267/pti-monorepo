@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Isotipo Vitalia (cruz + pulso) dentro de la zona segura de 66 dp del ícono adaptativo.
+     Mismas coordenadas que libs/shared/design-tokens/src/assets/vitalia-isotipo.svg (viewBox
+     48), escaladas ×2 y desplazadas 6 dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="2" android:scaleY="2" android:translateX="6" android:translateY="6">
+        <path android:fillColor="#40FFFFFF"
+            android:pathData="M24,10a4,4 0,0 1,4 4v20a4,4 0,0 1,-8 0v-20a4,4 0,0 1,4 -4z" />
+        <path android:fillColor="#40FFFFFF"
+            android:pathData="M14,20h20a4,4 0,0 1,0 8h-20a4,4 0,0 1,0 -8z" />
+        <path android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="3.2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M12,24H18L21,16L27,32L30,24H36" />
+        <path android:fillColor="#FF34D399"
+            android:pathData="M33.5,24a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0z" />
+    </group>
+</vector>
