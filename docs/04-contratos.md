@@ -214,7 +214,7 @@ La API puede leer todos los `.../data` y escribir `.../cmd`; cada pulsera solo e
 | `accPeakG` | g        | Pico del intervalo                                                                        |
 | `fall`     | bool     | `true` si el firmware detectó una caída                                                   |
 
-**Rangos físicos (`TELEMETRY_READING_LIMITS`):** `hr` 20–250, `spo2` 50–100, `temp` 25–45 y `accPeakG` 0–16. No son umbrales clínicos (eso es `assessVitals()`): un valor afuera es un sensor sin poner o roto. La API **descarta la lectura entera** si un campo se sale, así que el wearable no los manda fuera de rango:
+**Rangos físicos (`TELEMETRY_READING_LIMITS`):** `hr` 20–250, `spo2` 50–100, `temp` 25–45 y `accPeakG` 0–16. No son umbrales clínicos (eso es `assessVitals()`): un valor afuera es un sensor sin poner o roto. Si una medición se sale, la API **descarta solo ese campo** (`dropOutOfRangeFields()`), conserva el resto de la lectura, `fall` incluido, y lo registra en el log. En cambio, un tipo equivocado (`hr: "78"`), un campo fuera del contrato o un `wearableId`/`seq`/`ts`/`fall` inválido descartan el mensaje entero: está mal armado o alterado ([ADR 0023](adr/0023-descartar-solo-la-medicion-fuera-de-rango.md)). El wearable igual no manda valores fuera de rango:
 
 - `hr`, `spo2` y `temp` se **omiten**. Ej.: con la pulsera sin poner, el MLX90614 mide el aire (~23 °C).
 - `accPeakG` se **satura** en 16 g. Es la magnitud de los tres ejes, que en un golpe fuerte pasa los 16 g aunque cada eje sature ahí, y esa lectura es la que lleva `fall: true`.

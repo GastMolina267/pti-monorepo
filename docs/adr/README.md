@@ -24,3 +24,4 @@ Formato y proceso: skill `vitalia-docs`. Un ADR aceptado no se edita: se reempla
 | [0018](0018-operacion-de-largo-plazo-y-red-del-gateway.md) | Retención, réplica por outbox y red del gateway    | Aceptado           |
 | [0019](0019-app-del-paciente-en-flutter.md)                | App del paciente en Flutter con sesión de turno    | Aceptado           |
 | [0020](0020-landing-b2c-b2b.md)                            | Landing con dos audiencias (B2C y B2B)             | Aceptado           |
+| [0023](0023-descartar-solo-la-medicion-fuera-de-rango.md)  | Descartar solo la medición fuera de rango          | Aceptado           |
