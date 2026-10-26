@@ -101,7 +101,11 @@ test('operación: persistencia, reconexión tras reinicios y restauración aisla
       const room = (await gateway.call<ConsultingRoom[]>('GET', '/consulting-rooms'))[0];
       await gateway.call('POST', `/tickets/${ticket.id}/call`, { consultingRoomId: room.id });
       await expect(tv.locator('.call .code')).toHaveText(ticket.code);
-      await expect.poll(() => wearable.commands.some((c) => c.value.ticketCode === ticket.code)).toBe(true);
+      await expect
+        .poll(() =>
+          wearable.commands.some((c) => c.value.type === 'SHOW_TICKET' && c.value.ticketCode === ticket.code),
+        )
+        .toBe(true);
       expect(navigations).toEqual([]);
     });
     await wearable.close();
