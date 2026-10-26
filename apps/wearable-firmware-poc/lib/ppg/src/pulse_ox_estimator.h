@@ -9,9 +9,12 @@
  *      beatThreshold × RMS, con un período refractario de minBeatMs. BPM = 60 000 / mediana
  *      de los últimos intervalos, si son al menos minIntervals y regulares (MAD/mediana).
  *   4. SpO2: R = (RMS/DC)rojo / (RMS/DC)IR y la curva de Maxim −45,06R² + 30,354R + 94,845.
+ *      Si el rojo no tiene DC o pulso (R no es finito y positivo), hay BPM pero no SpO2.
  *   5. Calidad: la perfusión (RMS/DC del IR) tiene que estar entre perfusionMin y
  *      perfusionMax. En la placa, la señal limpia dio 0,35–1,2 % y el movimiento 2,4–5,8 %.
  *      Si falla, no hay valores: la lectura los omite (contrato) en vez de mandar ruido.
+ *   6. Retención: con latidos irregulares se conserva el último valor válido hasta holdMs
+ *      (en muestras); pasado ese tiempo sin latidos regulares, se borra.
  *
  * El tiempo se cuenta en muestras (sampleRateHz), no con millis(): el firmware lee la FIFO
  * en tandas y todas las muestras de una tanda llegan con el mismo instante. Sin Arduino:
@@ -50,7 +53,7 @@ class PulseOxEstimator {
   bool fingerPresent() const { return finger_; }
   /** RMS/DC del IR (0,005 = 0,5 %). 0 sin dedo o durante el calentamiento. */
   float perfusion() const { return perfusion_; }
-  /** R de la última medición válida o en curso (diagnóstico). */
+  /** R de la última medición válida o en curso (diagnóstico); 0 si el rojo no sirve. */
   float ratio() const { return ratio_; }
 
   void reset();

@@ -167,7 +167,7 @@ pio device list
 /src
   main.cpp              // setup() + loop(): solo orquestación
   config.h              // pines, direcciones I²C, tiempos (sin secretos ni nada del contrato)
-  http_demo.{h,cpp}     // demo HTTP: /, /data (TelemetryReading), /status (diagnóstico)
+  http_demo.{h,cpp}     // demo HTTP: /, /data (TelemetryReading, solo HTTP_LAB_VITALS), /status (diagnóstico)
   secrets.h             // por pulsera: número, Wi-Fi, NTP, MQTT, clave AES — NO versionar
 /lib
   telemetry/            // PURA: Reading + JSON del contrato, composeSeq, wb-NN-mac, PeakTracker
@@ -223,15 +223,15 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 }
 ```
 
-| Campo      | Unidad   | Notas                                                                                    |
-| ---------- | -------- | ---------------------------------------------------------------------------------------- |
-| `seq`      | —        | `arranque << 24 \| contador` (`composeSeq`): crece también después de reiniciar          |
-| `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo |
-| `hr`       | BPM      | Opcional: se omite sin dedo, con movimiento o con latidos irregulares (`lib/ppg`)        |
-| `spo2`     | %        | Ídem (va junto con `hr`). Nunca `null` ni `0`                                            |
-| `temp`     | °C       | **Ya compensada** a temperatura clínica estimada (§7), nunca la cruda de piel            |
-| `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                             |
-| `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                  |
+| Campo      | Unidad   | Notas                                                                                                                                                                               |
+| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seq`      | —        | `arranque << 24 \| contador` (`composeSeq`): crece también después de reiniciar                                                                                                     |
+| `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo                                                                                            |
+| `hr`       | BPM      | Opcional: se omite sin dedo, con movimiento o sin muestras del sensor (`lib/ppg`). Con latidos irregulares se conserva el último valor hasta `PPG_HOLD_MS` (5 s) y después se omite |
+| `spo2`     | %        | Ídem; además se omite si el canal rojo no sirve (R no finito), aunque haya `hr`. Nunca `null` ni `0`                                                                                |
+| `temp`     | °C       | **Ya compensada** a temperatura clínica estimada (§7), nunca la cruda de piel                                                                                                       |
+| `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                                                                                                                        |
+| `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                                                                                                             |
 
 > **Rangos físicos** (`TELEMETRY_READING_LIMITS` → `vitalia::READING_*`): si un campo se sale, la API descarta solo ese campo y lo registra en el log (#19; antes descartaba la lectura entera, `fall` incluido). El firmware igual no los manda: `telemetry::applyReadingLimits()` corre antes de serializar: omite `hr`/`spo2`/`temp` fuera de rango (pulsera sin poner ≈ 23 °C) y satura `accPeakG` en 16 g (la magnitud de 3 ejes pasa ese valor en un golpe).
 >
@@ -243,7 +243,8 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 
 - **Sin clave válida no publica nada:** si `TELEMETRY_AES_KEY_HEX` está vacía o no son 64 hex, el monitor serie lo avisa y no sale nada por MQTT (nunca en claro por accidente).
 - **`MQTT_DEBUG_PLAINTEXT 1`** (solo desarrollo) publica además la lectura en claro en `<tópico>/plain`, con QoS 0. La API no lo escucha (`hospital/+/wearable/+/data` no matchea `/data/plain`). Son datos biométricos: nunca en 1 fuera del laboratorio.
-- La misma lectura sigue en `http://<IP>/data` (demo), y `http://<IP>/status` suma el estado de MQTT: conexión, publicadas, confirmadas (PUBACK), descartadas y outbox.
+- `http://<IP>/status` suma el estado de MQTT: conexión, publicadas, confirmadas (PUBACK), descartadas y outbox. El servidor HTTP no tiene login ni TLS: la lectura en `http://<IP>/data` y los signos vitales, PPG crudo, temperatura y caídas de `/status` solo se sirven con `HTTP_LAB_VITALS = true` (`config.h`, apagado por defecto). Sin eso, `/data` responde 404. Solo para calibrar, nunca con pacientes reales.
+- Una caída confirmada o la entrada de BPM/SpO₂ en el rango crítico del contrato (`criticalVitals()`: hr < 40 o > 130, spo2 < 90) publican la lectura en el momento, sin esperar el ciclo de 3 s (RNF-O1). La clasificación la sigue haciendo la API.
 - Para validar de punta a punta sin la API: `pnpm fw:mqtt-check` en la notebook (misma `TELEMETRY_AES_KEY` en el `.env`).
 
 El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes-256-gcm.md)) y se publica como sobre `EncryptedEnvelope`:

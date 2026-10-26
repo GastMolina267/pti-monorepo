@@ -141,9 +141,12 @@ static void buildReading() {
   // (abajo). Si no hay hora, el JSON no entra o el outbox está lleno, sale en la próxima.
   r.fall = fall.pending();
   if (skinTemp.isHealthy()) r.temp = skinTemp.coreEstC();
-  // Vacíos sin dedo, con movimiento o con latidos irregulares: la lectura los omite.
-  r.hr = vitals.hr();
-  r.spo2 = vitals.spo2();
+  // Vacíos sin dedo, con movimiento o sin latidos regulares por más de PPG_HOLD_MS: la lectura
+  // los omite. Con el sensor sin muestras (PPG_STALE_MS) tampoco van.
+  if (pulseOx.isHealthy()) {
+    r.hr = vitals.hr();
+    r.spo2 = vitals.spo2();
+  }
   telemetry::applyReadingLimits(r);  // la API descartaría el campo: mejor no mandarlo
 
   size_t n = telemetry::serializeReading(r, lastReadingJson, sizeof(lastReadingJson));
@@ -159,11 +162,14 @@ static void buildReading() {
 }
 
 // ---------------- HTTP (demo) ----------------
+// Sin login ni TLS: los signos vitales solo con HTTP_LAB_VITALS (config.h).
 static bool provideData(String& out) {
   if (!hasReading) return false;
   out = lastReadingJson;
   return true;
 }
+
+static void addLabStatus(JsonDocument& doc, uint32_t now);
 
 static bool provideStatus(String& out) {
   JsonDocument doc;
@@ -178,25 +184,12 @@ static bool provideStatus(String& out) {
   doc["sensors"]["mlx90614"] = skinTemp.isHealthy();
   doc["sensors"]["oled"] = oled.isHealthy();
   doc["sensors"]["max30102"] = pulseOx.isHealthy();
-  if (!isnan(imu.magnitudeG())) doc["accel_g"] = roundf(imu.magnitudeG() * 100) / 100.0;
-  if (skinTemp.isHealthy()) {
-    doc["temp_skin_c"] = roundf(skinTemp.skinC() * 10) / 10.0;
-    doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
-  }
   if (pulseOx.isHealthy()) {
     JsonObject p = doc["ppg"].to<JsonObject>();
-    p["ir"] = pulseOx.lastIr();
-    p["red"] = pulseOx.lastRed();
     p["finger"] = pulseOx.fingerPresent();
     p["samples"] = pulseOx.totalSamples();
-    p["perfusion_pct"] = roundf(vitals.perfusion() * 10000) / 100.0;
-    p["ratio"] = roundf(vitals.ratio() * 1000) / 1000.0;
-    if (vitals.hr()) p["hr"] = *vitals.hr();
-    if (vitals.spo2()) p["spo2"] = *vitals.spo2();
   }
-  doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
-  doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
-  doc["fall_state"] = fall_detection::stateName(fall.state());
+  if (HTTP_LAB_VITALS) addLabStatus(doc, now);
   JsonObject m = doc["mqtt"].to<JsonObject>();
   m["topic"] = dataTopic;
   m["connected"] = mqtt.connected();
@@ -210,6 +203,27 @@ static bool provideStatus(String& out) {
   m["debug_plaintext"] = MQTT_DEBUG_PLAINTEXT != 0;
   serializeJson(doc, out);
   return true;
+}
+
+// Signos vitales, PPG crudo, temperatura y caídas: solo en modo laboratorio.
+static void addLabStatus(JsonDocument& doc, uint32_t now) {
+  if (!isnan(imu.magnitudeG())) doc["accel_g"] = roundf(imu.magnitudeG() * 100) / 100.0;
+  if (skinTemp.isHealthy()) {
+    doc["temp_skin_c"] = roundf(skinTemp.skinC() * 10) / 10.0;
+    doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
+  }
+  if (pulseOx.isHealthy()) {
+    JsonObject p = doc["ppg"].as<JsonObject>();  // ya creado en provideStatus
+    p["ir"] = pulseOx.lastIr();
+    p["red"] = pulseOx.lastRed();
+    p["perfusion_pct"] = roundf(vitals.perfusion() * 10000) / 100.0;
+    p["ratio"] = roundf(vitals.ratio() * 1000) / 1000.0;
+    if (vitals.hr()) p["hr"] = *vitals.hr();
+    if (vitals.spo2()) p["spo2"] = *vitals.spo2();
+  }
+  doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
+  doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
+  doc["fall_state"] = fall_detection::stateName(fall.state());
 }
 
 // ---------------- OLED ----------------
@@ -253,7 +267,7 @@ void setup() {
   bool imuOk = imu.begin(Wire, MPU6050_I2C_ADDR);
   bool mlxOk = skinTemp.begin(Wire, MLX90614_I2C_ADDR, SKIN_TO_CORE_OFFSET_C);
   bool ppgOk = pulseOx.begin(Wire, {PPG_LED_AMPLITUDE, PPG_SAMPLE_AVERAGE, PPG_SAMPLE_RATE,
-                                    PPG_PULSE_WIDTH_US, PPG_ADC_RANGE, PPG_FINGER_IR_MIN});
+                                    PPG_PULSE_WIDTH_US, PPG_ADC_RANGE, PPG_FINGER_IR_MIN, PPG_STALE_MS});
   Serial.printf(" OLED:%s  MPU6050:%s  MLX90614:%s  MAX30102:%s\n", oledOk ? "OK" : "--",
                 imuOk ? "OK" : "--", mlxOk ? "OK" : "--", ppgOk ? "OK" : "--");
 
@@ -277,7 +291,7 @@ void setup() {
                 MQTT_DEBUG_PLAINTEXT ? "  (+ /plain EN CLARO, solo desarrollo)" : "");
 
   wifi.begin(WIFI_SSID, WIFI_PASS, WIFI_TX_POWER_QDBM);
-  http_demo::begin(provideData, provideStatus);
+  http_demo::begin(HTTP_LAB_VITALS ? provideData : nullptr, provideStatus);
   Serial.println(F(" HTTP en el puerto 80 (/, /data, /status)"));
 }
 
@@ -341,11 +355,23 @@ void loop() {
   }
   if (now - lastPpg >= PPG_POLL_MS) {
     lastPpg = now;
-    pulseOx.read([now](uint32_t ir, uint32_t red) {
+    pulseOx.read(now, [now](uint32_t ir, uint32_t red) {
       vitals.push(ir, red);
       if (PPG_LOG_RAW) Serial.printf("ppg,%lu,%lu,%lu\n", static_cast<unsigned long>(now),
                                      static_cast<unsigned long>(ir), static_cast<unsigned long>(red));
     });
+    // El estimador cuenta el tiempo en muestras: sin muestras, sus valores no vencen solos.
+    if (!pulseOx.isHealthy() && vitals.fingerPresent()) vitals.reset();
+    // RNF-O1: al entrar en rango crítico no se espera hasta 3 s al próximo ciclo (como una
+    // caída). Solo en el flanco: mientras siga crítico, sale con el período normal.
+    static bool vitalsCritical = false;
+    const bool critical = telemetry::criticalVitals(vitals.hr(), vitals.spo2());
+    if (critical && !vitalsCritical) {
+      Serial.println(F("Signos críticos: se publica la lectura ahora"));
+      lastReading = now;
+      buildReading();
+    }
+    vitalsCritical = critical;
   }
   if (now - lastTemp >= TEMP_PERIOD_MS) {
     lastTemp = now;

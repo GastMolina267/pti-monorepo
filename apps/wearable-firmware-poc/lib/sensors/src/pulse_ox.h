@@ -7,6 +7,8 @@
 #include <MAX30105.h>
 #include <Wire.h>
 
+#include "sample_watchdog.h"
+
 namespace sensors {
 
 struct PulseOxConfig {
@@ -16,6 +18,7 @@ struct PulseOxConfig {
   uint16_t pulseWidthUs;  // 69, 118, 215, 411 (más ancho = más resolución)
   uint16_t adcRange;      // 2048, 4096, 8192, 16384 (nA)
   uint32_t fingerIrMin;   // IR mínimo para considerar que hay un dedo apoyado
+  uint32_t staleMs;       // sin muestras por más de esto, el sensor deja de estar sano
 };
 
 class PulseOx {
@@ -23,10 +26,11 @@ class PulseOx {
   bool begin(TwoWire& wire, const PulseOxConfig& config);
   /**
    * Lee las muestras nuevas de la FIFO. Llamar seguido: a 25 muestras/s la FIFO (32) se
-   * llena en ~1,3 s. `onSample(ir, red)` se llama por cada muestra, en orden.
+   * llena en ~1,3 s. `onSample(ir, red)` se llama por cada muestra, en orden. Si no llegan
+   * muestras por más de `staleMs`, deja de estar sano hasta la próxima.
    */
   template <typename F>
-  uint16_t read(F&& onSample) {
+  uint16_t read(uint32_t now, F&& onSample) {
     if (!started_) return 0;
     sensor_.check();
     uint16_t n = 0;
@@ -38,7 +42,8 @@ class PulseOx {
       n++;
     }
     total_ += n;
-    if (n > 0) healthy_ = true;
+    if (n > 0) watchdog_.feed(now);
+    healthy_ = !watchdog_.stale(now);
     return n;
   }
   bool isHealthy() const { return healthy_; }
@@ -56,6 +61,7 @@ class PulseOx {
   uint32_t lastIr_ = 0;
   uint32_t lastRed_ = 0;
   uint32_t total_ = 0;
+  ppg::SampleWatchdog watchdog_{0};
 };
 
 }  // namespace sensors

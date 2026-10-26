@@ -71,7 +71,16 @@ constexpr bool PPG_LOG_RAW = false;
 // arriba de PPG_PERFUSION_MAX no se mide (la lectura omite hr/spo2).
 constexpr float PPG_PERFUSION_MIN = 0.001f;  // 0,1 %
 constexpr float PPG_PERFUSION_MAX = 0.02f;   // 2 %
-constexpr uint32_t PPG_HOLD_MS = 5000;       // un latido irregular no borra el último valor
+constexpr uint32_t PPG_HOLD_MS = 5000;       // con latidos irregulares se conserva el último valor
+// Sin muestras de la FIFO por más de esto (bus I²C, sensor colgado), se descartan BPM/SpO2.
+constexpr uint32_t PPG_STALE_MS = 2000;
+
+// --- HTTP de laboratorio (src/http_demo) ---
+// El servidor del puerto 80 no tiene login ni TLS. Con false, /data responde 404 y /status
+// solo trae diagnóstico (sensores, dedo sí/no, muestras, Wi-Fi, MQTT), sin signos vitales,
+// PPG crudo, temperatura ni caídas. Encenderlo solo para calibrar, nunca con pacientes
+// reales (Ley 25.326, AGENTS.md §8).
+constexpr bool HTTP_LAB_VITALS = false;
 
 // --- Red ---
 constexpr const char* MDNS_HOST = "wearable-pti";
