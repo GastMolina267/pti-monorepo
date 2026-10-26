@@ -5,6 +5,7 @@
 #include <unity.h>
 
 #include "pulse_ox_estimator.h"
+#include "sample_watchdog.h"
 
 using ppg::PulseOxEstimator;
 
@@ -145,6 +146,35 @@ void test_weak_signal_gives_nothing() {
   TEST_ASSERT_FALSE(e.hr().has_value());
 }
 
+void test_bad_red_channel_gives_hr_without_spo2() {
+  // Rojo en 0 (LED o lectura defectuosa) o sin pulso: R no es finito/positivo. El BPM sale
+  // del IR y sigue valiendo; el SpO2 se omite en vez de convertir un NaN.
+  for (bool zero : {true, false}) {
+    PulseOxEstimator e;
+    Synth s;
+    for (int i = 0; i < static_cast<int>(20.0f * FS); i++) {
+      uint32_t ir, red;
+      s.sample(ir, red);
+      e.push(ir, zero ? 0u : static_cast<uint32_t>(RED_DC));
+    }
+    TEST_ASSERT_TRUE(e.hr().has_value());
+    TEST_ASSERT_INT_WITHIN(3, 75, *e.hr());
+    TEST_ASSERT_FALSE(e.spo2().has_value());
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, e.ratio());
+  }
+}
+
+void test_sample_watchdog() {
+  ppg::SampleWatchdog w(2000);
+  TEST_ASSERT_TRUE(w.stale(0));  // nunca llegaron muestras
+  w.feed(1000);
+  TEST_ASSERT_FALSE(w.stale(3000));
+  TEST_ASSERT_TRUE(w.stale(3001));
+  w.feed(UINT32_MAX - 500);  // desborde de millis()
+  TEST_ASSERT_FALSE(w.stale(1000));
+  TEST_ASSERT_TRUE(w.stale(1600));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_no_finger_gives_nothing);
@@ -158,5 +188,7 @@ int main() {
   RUN_TEST(test_motion_clears_and_recovers);
   RUN_TEST(test_light_noise_is_tolerated);
   RUN_TEST(test_weak_signal_gives_nothing);
+  RUN_TEST(test_bad_red_channel_gives_hr_without_spo2);
+  RUN_TEST(test_sample_watchdog);
   return UNITY_END();
 }

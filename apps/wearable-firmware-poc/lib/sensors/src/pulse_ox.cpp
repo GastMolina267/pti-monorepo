@@ -4,6 +4,7 @@ namespace sensors {
 
 bool PulseOx::begin(TwoWire& wire, const PulseOxConfig& config) {
   fingerIrMin_ = config.fingerIrMin;
+  watchdog_ = ppg::SampleWatchdog(config.staleMs);
   // La librería llama a wire.begin() sin pines: con el bus ya iniciado el core solo avisa
   // ("Bus already started") y conserva GPIO5/6. El reloj es el mismo (100 kHz, AGENTS.md §2.3).
   started_ = sensor_.begin(wire, I2C_SPEED_STANDARD);

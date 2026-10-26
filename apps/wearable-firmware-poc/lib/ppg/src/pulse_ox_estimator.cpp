@@ -126,7 +126,10 @@ void PulseOxEstimator::push(uint32_t ir, uint32_t red) {
           intervals_[intervalHead_] = gap;
           intervalHead_ = static_cast<uint8_t>((intervalHead_ + 1) % kMaxIntervals);
           if (intervalCount_ < kMaxIntervals) intervalCount_++;
-          ratio_ = (sqrtf(redMs_) / redDc_) / (irRms / irDc_);
+          // Rojo en 0 o sin pulso (LED o lectura I²C defectuosa) daría inf/NaN: sin SpO2.
+          const float redRms = sqrtf(redMs_);
+          const float r = redDc_ > 0.0f && redRms > 0.0f ? (redRms / redDc_) / (irRms / irDc_) : 0.0f;
+          ratio_ = isfinite(r) && r > 0.0f ? r : 0.0f;
           updateValues();
         } else {
           intervalCount_ = 0;  // se perdieron latidos: los intervalos viejos ya no sirven
@@ -141,7 +144,7 @@ void PulseOxEstimator::push(uint32_t ir, uint32_t red) {
   prev1_ = pulse;
 
   // Sin latidos regulares durante holdMs, el último valor deja de valer.
-  if (hr_ && n_ - lastValidSample_ > msToSamples(p_.holdMs)) {
+  if ((hr_ || spo2_) && n_ - lastValidSample_ > msToSamples(p_.holdMs)) {
     hr_.reset();
     spo2_.reset();
   }
@@ -158,7 +161,8 @@ void PulseOxEstimator::updateValues() {
   if (med <= 0.0f || mad / med > p_.maxIntervalSpread) return;  // irregular: queda el último valor
 
   hr_ = static_cast<uint16_t>(lroundf(60.0f * p_.sampleRateHz / med));
-  spo2_ = static_cast<uint8_t>(lroundf(spo2FromRatio(ratio_)));
+  if (ratio_ > 0.0f) spo2_ = static_cast<uint8_t>(lroundf(spo2FromRatio(ratio_)));
+  else spo2_.reset();  // el BPM sale solo del IR: sigue valiendo
   lastValidSample_ = n_;
 }
 

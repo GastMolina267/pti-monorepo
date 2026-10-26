@@ -147,6 +147,17 @@ void test_limits_keep_in_range_values_and_bounds() {
   TEST_ASSERT_EQUAL_FLOAT(16.0f, *edge.accPeakG);
 }
 
+void test_critical_vitals_follow_the_contract() {
+  using telemetry::criticalVitals;
+  TEST_ASSERT_FALSE(criticalVitals(std::nullopt, std::nullopt));
+  TEST_ASSERT_FALSE(criticalVitals(uint16_t(87), uint8_t(98)));
+  TEST_ASSERT_FALSE(criticalVitals(uint16_t(40), uint8_t(90)));   // bordes: no son críticos
+  TEST_ASSERT_FALSE(criticalVitals(uint16_t(130), std::nullopt));
+  TEST_ASSERT_TRUE(criticalVitals(uint16_t(39), std::nullopt));    // bradicardia
+  TEST_ASSERT_TRUE(criticalVitals(uint16_t(131), uint8_t(98)));    // taquicardia
+  TEST_ASSERT_TRUE(criticalVitals(std::nullopt, uint8_t(89)));     // hipoxia
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_serialize_matches_shared_gcm_vector_plaintext);
@@ -161,5 +172,6 @@ int main() {
   RUN_TEST(test_limits_omit_out_of_range_vitals);
   RUN_TEST(test_limits_saturate_acc_peak_and_keep_fall);
   RUN_TEST(test_limits_keep_in_range_values_and_bounds);
+  RUN_TEST(test_critical_vitals_follow_the_contract);
   return UNITY_END();
 }
