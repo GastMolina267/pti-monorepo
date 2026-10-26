@@ -17,7 +17,7 @@ bool MqttLink::begin(const char* host, uint16_t port, const char* clientId, cons
                      const char* pass, const char* commandFilter) {
   if (client_ != nullptr || !inbox_.configure(commandFilter)) return false;
   strcpy(commandFilter_, commandFilter);
-  commands_ = xQueueCreate(1, sizeof(commands::ShowTicket));
+  commands_ = xQueueCreate(1, sizeof(commands::Command));
   if (!commands_) return false;
   snprintf(uri_, sizeof(uri_), "mqtt://%s:%u", host, static_cast<unsigned>(port));
 
@@ -53,7 +53,7 @@ int MqttLink::outboxBytes() const {
   return client_ == nullptr ? 0 : esp_mqtt_client_get_outbox_size(client_);
 }
 
-bool MqttLink::takeCommand(commands::ShowTicket& out) {
+bool MqttLink::takeCommand(commands::Command& out) {
   return commands_ && xQueueReceive(commands_, &out, 0) == pdTRUE;
 }
 
@@ -84,7 +84,7 @@ void MqttLink::onEvent(void* self, esp_event_base_t, int32_t eventId, void* even
         link->inbox_.reset();
         break;
       }
-      commands::ShowTicket command;
+      commands::Command command;
       if (link->inbox_.receive(event->topic, event->topic_len, event->data, event->data_len,
                                event->total_data_len, event->current_data_offset, event->retain, command)) {
         // Último llamado válido gana; la cola copia el objeto antes de regresar.

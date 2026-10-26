@@ -213,34 +213,27 @@ static bool provideStatus(String& out) {
 }
 
 // ---------------- OLED ----------------
+// Prioridad: caída reciente > llamado > pantalla del paciente (ADR 0021). La IP y el estado de
+// los sensores ya no van al OLED: están en el monitor serie, /status y wearable-pti.local.
 static void renderOled(uint32_t now) {
-  // Una caída reciente conserva prioridad local; después vuelve el último llamado.
-  if (callState.active() && !fall.recentFall(now, FALL_DISPLAY_MS)) {
+  const bool fallRecent = fall.recentFall(now, FALL_DISPLAY_MS);
+  if (callState.active() && !fallRecent) {
     const auto frame = callState.frame(now, mqtt.connected(), CALL_SCROLL_MS);
     oled.show(frame.title, frame.ticket, frame.room);
     return;
   }
-  char line0[24], line1[24], line2[24];
-
-  if (wifi.connected()) snprintf(line0, sizeof(line0), "%s", WiFi.localIP().toString().c_str());
-  else snprintf(line0, sizeof(line0), "WiFi...");
-
-  if (!net::timeValid()) {
-    snprintf(line1, sizeof(line1), "NTP...");
-  } else if (skinTemp.isHealthy()) {
-    float core = skinTemp.coreEstC();
-    snprintf(line1, sizeof(line1), "T %.1fC%s", core, core > FEVER_DISPLAY_THRESHOLD_C ? " FIEBRE" : "");
-  } else {
-    snprintf(line1, sizeof(line1), "T --");
+  commands::HomeInput in;
+  in.assignedCode = callState.assignedCode();
+  in.hr = vitals.hr();
+  in.spo2 = vitals.spo2();
+  if (skinTemp.isHealthy()) {
+    in.tempC = skinTemp.coreEstC();
+    in.fever = *in.tempC > FEVER_DISPLAY_THRESHOLD_C;
   }
-
-  const char* event = fall.recentFall(now, FALL_DISPLAY_MS) ? "CAIDA" : "ok";
-  if (imu.isHealthy() && vitals.hr() && vitals.spo2() && !fall.recentFall(now, FALL_DISPLAY_MS))
-    snprintf(line2, sizeof(line2), "%ulpm %u%% a%.2fg", *vitals.hr(), *vitals.spo2(), imu.magnitudeG());
-  else if (imu.isHealthy()) snprintf(line2, sizeof(line2), "a %.2fg  %s", imu.magnitudeG(), event);
-  else snprintf(line2, sizeof(line2), "a --");
-
-  oled.show(line0, line1, line2);
+  in.connected = mqtt.connected();
+  in.fallRecent = fallRecent;
+  const auto frame = commands::homeFrame(in);
+  oled.show(frame.header, frame.vitals, frame.temp);
 }
 
 // ---------------- setup / loop ----------------
@@ -320,8 +313,9 @@ void loop() {
   }
 
   http_demo::loop();
-  commands::ShowTicket command;
-  const bool callUpdated = mqtt.takeCommand(command) && callState.apply(command, now);
+  commands::Command command;
+  bool callUpdated = mqtt.takeCommand(command) && callState.apply(command, now);
+  callUpdated = callState.expire(now, CALL_MAX_DISPLAY_MS) || callUpdated;
 
   // --- Sensores ---
   if (now - lastImu >= IMU_PERIOD_MS) {

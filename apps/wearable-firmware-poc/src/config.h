@@ -37,6 +37,8 @@ constexpr uint32_t WIFI_ATTEMPT_TIMEOUT_MS = 15000;  // intento sin respuesta: s
 constexpr int8_t WIFI_TX_POWER_QDBM = 34;  // 8,5 dBm
 constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una caída
 constexpr uint32_t CALL_SCROLL_MS = 500;       // avance del consultorio largo, sin delay()
+// El llamado termina con CLEAR_TICKET; si se perdió (sin conexión), vence solo (ADR 0021).
+constexpr uint32_t CALL_MAX_DISPLAY_MS = 30u * 60 * 1000;
 
 // --- Detección de caídas (Hito 8, lib/fall_detection) ---
 // Punto de partida del marco teórico: se calibran con caídas controladas (AGENTS.md §9).

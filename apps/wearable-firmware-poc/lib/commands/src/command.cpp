@@ -1,5 +1,6 @@
 #include "command.h"
 #include <ArduinoJson.h>
+#include <stdio.h>
 #include <string.h>
 
 namespace commands {
@@ -97,18 +98,40 @@ void displayText(const char* text, char* out, size_t capacity, uint32_t step) {
 }
 }  // namespace
 
-bool parseShowTicket(const char* payload, size_t length, ShowTicket& out) {
+namespace {
+struct KindSpec {
+  const char* type;
+  CommandKind kind;
+  size_t fields;  // incluido "type"
+};
+// Tipos generados desde contracts (vitalia_contracts.h).
+const KindSpec KINDS[] = {
+    {vitalia::CMD_SHOW_TICKET, CommandKind::ShowTicket, 3},
+    {vitalia::CMD_ASSIGN_TICKET, CommandKind::AssignTicket, 2},
+    {vitalia::CMD_CLEAR_TICKET, CommandKind::ClearTicket, 2},
+    {vitalia::CMD_RELEASE_WEARABLE, CommandKind::ReleaseWearable, 1},
+};
+}  // namespace
+
+bool parseCommand(const char* payload, size_t length, Command& out) {
   if (!payload || length == 0 || length > vitalia::COMMAND_PAYLOAD_BYTES || memchr(payload, '\0', length)) return false;
   Reader reader{payload, length};
   JsonDocument doc;
   if (deserializeJson(doc, reader, DeserializationOption::NestingLimit(2)) || !doc.is<JsonObject>()) return false;
   while (reader.position < length) if (!whitespace(payload[reader.position++])) return false;
   JsonObjectConst object = doc.as<JsonObjectConst>();
-  if (object.size() != 3 || !object["type"].is<const char*>() ||
-      object["type"].as<JsonString>().size() != strlen(vitalia::CMD_SHOW_TICKET) ||
-      strcmp(object["type"].as<const char*>(), vitalia::CMD_SHOW_TICKET) != 0) return false;
-  ShowTicket candidate;
-  if (!copyText(object["ticketCode"], candidate.ticketCode, sizeof(candidate.ticketCode)) ||
+  if (!object["type"].is<const char*>()) return false;
+  const JsonString type = object["type"].as<JsonString>();
+  const KindSpec* spec = nullptr;
+  for (const KindSpec& k : KINDS)
+    if (type.size() == strlen(k.type) && strcmp(type.c_str(), k.type) == 0) spec = &k;
+  if (!spec || object.size() != spec->fields) return false;  // tipo desconocido o campos de más/menos
+
+  Command candidate;
+  candidate.kind = spec->kind;
+  if (spec->kind != CommandKind::ReleaseWearable &&
+      !copyText(object["ticketCode"], candidate.ticketCode, sizeof(candidate.ticketCode))) return false;
+  if (spec->kind == CommandKind::ShowTicket &&
       !copyText(object["consultingRoom"], candidate.consultingRoom, sizeof(candidate.consultingRoom))) return false;
   out = candidate;
   return true;
@@ -138,7 +161,7 @@ bool CommandInbox::matches(const char* topic, size_t length) const {
 }
 
 bool CommandInbox::receive(const char* topic, size_t topicLength, const char* data, size_t length,
-                          size_t total, size_t offset, bool retained, ShowTicket& out) {
+                          size_t total, size_t offset, bool retained, Command& out) {
   if (offset == 0) {
     reset();
     if (retained || !matches(topic, topicLength) || total == 0 || total > sizeof(payload_)) return false;
@@ -149,18 +172,83 @@ bool CommandInbox::receive(const char* topic, size_t topicLength, const char* da
   memcpy(payload_ + received_, data, length);
   received_ += length;
   if (received_ != expected_) return false;
-  const bool accepted = parseShowTicket(payload_, received_, out);
+  const bool accepted = parseCommand(payload_, received_, out);
   reset();
   return accepted;
 }
 
-bool CallState::apply(const ShowTicket& command, uint32_t now) {
-  if (active_ && strcmp(command_.ticketCode, command.ticketCode) == 0 &&
-      strcmp(command_.consultingRoom, command.consultingRoom) == 0) return false;
-  command_ = command;
-  receivedAt_ = now;
-  active_ = true;
+bool CallState::apply(const Command& command, uint32_t now) {
+  const bool sameAssigned = strcmp(assigned_, command.ticketCode) == 0;
+  switch (command.kind) {
+    case CommandKind::ShowTicket:
+      if (active_ && strcmp(command_.ticketCode, command.ticketCode) == 0 &&
+          strcmp(command_.consultingRoom, command.consultingRoom) == 0) return false;
+      command_ = command;
+      strcpy(assigned_, command.ticketCode);
+      receivedAt_ = now;
+      active_ = true;
+      return true;
+    case CommandKind::AssignTicket: {
+      const bool changed = active_ || !sameAssigned;
+      strcpy(assigned_, command.ticketCode);
+      active_ = false;
+      return changed;
+    }
+    case CommandKind::ClearTicket:
+      // Un CLEAR viejo (de otro turno) no puede borrar el llamado actual.
+      if (active_ && strcmp(command_.ticketCode, command.ticketCode) != 0) return false;
+      {
+        const bool changed = active_ || !sameAssigned;
+        strcpy(assigned_, command.ticketCode);
+        active_ = false;
+        return changed;
+      }
+    case CommandKind::ReleaseWearable: {
+      const bool changed = active_ || assigned_[0] != '\0';
+      assigned_[0] = '\0';
+      active_ = false;
+      return changed;
+    }
+  }
+  return false;
+}
+
+bool CallState::expire(uint32_t now, uint32_t maxMs) {
+  if (!active_ || now - receivedAt_ < maxMs) return false;
+  active_ = false;
   return true;
+}
+
+HomeFrame homeFrame(const HomeInput& in) {
+  HomeFrame f;
+  // Encabezado: código del turno (ASCII seguro y recortado) y el aviso de red a la derecha.
+  const char* offline = in.connected ? "" : "SIN RED";
+  const size_t room = DISPLAY_COLUMNS - strlen(offline) - (in.connected ? 0 : 1);
+  char left[DISPLAY_COLUMNS + 1] = {};
+  if (in.assignedCode && in.assignedCode[0]) {
+    char code[DISPLAY_COLUMNS + 1] = {};
+    displayText(in.assignedCode, code, sizeof(code), 0);
+    snprintf(left, sizeof(left), "Turno %s", code);
+  } else {
+    strcpy(left, "Vitalia");
+  }
+  left[room < strlen(left) ? room : strlen(left)] = '\0';
+  if (in.connected) snprintf(f.header, sizeof(f.header), "%s", left);
+  else snprintf(f.header, sizeof(f.header), "%-*s %s", static_cast<int>(room), left, offline);
+
+  if (in.fallRecent) {
+    strcpy(f.vitals, "CAIDA DETECTADA");
+  } else {
+    char hr[6] = "--", spo2[6] = "--";
+    if (in.hr) snprintf(hr, sizeof(hr), "%u", static_cast<unsigned>(*in.hr));
+    if (in.spo2) snprintf(spo2, sizeof(spo2), "%u", static_cast<unsigned>(*in.spo2));
+    snprintf(f.vitals, sizeof(f.vitals), "%s lpm  SpO2 %s%%", hr, spo2);
+  }
+
+  const bool tempOk = in.tempC && *in.tempC >= vitalia::READING_TEMP_MIN && *in.tempC <= vitalia::READING_TEMP_MAX;
+  if (tempOk) snprintf(f.temp, sizeof(f.temp), "Temp %.1f C%s", static_cast<double>(*in.tempC), in.fever ? "  FIEBRE" : "");
+  else strcpy(f.temp, "Temp --");
+  return f;
 }
 
 CallFrame CallState::frame(uint32_t now, bool connected, uint32_t scrollMs) const {
