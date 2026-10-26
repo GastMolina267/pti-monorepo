@@ -89,6 +89,10 @@ void begin(JsonProvider data, JsonProvider status) {
   statusProvider = status;
   server.on("/", []() { server.send_P(200, "text/html", PAGE); });
   server.on("/data", []() {
+    if (!dataProvider) {  // HTTP_LAB_VITALS apagado: sin login ni TLS no se sirven signos vitales
+      server.send(404, "application/json", "{\"error\":\"Lecturas solo en modo laboratorio (HTTP_LAB_VITALS).\"}");
+      return;
+    }
     sendJson(dataProvider, "{\"error\":\"Todavía no hay lecturas: esperando la hora por NTP.\"}");
   });
   server.on("/status", []() { sendJson(statusProvider, "{\"error\":\"Sin estado.\"}"); });

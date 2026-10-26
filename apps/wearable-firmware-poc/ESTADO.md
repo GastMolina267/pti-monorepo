@@ -20,7 +20,7 @@ pasar al siguiente hasta que el anterior pasa.
 | 2. OLED SSD1306        | ✅ **PASA**                                   | Texto estático OK. Ver gotcha del reloj abajo.                                                                                                                                                                                                                                                                  |
 | 3. MPU6050             | ✅ **PASA**                                   | ~1.05 g en reposo (dentro de tolerancia, offset de fábrica). REST/MOV OK.                                                                                                                                                                                                                                       |
 | 4. MLX90614            | ⚠️ **PARCIAL — recalibración fina pendiente** | El sensor funciona tras recuperar la EEPROM. Falta la curva de compensación fina, que requiere la carcasa/correa (ver abajo).                                                                                                                                                                                   |
-| 5. MAX30102 (BPM/SpO2) | ⛔ **NO EMPEZADO**                            | Próximo paso.                                                                                                                                                                                                                                                                                                   |
+| 5. MAX30102 (BPM/SpO2) | ✅ **PASA — primera validación** (26/10)      | Con el dedo apoyado en la protoboard, contra una smartband (82–87 lpm, 99 %): 73–89 lpm (casi siempre 79–88) y SpO₂ 97–100 %. Con movimiento o sin dedo, la lectura omite `hr`/`spo2`. Falta afinarlo en la muñeca, con la pulsera (ver abajo).                                                                 |
 | 6a. Wi-Fi (asociación) | ✅ **PASA**                                   | Asocia, obtiene IP, RSSI excelente. Potencia de transmisión en 8,5 dBm (`WIFI_TX_POWER_QDBM`, provisional): hubo un período con `AUTH_EXPIRE` sin conectar (ver abajo). Con 8,5 dBm conecta en 1 a 3 intentos (3–10 s). Client ID MQTT = `wb-01-24d7cc` (número físico 01 + MAC `44:BD:8D:24:D7:CC`, ADR 0011). |
 | 6b. MQTT               | ✅ **PASA** (21/10, dev y gateway)            | QoS 1 contra el Mosquitto de desarrollo y contra el gateway con usuario y contraseña de la pulsera (ADR 0014): lecturas descifradas y guardadas por la API, llamado recibido en el OLED, ACL que rechaza a la pulsera escribiendo comandos.                                                                     |
 | 7. Cifrado AES-256     | ✅ **PASA** (21/10)                           | `pio-test-device`: 3/3 en la placa (vectores compartidos, tag alterado rechazado, ida y vuelta con IV aleatorio). `fw:mqtt-check` descifra todas las lecturas con la clave del `.env`.                                                                                                                          |
@@ -79,10 +79,11 @@ a ambiente ~23 °C.
 
 1. **Recalibración fina de temperatura** — bloqueada hasta tener la carcasa/correa.
    Mientras tanto usar el offset provisional.
-2. **Hito 5 — MAX30102 (BPM / SpO2).** El más delicado de calibrar. Empezar con
-   lectura de BPM estable con el dedo apoyado y SpO2 contra un oxímetro comercial.
-   Librería: `sparkfun/SparkFun MAX3010x`. Dirección `0x57`. Ojo con la alimentación:
-   el módulo violeta necesita **5 V en VIN** (ver `AGENTS.md` 2.2).
+2. ✅ **Hito 5 — MAX30102 (BPM / SpO2)**, primera validación el 26/10 (ver "Prueba del MAX30102").
+   `sensors::PulseOx` lee la FIFO y `lib/ppg` calcula BPM y SpO2 con un filtro de calidad.
+   Falta afinarlo con el sensor en la muñeca, dentro de la pulsera: la señal y el movimiento
+   ahí son distintos a los de un dedo apoyado. Ojo con la alimentación: el módulo violeta
+   necesita **5 V en VIN** (ver `AGENTS.md` 2.2).
 3. ✅ **Firmware reestructurado y alineado al contrato** (2026-10-07): `lib/` (telemetry,
    fall_detection, sensors, net, ui), `config.h`, `vitalia_contracts.h` generado, NTP, `seq`
    por arranque y tests native (`pnpm fw:test`). La demo ya sirve `TelemetryReading` en `/data`.
@@ -95,7 +96,7 @@ a ambiente ~23 °C.
    4. ✅ Contra el gateway (`pnpm gateway:up`) con `MQTT_USER`/`MQTT_PASS` de la pulsera: probado el 21/10 (ver "Prueba contra el gateway").
 5. ✅ **Llamado en el OLED (4c)**, probado en la placa el 21/10: `TE LLAMAN` con código y consultorio, reemplazo por el llamado nuevo, scroll de consultorios largos y tildes/ñ transliteradas. Falta ver la prioridad de una caída local sobre el llamado (con el Hito 8, en la pulsera).
 6. ⏸️ **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13) y se validó en la protoboard el 21/10 (ver "Prueba de caídas en la protoboard"). **La calibración espera la pulsera:** primero hay que pasar el circuito a una protoboard chica o a una placa perforada con pistas soldadas, sin cables que se aflojen, y montarlo en la pulsera impresa. Recién ahí tienen sentido los valores de `config.h`, porque dependen de cómo cae y se mueve una muñeca y no una protoboard. Pasos para ese momento:
-   1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
+   1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. Con `HTTP_LAB_VITALS = true`, `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
    2. Caídas controladas sobre superficie acolchada con la pulsera puesta: si la muñeca no llega a marcar caída libre (< 0,4 g por 60 ms), bajar `FALL_FREE_FALL_MIN_MS`, subir `FALL_FREE_FALL_G` o, en último caso, `FALL_REQUIRE_FREE_FALL = false`.
    3. Falsos positivos: golpes de la mano contra la mesa, sentarse de golpe, aplaudir. No tienen que confirmar caída (sin caída libre o con movimiento después).
    4. Ajustar `FALL_STILL_TOLERANCE_G` con el offset real del MPU6050 en reposo (~1,05 g).
@@ -167,6 +168,37 @@ El broker del gateway se publica solo en loopback (ADR 0014: abrirlo a la red es
 
 Pendiente para la red real (Fase 4, RUT956): cómo se expone el broker a la VLAN de las pulseras (bind, TLS o red aislada) y NTP local. Hasta entonces, la pulsera física solo llega al gateway con un puente como este.
 
+> Actualización (25/10, ADR 0018): el gateway ahora tiene `GATEWAY_MQTT_BIND` para publicar el broker en la interfaz de la VLAN de las pulseras, sin puente.
+
+---
+
+## Prueba del MAX30102 (26/10)
+
+**Señal cruda (21/10).** `sensors::PulseOx` con 100 muestras/s promediadas de a 4 = 25 muestras/s, rojo + IR, pulso de 411 µs:
+
+- Detectado al arrancar (`MAX30102:OK`) y entregando 25 muestras/s.
+- IR ≈ 110 000 con el dedo apoyado y ≈ 540 sin dedo.
+- Perfusión (RMS/DC del IR) de 0,2–1,2 % con el dedo quieto y de 1,7–9 % con movimiento: es lo que usa el filtro de calidad.
+
+**Algoritmo (`lib/ppg`, pura, con 11 tests native sobre señales sintéticas).** Calcula la DC con una media móvil de 1 s y suaviza el AC. Detecta los latidos con umbral sobre el RMS y período refractario. El BPM es la mediana de los intervalos, y el SpO2 sale de R con la curva de Maxim. Sin dedo, con perfusión fuera de 0,1–2 % o con latidos irregulares, no hay valor y la lectura omite `hr`/`spo2`. Antes de flashear se pasó la captura del 21/10 por el estimador, en local y sin versionarla: dio 82–94 lpm y 99–100 % en los tramos quietos, y nada con movimiento o sin dedo.
+
+**En la placa (26/10).** Dedo apoyado en la protoboard, con una smartband de referencia (82–87 lpm, 99 %) y 3 min de lecturas en `fw:mqtt-check`:
+
+| Tramo                 | Placa                                                                         | Smartband       |
+| :-------------------- | :---------------------------------------------------------------------------- | :-------------- |
+| Quieto, primer minuto | 73–83 lpm (casi siempre 79–83), SpO₂ 97–100 %. Con valor en 17 de 23 lecturas | 82–87 lpm, 99 % |
+| Movimiento            | sin `hr`/`spo2` en las 13 lecturas                                            | —               |
+| Quieto otra vez       | 83–89 lpm, SpO₂ 99–100 %. Con valor en 9 de 9                                 | 82–87 lpm, 99 % |
+| Dedo levantado        | sin `hr`/`spo2`                                                               | —               |
+
+Las 60 lecturas descifraron y validaron contra el contrato. En el OLED se vio `83–88lpm 99–100%`.
+
+**Qué falta (con la pulsera):**
+
+1. En el primer minuto el BPM dio algo bajo (~79 contra 82–87). Comparar más tiempo y contra un oxímetro de dedo, que es más exacto que una smartband.
+2. Cobertura: con el dedo quieto, ~1 de cada 4 lecturas sale sin valor. Es el filtro siendo prudente (`PPG_HOLD_MS`, dispersión de intervalos). Se puede ajustar o subir a 50 muestras/s, pero recién con el sensor en la muñeca.
+3. SpO2: la curva es la genérica de Maxim. Calibrarla de verdad necesita valores bajos de referencia, que no se pueden generar en el laboratorio: queda como indicador.
+
 ---
 
 ## Gotchas descubiertos esta sesión (ya en AGENTS.md sección 3)
@@ -198,7 +230,7 @@ Si el puerto está ocupado: cerrar el monitor serie antes de subir. Si la placa 
 aparece: mantener BOOT presionado mientras se conecta el USB.
 
 **El firmware actual** arma una `TelemetryReading` del contrato cada 3 s, la publica cifrada por MQTT
-y la expone por HTTP (acelerómetro, temperatura, OLED, Wi-Fi, NTP). No incluye MAX30102 (Hito 5).
+con BPM/SpO₂ del MAX30102 (Hito 5), temperatura, acelerómetro y caídas. El OLED y el diagnóstico HTTP se describen abajo.
 
 Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, después
 `WiFi OK`, `NTP OK` y `MQTT OK`. Recién con NTP aparecen lecturas.
@@ -208,9 +240,11 @@ Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, d
   - `http://<IP>/` → página web con telemetría en vivo (fetch cada 1 s, sin recursos
     externos, funciona sin internet).
   - `http://<IP>/data` → la última `TelemetryReading`, tal cual se va a publicar por MQTT
-    (503 hasta tener hora NTP). Sin `hr`/`spo2` hasta el Hito 5. `seq` crece cada 3 s y salta
-    de bloque en cada reinicio.
-  - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, temperatura de piel.
+    (503 hasta tener hora NTP). Sin `hr`/`spo2` cuando no hay medición válida. `seq` crece
+    cada 3 s y salta de bloque en cada reinicio. **Solo con `HTTP_LAB_VITALS = true`**
+    (`config.h`): el servidor no tiene login ni TLS, así que por defecto responde 404.
+  - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, dedo sí/no, MQTT. Con
+    `HTTP_LAB_VITALS`, además temperatura de piel, PPG crudo, BPM/SpO₂ y estado de caídas.
   - `http://wearable-pti.local/` → lo mismo vía mDNS.
 - Detección de caída (Hito 8, sin calibrar): caída libre (< 0,4 g) → impacto (> 2,8 g) → 2 s de inmovilidad. Al confirmarse, la lectura con `fall: true` se publica en el momento (no espera el ciclo de 3 s) y el OLED y la página muestran CAÍDA durante 5 s. La página muestra "impacto" si hubo un golpe que no terminó en caída.
 - Fiebre (solo indicador del OLED): temperatura central estimada > 38.0 °C (offset provisional +1.2, ver arriba). La alerta la decide la API.
