@@ -187,6 +187,22 @@ void test_band_state_assign_call_clear_release() {
   TEST_ASSERT_FALSE(s.apply(parsed("{\"type\":\"RELEASE_WEARABLE\"}"), 500));
 }
 
+void test_stale_clear_never_restores_an_old_ticket() {
+  const char* clearA = "{\"type\":\"CLEAR_TICKET\",\"ticketCode\":\"A-024\"}";
+  commands::CallState s;
+  s.apply(parsed(valid), 100);  // llamado A-024
+  s.apply(parsed("{\"type\":\"RELEASE_WEARABLE\"}"), 200);
+  // CLEAR viejo que llega después de liberar: la pulsera sigue libre.
+  TEST_ASSERT_FALSE(s.apply(parsed(clearA), 300));
+  TEST_ASSERT_EQUAL_STRING("", s.assignedCode());
+
+  // Ya reasignada a otro turno: un CLEAR viejo tampoco la cambia.
+  s.apply(parsed("{\"type\":\"ASSIGN_TICKET\",\"ticketCode\":\"B-003\"}"), 400);
+  TEST_ASSERT_FALSE(s.apply(parsed(clearA), 500));
+  TEST_ASSERT_EQUAL_STRING("B-003", s.assignedCode());
+  TEST_ASSERT_FALSE(s.active());
+}
+
 void test_release_ends_an_active_call_and_old_calls_expire() {
   commands::CallState s;
   s.apply(parsed(valid), 1000);
@@ -244,6 +260,7 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_parses_the_four_command_types_with_exact_fields);
   RUN_TEST(test_band_state_assign_call_clear_release);
+  RUN_TEST(test_stale_clear_never_restores_an_old_ticket);
   RUN_TEST(test_release_ends_an_active_call_and_old_calls_expire);
   RUN_TEST(test_home_screen_shows_the_patient_view);
   RUN_TEST(test_home_screen_without_ticket_values_or_worn_band);

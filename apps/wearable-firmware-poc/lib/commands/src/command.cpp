@@ -195,14 +195,11 @@ bool CallState::apply(const Command& command, uint32_t now) {
       return changed;
     }
     case CommandKind::ClearTicket:
-      // Un CLEAR viejo (de otro turno) no puede borrar el llamado actual.
-      if (active_ && strcmp(command_.ticketCode, command.ticketCode) != 0) return false;
-      {
-        const bool changed = active_ || !sameAssigned;
-        strcpy(assigned_, command.ticketCode);
-        active_ = false;
-        return changed;
-      }
+      // Solo termina el llamado activo de ese turno. Un CLEAR viejo (después de liberar o de
+      // otra asignación) no toca nada: no puede volver a mostrar un turno que ya no es suyo.
+      if (!active_ || strcmp(command_.ticketCode, command.ticketCode) != 0) return false;
+      active_ = false;
+      return true;
     case CommandKind::ReleaseWearable: {
       const bool changed = active_ || assigned_[0] != '\0';
       assigned_[0] = '\0';

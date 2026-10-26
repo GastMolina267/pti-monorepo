@@ -56,7 +56,8 @@ class CallState {
  public:
   /**
    * Aplica un comando. Devuelve true si cambió lo que muestra el OLED (un SHOW_TICKET repetido
-   * no reinicia el desplazamiento). CLEAR_TICKET de otro turno que el llamado se ignora.
+   * no reinicia el desplazamiento). CLEAR_TICKET solo termina el llamado activo de ese mismo
+   * turno; sin llamado activo, o de otro turno, se ignora.
    */
   bool apply(const Command& command, uint32_t now);
   /** Termina un llamado de más de maxMs: el CLEAR_TICKET pudo perderse sin conexión. */
