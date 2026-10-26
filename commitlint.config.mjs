@@ -12,6 +12,7 @@ export default {
         'tv-display',
         'wearable-firmware-poc',
         'wearable-simulator',
+        'landing',
         'contracts',
         'design-tokens',
         'ui',
