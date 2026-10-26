@@ -83,7 +83,7 @@ export class TelemetryService implements OnModuleInit {
       const target = parseDataTopic(topic);
       if (!target) throw new TelemetryRejection('tópico fuera del contrato');
 
-      const reading = parseReading(openEnvelope(payload, this.key));
+      const { reading, dropped } = parseReading(openEnvelope(payload, this.key));
       // Sin AAD y con clave compartida: un sobre válido reinyectado en el tópico de otra
       // pulsera tiene que descartarse (revisión del PR #3, docs/04-contratos.md).
       if (reading.wearableId !== target.wearableId) {
@@ -102,6 +102,12 @@ export class TelemetryService implements OnModuleInit {
 
       if (Math.abs(receivedAt.getTime() - reading.ts) > MAX_CLOCK_SKEW_MS) {
         this.warnOnce(`skew:${wearable.code}`, `${wearable.code}: el reloj difiere más de 5 min (¿NTP?)`);
+      }
+      for (const field of dropped) {
+        this.warnOnce(
+          `range:${wearable.code}:${field}`,
+          `${wearable.code}: ${field} fuera de rango, se descarta solo ese campo`,
+        );
       }
 
       const findings = vitalsFindings(reading);

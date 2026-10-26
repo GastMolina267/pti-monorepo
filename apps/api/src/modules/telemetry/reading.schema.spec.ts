@@ -16,8 +16,22 @@ const base: TelemetryReading = {
 
 describe('parseReading', () => {
   it('acepta una lectura del contrato (seq de un arranque alto incluido)', () => {
-    expect(parseReading(base)).toEqual(base);
-    expect(parseReading({ wearableId: base.wearableId, seq: 0, ts: base.ts })).toMatchObject({ seq: 0 });
+    expect(parseReading(base)).toEqual({ reading: base, dropped: [] });
+    expect(parseReading({ wearableId: base.wearableId, seq: 0, ts: base.ts }).reading).toMatchObject({
+      seq: 0,
+    });
+  });
+
+  it.each([
+    ['una frecuencia imposible', { hr: 400 }, 'hr'],
+    ['SpO₂ > 100', { spo2: 101 }, 'spo2'],
+    ['la pulsera sin poner (23 °C)', { temp: 23 }, 'temp'],
+    ['un pico de más de 16 g', { accPeakG: 17.08 }, 'accPeakG'],
+  ] as const)('con %s saca solo ese campo y conserva el resto', (_case, patch, field) => {
+    const { reading, dropped } = parseReading({ ...base, ...patch, fall: true });
+    expect(dropped).toEqual([field]);
+    expect(reading).not.toHaveProperty(field);
+    expect(reading).toMatchObject({ seq: base.seq, fall: true });
   });
 
   it.each([
@@ -25,8 +39,7 @@ describe('parseReading', () => {
     ['un ts en segundos', { ts: 1791065563 }, /ts/],
     ['un seq negativo', { seq: -1 }, /seq/],
     ['un seq decimal', { seq: 1.5 }, /seq/],
-    ['una frecuencia imposible', { hr: 400 }, /hr/],
-    ['SpO₂ > 100', { spo2: 101 }, /spo2/],
+    ['una frecuencia que no es número', { hr: '78' }, /hr/],
     ['fall que no es boolean', { fall: 'true' }, /fall/],
     ['un campo fuera del contrato', { name: 'Lucía' }, /name|lectura/],
   ])('rechaza %s', (_case, patch, message) => {
