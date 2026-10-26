@@ -96,7 +96,7 @@ a ambiente ~23 °C.
    4. ✅ Contra el gateway (`pnpm gateway:up`) con `MQTT_USER`/`MQTT_PASS` de la pulsera: probado el 21/10 (ver "Prueba contra el gateway").
 5. ✅ **Llamado en el OLED (4c)**, probado en la placa el 21/10: `TE LLAMAN` con código y consultorio, reemplazo por el llamado nuevo, scroll de consultorios largos y tildes/ñ transliteradas. Falta ver la prioridad de una caída local sobre el llamado (con el Hito 8, en la pulsera).
 6. ⏸️ **Hito 8 — caídas:** la lógica ya está (`lib/fall_detection/src/fall_detector.h`, 2026-10-13) y se validó en la protoboard el 21/10 (ver "Prueba de caídas en la protoboard"). **La calibración espera la pulsera:** primero hay que pasar el circuito a una protoboard chica o a una placa perforada con pistas soldadas, sin cables que se aflojen, y montarlo en la pulsera impresa. Recién ahí tienen sentido los valores de `config.h`, porque dependen de cómo cae y se mueve una muñeca y no una protoboard. Pasos para ese momento:
-   1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
+   1. Con `FALL_LOG_TRANSITIONS = true`, el monitor serie imprime cada cambio de fase (`IDLE -> FREE_FALL -> AWAIT_IMPACT -> SETTLING -> CHECK_STILL`) con la aceleración. Con `HTTP_LAB_VITALS = true`, `/status` muestra `fall_state`, `impact_recent` y `fall_recent`.
    2. Caídas controladas sobre superficie acolchada con la pulsera puesta: si la muñeca no llega a marcar caída libre (< 0,4 g por 60 ms), bajar `FALL_FREE_FALL_MIN_MS`, subir `FALL_FREE_FALL_G` o, en último caso, `FALL_REQUIRE_FREE_FALL = false`.
    3. Falsos positivos: golpes de la mano contra la mesa, sentarse de golpe, aplaudir. No tienen que confirmar caída (sin caída libre o con movimiento después).
    4. Ajustar `FALL_STILL_TOLERANCE_G` con el offset real del MPU6050 en reposo (~1,05 g).
@@ -230,7 +230,7 @@ Si el puerto está ocupado: cerrar el monitor serie antes de subir. Si la placa 
 aparece: mantener BOOT presionado mientras se conecta el USB.
 
 **El firmware actual** arma una `TelemetryReading` del contrato cada 3 s, la publica cifrada por MQTT
-y la expone por HTTP (acelerómetro, temperatura, OLED, Wi-Fi, NTP). No incluye MAX30102 (Hito 5).
+con BPM/SpO₂ del MAX30102 (Hito 5), temperatura, acelerómetro y caídas. El OLED y el diagnóstico HTTP se describen abajo.
 
 Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, después
 `WiFi OK`, `NTP OK` y `MQTT OK`. Recién con NTP aparecen lecturas.
@@ -240,9 +240,11 @@ Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, d
   - `http://<IP>/` → página web con telemetría en vivo (fetch cada 1 s, sin recursos
     externos, funciona sin internet).
   - `http://<IP>/data` → la última `TelemetryReading`, tal cual se va a publicar por MQTT
-    (503 hasta tener hora NTP). Sin `hr`/`spo2` hasta el Hito 5. `seq` crece cada 3 s y salta
-    de bloque en cada reinicio.
-  - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, temperatura de piel.
+    (503 hasta tener hora NTP). Sin `hr`/`spo2` cuando no hay medición válida. `seq` crece
+    cada 3 s y salta de bloque en cada reinicio. **Solo con `HTTP_LAB_VITALS = true`**
+    (`config.h`): el servidor no tiene login ni TLS, así que por defecto responde 404.
+  - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, dedo sí/no, MQTT. Con
+    `HTTP_LAB_VITALS`, además temperatura de piel, PPG crudo, BPM/SpO₂ y estado de caídas.
   - `http://wearable-pti.local/` → lo mismo vía mDNS.
 - Detección de caída (Hito 8, sin calibrar): caída libre (< 0,4 g) → impacto (> 2,8 g) → 2 s de inmovilidad. Al confirmarse, la lectura con `fall: true` se publica en el momento (no espera el ciclo de 3 s) y el OLED y la página muestran CAÍDA durante 5 s. La página muestra "impacto" si hubo un golpe que no terminó en caída.
 - Fiebre (solo indicador del OLED): temperatura central estimada > 38.0 °C (offset provisional +1.2, ver arriba). La alerta la decide la API.
