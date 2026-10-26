@@ -44,7 +44,7 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 
 Pipeline de `TelemetryService.ingest(topic, payload)` (nunca lanza, devuelve `IngestOutcome`):
 
-1. `parseDataTopic` → `openEnvelope` (base64 estricto, largos de IV/tag, GCM) → `parseReading` (zod) → `wearableId` = tópico.
+1. `parseDataTopic` → `openEnvelope` (base64 estricto, largos de IV/tag, GCM) → `parseReading` (zod: forma estricta; después `dropOutOfRangeFields` saca solo las mediciones fuera de `TELEMETRY_READING_LIMITS`) → `wearableId` = tópico.
 2. `findForIngest(code)`: si no existe en `wearables`, se descarta. `SeqDeduper` (últimos 64 seq por pulsera) descarta reenvíos.
 3. `vitalsFindings()` (contracts) → hallazgos con `kind`; el nivel y los motivos salen de ahí (misma regla que `assessVitals()`).
 4. **Emisión primero:** `telemetry:reading` a `staff` y `AlertsService.raise()` con los hallazgos CRÍTICOS.
