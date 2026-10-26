@@ -236,7 +236,7 @@ export class TicketsService {
       serviceCode: ticket.service.code,
       calledAt: calledAt.toISOString(),
     });
-    void this.wearables.showTicket(id, { ticketCode: ticket.code, consultingRoom: room.name });
+    void this.wearables.syncByTicket(id); // SHOW_TICKET con el estado guardado
     const updated = await this.getEntity(id);
     this.notifyQueue('CALLED', updated);
     return toTicket(updated);
@@ -259,7 +259,7 @@ export class TicketsService {
     if (RELEASES_WEARABLE.includes(status)) {
       await this.wearables.releaseByTicket(id); // RELEASE_WEARABLE: también termina el llamado
     } else if (ticket.status === 'CALLED') {
-      void this.wearables.clearCall(id, ticket.code); // dejó de estar llamado: fuera "TE LLAMAN"
+      void this.wearables.syncByTicket(id); // dejó de estar llamado: CLEAR_TICKET, fuera "TE LLAMAN"
     }
     const updated = await this.getEntity(id);
     this.notifyQueue('STATUS', updated);
