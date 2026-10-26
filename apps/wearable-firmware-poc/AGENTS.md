@@ -172,7 +172,8 @@ pio device list
 /lib
   telemetry/            // PURA: Reading + JSON del contrato, composeSeq, wb-NN-mac, PeakTracker
   fall_detection/       // PURA: FallDetector (caída libre → impacto > 2,8 g → inmovilidad, Hito 8)
-  sensors/              // Imu (MPU6050), SkinTemp (MLX90614); a futuro MAX30102
+  ppg/                  // PURA: PulseOxEstimator (BPM y SpO2 desde la señal del MAX30102, filtro de calidad, Hito 5)
+  sensors/              // Imu (MPU6050), SkinTemp (MLX90614), PulseOx (MAX30102: FIFO rojo + IR)
   envelope/             // PURA: base64, sobre { v, iv, ct, tag } del contrato, clave hex de secrets.h
   commands/             // PURA: parser SHOW_TICKET, fragmentos, estado del llamado y texto/scroll del OLED
   net/                  // Wi-Fi, NTP, MqttLink (QoS 1 + comandos por cola FreeRTOS), identidad, arranques NVS
@@ -226,8 +227,8 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 | ---------- | -------- | ---------------------------------------------------------------------------------------- |
 | `seq`      | —        | `arranque << 24 \| contador` (`composeSeq`): crece también después de reiniciar          |
 | `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo |
-| `hr`       | BPM      | Opcional: se omite hasta que el MAX30102 dé una lectura válida (no mandar `null` ni `0`) |
-| `spo2`     | %        | Ídem                                                                                     |
+| `hr`       | BPM      | Opcional: se omite sin dedo, con movimiento o con latidos irregulares (`lib/ppg`)        |
+| `spo2`     | %        | Ídem (va junto con `hr`). Nunca `null` ni `0`                                            |
 | `temp`     | °C       | **Ya compensada** a temperatura clínica estimada (§7), nunca la cruda de piel            |
 | `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                             |
 | `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                  |
@@ -280,22 +281,26 @@ Los **umbrales clínicos** de la plataforma están en [`libs/shared/contracts/sr
 
 Lo propio del dispositivo (pines, tiempos, offset de temperatura, indicador local de fiebre) va en `src/config.h`, no disperso por el código:
 
-| Parámetro                              | Valor     | Origen                                  |
-| :------------------------------------- | :-------- | :-------------------------------------- |
-| Umbral de impacto (caída)              | **2.8 g** | `vitalia::FALL_IMPACT_G` (contracts)    |
-| Umbral de caída libre previa           | 0.4 g     | `FALL_FREE_FALL_G` · a calibrar         |
-| Duración mínima de la caída libre      | 60 ms     | `FALL_FREE_FALL_MIN_MS` · a calibrar    |
-| Ventana caída libre → impacto          | 1000 ms   | `FALL_IMPACT_WINDOW_MS` · a calibrar    |
-| Rebotes ignorados después del impacto  | 500 ms    | `FALL_SETTLE_MS` · a calibrar           |
-| Ventana de inmovilidad post-impacto    | 2000 ms   | `FALL_STILL_MS` · a calibrar            |
-| Tolerancia de inmovilidad              | ±0.3 g    | `FALL_STILL_TOLERANCE_G` · a calibrar   |
-| Frecuencia de muestreo IMU             | 50 Hz     | —                                       |
-| Intervalo de publicación de telemetría | 3 s       | docs/03-dominio y prueba de carga F5    |
-| SpO2 crítico                           | < 90 %    | Marco teórico                           |
-| Rango normal BPM                       | 60–100    | Marco teórico                           |
-| Temperatura de fiebre (alerta)         | > 37.5 °C | `CLINICAL_THRESHOLDS`, la decide la API |
-| Indicador local de fiebre (OLED/LED)   | > 38.0 °C | Provisional, ver nota de calibración    |
-| Latencia máxima de alerta              | 2.0 s     | RNF-O1                                  |
+| Parámetro                              | Valor     | Origen                                                 |
+| :------------------------------------- | :-------- | :----------------------------------------------------- |
+| Umbral de impacto (caída)              | **2.8 g** | `vitalia::FALL_IMPACT_G` (contracts)                   |
+| Umbral de caída libre previa           | 0.4 g     | `FALL_FREE_FALL_G` · a calibrar                        |
+| Duración mínima de la caída libre      | 60 ms     | `FALL_FREE_FALL_MIN_MS` · a calibrar                   |
+| Ventana caída libre → impacto          | 1000 ms   | `FALL_IMPACT_WINDOW_MS` · a calibrar                   |
+| Rebotes ignorados después del impacto  | 500 ms    | `FALL_SETTLE_MS` · a calibrar                          |
+| Ventana de inmovilidad post-impacto    | 2000 ms   | `FALL_STILL_MS` · a calibrar                           |
+| Tolerancia de inmovilidad              | ±0.3 g    | `FALL_STILL_TOLERANCE_G` · a calibrar                  |
+| Frecuencia de muestreo IMU             | 50 Hz     | —                                                      |
+| Intervalo de publicación de telemetría | 3 s       | docs/03-dominio y prueba de carga F5                   |
+| Muestras del MAX30102                  | 25/s      | `PPG_SAMPLE_RATE` / `PPG_SAMPLE_AVERAGE`               |
+| Dedo apoyado (IR)                      | ≥ 50 000  | `PPG_FINGER_IR_MIN` (~110 000 con dedo, ~540 sin dedo) |
+| Perfusión válida (RMS/DC del IR)       | 0,1–2 %   | `PPG_PERFUSION_MIN/MAX`: arriba es movimiento          |
+| Retención del último BPM/SpO2 válido   | 5 s       | `PPG_HOLD_MS`                                          |
+| SpO2 crítico                           | < 90 %    | Marco teórico                                          |
+| Rango normal BPM                       | 60–100    | Marco teórico                                          |
+| Temperatura de fiebre (alerta)         | > 37.5 °C | `CLINICAL_THRESHOLDS`, la decide la API                |
+| Indicador local de fiebre (OLED/LED)   | > 38.0 °C | Provisional, ver nota de calibración                   |
+| Latencia máxima de alerta              | 2.0 s     | RNF-O1                                                 |
 
 La temperatura del MLX90614 es **superficial de muñeca**, no central. Antes de comparar contra el umbral de fiebre hay que aplicar la curva de compensación. No publicar el valor crudo como si fuera temperatura clínica.
 
