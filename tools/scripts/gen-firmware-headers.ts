@@ -74,7 +74,7 @@ function renderContracts(): string {
     '// snprintf(buf, len, FMT, sala, wearableId)',
     `constexpr const char* MQTT_TOPIC_DATA_FMT = "${MQTT_TOPICS.wearableData('%s', '%s')}";`,
     `constexpr const char* MQTT_TOPIC_CMD_FMT = "${MQTT_TOPICS.wearableCommand('%s', '%s')}";`,
-    `constexpr const char* CMD_SHOW_TICKET = "${WEARABLE_COMMAND_TYPES[0]}";`,
+    ...WEARABLE_COMMAND_TYPES.map((type) => `constexpr const char* CMD_${type} = "${type}";`),
     `constexpr uint16_t COMMAND_PAYLOAD_BYTES = ${WEARABLE_COMMAND_LIMITS.payloadBytes};`,
     `constexpr uint16_t COMMAND_TICKET_CODE_BYTES = ${WEARABLE_COMMAND_LIMITS.ticketCodeBytes};`,
     `constexpr uint16_t COMMAND_CONSULTING_ROOM_BYTES = ${WEARABLE_COMMAND_LIMITS.consultingRoomBytes};`,

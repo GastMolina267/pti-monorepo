@@ -232,20 +232,31 @@ La API puede leer todos los `.../data` y escribir `.../cmd`; cada pulsera solo e
 
 Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSION`, `TELEMETRY_CIPHER`, `SEQ_BOOT_SHIFT`, el rango del número de wearable, `TELEMETRY_READING_LIMITS` y `CLINICAL_THRESHOLDS`) se genera en `apps/wearable-firmware-poc/include/vitalia_contracts.h` con `pnpm fw:codegen`. La CI verifica que esté al día.
 
-### Comando al wearable (`WearableCommand`)
+### Comandos al wearable (`WearableCommand`)
+
+Cada comando lleva el estado completo de la pulsera ([ADR 0021](adr/0021-estado-de-la-pulsera-por-comandos.md)):
+
+| `type`             | Campos                         | Cuándo lo publica la API                                           | OLED                                                     |
+| ------------------ | ------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------- |
+| `ASSIGN_TICKET`    | `ticketCode`                   | Al asignar la pulsera a un turno no llamado                        | `Turno <código>` y los signos del paciente               |
+| `SHOW_TICKET`      | `ticketCode`, `consultingRoom` | Al llamar el turno, o al asignar la pulsera a un turno ya llamado  | `TE LLAMAN`, código y consultorio                        |
+| `CLEAR_TICKET`     | `ticketCode`                   | Cuando el turno sale de `CALLED` (en atención, a la fila, ausente) | Termina el llamado activo de ese turno; si no, se ignora |
+| `RELEASE_WEARABLE` | —                              | Al liberar la pulsera (a mano, o al finalizar o cancelar)          | `Vitalia`, sin turno                                     |
 
 ```json
 { "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
 ```
 
-- La API lo publica en `hospital/<sala>/wearable/<id>/cmd` con QoS 1 y sin retain al llamar el turno que tiene la pulsera, o al asignar la pulsera a un turno ya llamado.
+- Si una pulsera vuelve a publicar después de más de 15 s sin lecturas (reinicio o corte), la API le reenvía su estado actual: los comandos van sin retain.
+- **Orden:** la API no publica el comando del momento del evento. Cada cambio pide sincronizar la pulsera, y el comando sale del estado guardado en la base al momento de publicar, en una cola por pulsera. Aunque los cambios se crucen (llamar y finalizar enseguida), el último comando es siempre el estado actual. `CLEAR_TICKET` sale cuando lo último que recibió la pulsera fue el llamado de ese turno; si no, `ASSIGN_TICKET`.
+- La API los publica en `hospital/<sala>/wearable/<id>/cmd` con QoS 1 y sin retain.
 - `<sala>` es la de la última lectura recibida (`wearables.last_room`). Si nunca publicó, se usa `DEFAULT_WEARABLE_ROOM` (`sala1`).
-- Va **en claro**: no lleva signos vitales ni datos personales, solo lo que ya muestra la TV. Desde 4b la ACL del gateway reserva la publicación en `cmd` a la API.
+- Va **en claro**: no lleva signos vitales ni datos personales (nunca el nombre del paciente), solo lo que ya muestra la TV. Desde 4b la ACL del gateway reserva la publicación en `cmd` a la API.
 - Si no hay conexión con el broker, el llamado sigue igual (el OLED no se entera).
 
-Desde 4c, el firmware se suscribe con QoS 1 a `hospital/+/wearable/<id propio>/cmd` en cada conexión, incluso al reconectar. El receptor valida el objeto completo con esos tres campos, `type` conocido y textos UTF-8 no vacíos sin controles. Los límites `WEARABLE_COMMAND_LIMITS` se generan a C++: 512 bytes de JSON, 16 de código y 320 de consultorio (sin terminadores). El formato del mensaje no cambia.
+Desde 4c, el firmware se suscribe con QoS 1 a `hospital/+/wearable/<id propio>/cmd` en cada conexión, incluso al reconectar. El receptor valida el objeto completo con exactamente los campos de su `type` y textos UTF-8 no vacíos sin controles; un `type` desconocido se ignora. Los límites `WEARABLE_COMMAND_LIMITS` se generan a C++: 512 bytes de JSON, 16 de código y 320 de consultorio (sin terminadores). El formato del mensaje no cambia.
 
-Los fragmentos se reensamblan dentro del límite; mensajes retenidos, incompletos, ajenos, desconocidos o inválidos se descartan sin cambiar el último llamado. La tarea MQTT pasa una copia por cola al `loop()`, que muestra `TE LLAMAN`, código y consultorio. Los nombres largos se desplazan y las tildes/ñ se transliteran para la fuente básica del OLED. Una caída local reciente conserva prioridad; sin broker se indica `LLAMADO SIN RED` y se conserva lo recibido. El llamado dura hasta reemplazo o reinicio: todavía no hay `CLEAR_TICKET` ni recuperación automática de llamados perdidos durante una desconexión. [ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md).
+Los fragmentos se reensamblan dentro del límite; mensajes retenidos, incompletos, ajenos, desconocidos o inválidos se descartan sin cambiar el último llamado. La tarea MQTT pasa una copia por cola al `loop()`, que muestra `TE LLAMAN`, código y consultorio. Los nombres largos se desplazan y las tildes/ñ se transliteran para la fuente básica del OLED. Una caída local reciente conserva prioridad; sin broker se indica `LLAMADO SIN RED` y se conserva lo recibido. El llamado termina con `CLEAR_TICKET` o `RELEASE_WEARABLE`, y vence solo a los 30 min por si ese comando se perdió. Después de un reinicio o un corte, el reenvío de la API recupera el turno y el llamado. Sin llamado, el OLED muestra la pantalla del paciente. [ADR 0015](adr/0015-recibir-comandos-en-el-firmware.md), [ADR 0021](adr/0021-estado-de-la-pulsera-por-comandos.md).
 
 ## Réplica a la nube (RF-O6, ADR 0018)
 

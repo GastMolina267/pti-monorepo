@@ -29,7 +29,7 @@ class MqttLink {
   /** SUBACK recibido para esta conexión; se vuelve a suscribir en cada reconexión. */
   bool commandsReady() const { return commandsReady_; }
   /** Solo el loop consume la cola: jamás se accede al OLED/I²C desde la tarea MQTT. */
-  bool takeCommand(commands::ShowTicket& out);
+  bool takeCommand(commands::Command& out);
 
   /**
    * Encola el mensaje en el outbox y vuelve enseguida; lo envía la tarea de ESP-MQTT.

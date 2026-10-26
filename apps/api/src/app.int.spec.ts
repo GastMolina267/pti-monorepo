@@ -201,6 +201,29 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
     return client;
   }
 
+  /** Comandos que recibe una pulsera, en orden; `next(type)` espera el próximo de ese tipo. */
+  async function wearableCommands(code: string) {
+    const client = await mqttClient();
+    const seen: WearableCommand[] = [];
+    const waiting: { type: WearableCommand['type']; resolve: (c: WearableCommand) => void }[] = [];
+    client.on('message', (_topic, payload) => {
+      const cmd = JSON.parse(payload.toString()) as WearableCommand;
+      const i = waiting.findIndex((w) => w.type === cmd.type);
+      if (i >= 0) waiting.splice(i, 1)[0].resolve(cmd);
+      else seen.push(cmd);
+    });
+    await client.subscribeAsync(MQTT_TOPICS.wearableCommand('+', code), { qos: MQTT_QOS });
+    return {
+      next: (type: WearableCommand['type']) =>
+        new Promise<WearableCommand>((resolve) => {
+          const i = seen.findIndex((c) => c.type === type);
+          if (i >= 0) resolve(seen.splice(i, 1)[0]);
+          else waiting.push({ type, resolve });
+        }),
+      end: () => client.endAsync(),
+    };
+  }
+
   const authed = (token: string) => ({ Authorization: `Bearer ${token}` });
 
   it('GET /health incluye los checks de la base y de MQTT', async () => {
@@ -560,10 +583,12 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
       const patient = await connect({ ticketId });
       const cmdClient = await mqttClient();
       await cmdClient.subscribeAsync(MQTT_TOPICS.wearableCommand('+', wearable.code), { qos: MQTT_QOS });
+      // Solo el llamado: la ingesta también puede reenviar el estado (ASSIGN_TICKET, ADR 0021).
       const cmdP = new Promise<{ topic: string; cmd: WearableCommand }>((resolve) =>
-        cmdClient.once('message', (topic, payload) =>
-          resolve({ topic, cmd: JSON.parse(payload.toString()) }),
-        ),
+        cmdClient.on('message', (topic, payload) => {
+          const cmd = JSON.parse(payload.toString()) as WearableCommand;
+          if (cmd.type === 'SHOW_TICKET') resolve({ topic, cmd });
+        }),
       );
       const forTicket = (e: TicketCalledEvent) => e.ticketId === ticketId;
       const tvCalled = nextEvent<TicketCalledEvent>(tv, REALTIME_EVENTS.TICKET_CALLED, forTicket);
@@ -656,6 +681,7 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
       ).body as Ticket[];
       const withWearable = new Set(list.map((w) => w.ticket?.id));
       const target = queue.find((t) => !withWearable.has(t.id)) as Ticket;
+      const commands = await wearableCommands(free.code);
 
       const assigned = await request(app.getHttpServer())
         .post(`/api/wearables/${free.id}/assign`)
@@ -678,17 +704,32 @@ describeIfDb('API Fase 1 (integración con PostgreSQL)', () => {
         .set(authed(receptionToken))
         .expect(200);
       expect(released.body).toMatchObject({ status: 'AVAILABLE', ticket: null });
+
+      // El OLED muestra el código del turno al asignarla y vuelve a su pantalla al liberarla.
+      expect(await commands.next('ASSIGN_TICKET')).toEqual({
+        type: 'ASSIGN_TICKET',
+        ticketCode: target.code,
+      });
+      expect(await commands.next('RELEASE_WEARABLE')).toEqual({ type: 'RELEASE_WEARABLE' });
+      await commands.end();
     });
 
-    it('al finalizar el turno, la pulsera queda libre', async () => {
+    it('al pasar a atención termina el llamado en el OLED; al finalizar, la pulsera queda libre', async () => {
       const ticketId = wearable.ticket?.id as string;
-      for (const status of ['IN_PROGRESS', 'DONE']) {
-        await request(app.getHttpServer())
+      const ticketCode = wearable.ticket?.code as string;
+      const commands = await wearableCommands(wearable.code);
+      const setStatus = (status: string) =>
+        request(app.getHttpServer())
           .patch(`/api/tickets/${ticketId}/status`)
           .set(authed(doctorToken))
           .send({ status })
           .expect(200);
-      }
+
+      await setStatus('IN_PROGRESS'); // venía llamado (test del llamado)
+      expect(await commands.next('CLEAR_TICKET')).toEqual({ type: 'CLEAR_TICKET', ticketCode });
+      await setStatus('DONE');
+      expect(await commands.next('RELEASE_WEARABLE')).toEqual({ type: 'RELEASE_WEARABLE' });
+      await commands.end();
       const w = (
         await request(app.getHttpServer()).get(`/api/wearables/${wearable.id}`).set(authed(doctorToken))
       ).body as Wearable;

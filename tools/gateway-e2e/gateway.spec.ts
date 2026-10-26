@@ -101,7 +101,9 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
       await expect(tv.locator('.call .code')).toHaveText(first.code);
       await expect(tv.locator('.call .room')).toHaveText(room.name);
       await expect
-        .poll(() => device.commands.find((c) => c.value.ticketCode === first.code))
+        .poll(() =>
+          device.commands.find((c) => c.value.type === 'SHOW_TICKET' && c.value.ticketCode === first.code),
+        )
         .toEqual({
           topic: MQTT_TOPICS.wearableCommand(device.room, device.wearable.code),
           value: { type: 'SHOW_TICKET', ticketCode: first.code, consultingRoom: room.name },
@@ -110,11 +112,18 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
       await expect(tv.locator('body')).not.toContainText('Prueba');
       await checkpoint(`Llamado ${first.code} en la TV y comando SHOW_TICKET recibido por MQTT.`);
       await row(first.code).getByRole('button', { name: 'Pasar a atención', exact: true }).click();
+      // En atención, el OLED deja de mostrar el llamado (ADR 0021).
+      await expect
+        .poll(() =>
+          device.commands.some((c) => c.value.type === 'CLEAR_TICKET' && c.value.ticketCode === first.code),
+        )
+        .toBe(true);
       await row(first.code).getByRole('button', { name: 'Finalizar atención', exact: true }).click();
       await expect
         .poll(async () => (await gateway.call<Ticket>('GET', `/tickets/${first.id}`)).status)
         .toBe('DONE');
       expect((await gateway.wearable(deviceId)).ticket).toBeNull();
+      await expect.poll(() => device.commands.some((c) => c.value.type === 'RELEASE_WEARABLE')).toBe(true);
     });
     let missedFall: Alert;
     await test.step('Preparar otro turno y una alerta antes del corte', async () => {
@@ -139,7 +148,11 @@ test('gateway: recorrido clínico y resincronización de Backoffice/TV sin recar
       await device.close();
       await device.connect();
       await gateway.call('POST', `/tickets/${second.id}/call`, { consultingRoomId: room.id });
-      await expect.poll(() => device.commands.some((c) => c.value.ticketCode === second.code)).toBe(true);
+      await expect
+        .poll(() =>
+          device.commands.some((c) => c.value.type === 'SHOW_TICKET' && c.value.ticketCode === second.code),
+        )
+        .toBe(true);
       await expect(tv.locator('.call .code')).toHaveText(first.code);
       await expect(pulse(second.code)).toHaveText('78lpm');
       await checkpoint(
