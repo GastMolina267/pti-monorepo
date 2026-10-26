@@ -192,6 +192,7 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 - [x] Módulo `sync`: outbox local → réplica a la nube al volver la WAN (RF-O6, capa Cloud)
 - [x] Gateway: publicar Mosquitto en la interfaz de las pulseras de forma configurable (hoy solo loopback; la prueba del 21/10 usó un puente temporal)
 - [x] `TRUST_PROXY` detrás de Nginx: antes, el rate limit era uno solo para todos los clientes
+- [x] Gateway publicado en la red por defecto (`0.0.0.0`, F, 26/10): corre en una red privada propia y las pulseras, la TV, la consola y la app llegan sin configurar la IP. El bind puntual queda para restringirlo, y las herramientas del gateway siguen al bind ([ADR 0022](adr/0022-gateway-expuesto-por-defecto.md))
 
 **Verificado localmente (25/10):** la retención borra en tandas de 5.000 (índice `ix_readings_measured_at`, 72 h por defecto). El outbox replica turnos y alertas sin DNI a una nube de prueba (`pnpm cloud:sink`). Con la nube caída, el health queda en `degraded` y los pendientes se acumulan; cuando vuelve, se envían. `GATEWAY_MQTT_BIND`, `GATEWAY_HTTP_BIND` y `GATEWAY_EXTRA_CORS_ORIGINS` se validaron con `docker compose config`. Todo está cubierto por la integración contra PostgreSQL. Ver [ADR 0018](adr/0018-operacion-de-largo-plazo-y-red-del-gateway.md) y la sección 5b de [09-despliegue-gateway.md](09-despliegue-gateway.md).
 
@@ -216,7 +217,7 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 - [x] Mi salud: últimos signos de la pulsera, estado de la lectura, prioridad (nunca «Crítico») y curva de 30 min a 8 h
 - [x] Agenda personal con recordatorio 2 h antes, ficha de salud y visitas anteriores, cifradas en el teléfono (Keystore) y sin salir de él
 - [x] APK de release como artefacto de la CI (`vitalia-paciente-apk`)
-- [ ] Probar en un celular real en la red del gateway (`GATEWAY_HTTP_BIND`) y con la cámara (QR) (Eq)
+- [ ] Probar en un celular real en la red del gateway (publicado por defecto, ADR 0022) y con la cámara (QR) (Eq)
 
 **Verificado (25/10):** en la PC del equipo (Flutter 3.44, emulador Pixel 8 con Android 16), contra la API y un broker de prueba con el simulador, funcionaron: vinculación con un código de enfermería, turno en vivo, signos y curva de la pulsera simulada, y llamado desde el consultorio con aviso en la app. También pasaron `flutter analyze` sin observaciones, los tests de la app y la integración de la API (sesión que no abre endpoints del personal, DNI repetido sin sesión, código de un solo uso). El equipo probó la app en el emulador. Faltan el QR con cámara física y la notificación con la app minimizada en un teléfono real.
 
