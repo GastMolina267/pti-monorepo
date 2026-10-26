@@ -233,7 +233,7 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 | `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                             |
 | `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                  |
 
-> **Rangos físicos** (`TELEMETRY_READING_LIMITS` → `vitalia::READING_*`): la API descarta la lectura entera si un campo se sale, `fall` incluido. `telemetry::applyReadingLimits()` corre antes de serializar: omite `hr`/`spo2`/`temp` fuera de rango (pulsera sin poner ≈ 23 °C) y satura `accPeakG` en 16 g (la magnitud de 3 ejes pasa ese valor en un golpe).
+> **Rangos físicos** (`TELEMETRY_READING_LIMITS` → `vitalia::READING_*`): si un campo se sale, la API descarta solo ese campo y lo registra en el log (#19; antes descartaba la lectura entera, `fall` incluido). El firmware igual no los manda: `telemetry::applyReadingLimits()` corre antes de serializar: omite `hr`/`spo2`/`temp` fuera de rango (pulsera sin poner ≈ 23 °C) y satura `accPeakG` en 16 g (la magnitud de 3 ejes pasa ese valor en un golpe).
 >
 > **`seq`:** la API deduplica por `(wearableId, seq)` (QoS 1 puede repetir mensajes). Si el contador arrancara en 0 en cada boot, las lecturas nuevas se descartarían como duplicadas. Por eso el firmware guarda un **contador de arranques en NVS** (`net::nextBootCount()`, una escritura por boot) y arma `seq = arranque << 24 | contador`. Después de reiniciar, `seq` salta al bloque siguiente. `splitSeq()` de contracts lo descompone para diagnosticar.
 >

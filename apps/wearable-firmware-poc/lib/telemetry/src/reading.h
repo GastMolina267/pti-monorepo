@@ -33,8 +33,9 @@ struct Reading {
 size_t serializeReading(const Reading& reading, char* out, size_t outLen);
 
 /**
- * Deja la lectura dentro de los rangos del contrato (`TELEMETRY_READING_LIMITS`), porque la
- * API descarta la lectura entera si un campo se sale, `fall` incluido:
+ * Deja la lectura dentro de los rangos del contrato (`TELEMETRY_READING_LIMITS`). La API
+ * descartaría el campo que se sale (antes de #19, la lectura entera): mejor no mandarlo.
+ * Además, un `accPeakG` saturado conserva el dato de que hubo un golpe fuerte:
  * - `hr`, `spo2`, `temp` fuera de rango (o NaN) se omiten. Ej.: pulsera sin poner → ~23 °C.
  * - `accPeakG` se satura en el máximo (la magnitud de 3 ejes pasa los 16 g en un golpe).
  */

@@ -144,7 +144,7 @@ static void buildReading() {
   // Vacíos sin dedo, con movimiento o con latidos irregulares: la lectura los omite.
   r.hr = vitals.hr();
   r.spo2 = vitals.spo2();
-  telemetry::applyReadingLimits(r);  // fuera de rango la API descarta la lectura entera
+  telemetry::applyReadingLimits(r);  // la API descartaría el campo: mejor no mandarlo
 
   size_t n = telemetry::serializeReading(r, lastReadingJson, sizeof(lastReadingJson));
   hasReading = n > 0;
