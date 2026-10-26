@@ -42,5 +42,6 @@ Además se pidió usar [anime.js](https://animejs.com), las skills [ai-design-sk
 - El costo de la pulsera de la calculadora (US$ 35) es un supuesto. Tiene que confirmarse con el costo real de componentes del firmware.
 - Contraste AA verificado en claro y oscuro: texto chico en `--vt-muted`, enlaces en `--vt-primary-deep`/`--vt-primary-light` y botón primario en `--vt-primary-deep` (ver [06-identidad-visual](../06-identidad-visual.md#10-landing)).
 - El fondo de luz baja su intensidad en pantallas táctiles (0,45) para no competir con el texto, y queda como un cuadro estático con movimiento reducido.
-- 41 tests en la landing: cámara y señal del recorrido, modelo de ingresos, intensidad de la luz, `buildMailto` y estados de render de los widgets.
+- La app del paciente se presenta como "en desarrollo" en las dos páginas: hoy se usa sin descargar nada (portal cautivo). Cuando salga, hay que actualizar ese copy en `*.content.ts` y la hoja de ruta.
+- 42 tests en la landing: cámara y señal del recorrido, modelo de ingresos, intensidad de la luz, `buildMailto` y estados de render de los widgets.
 - La landing no corre en el gateway: se publica como sitio estático aparte. Igual mantiene la regla offline-first (fuentes e íconos propios, sin CDN).

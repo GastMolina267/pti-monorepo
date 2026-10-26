@@ -221,13 +221,14 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
   - Widgets (25/10): pulsera en vivo y turno que avanza en el hero, llamador tipo TV, una mañana en la guardia, gráficos por cifra de mercado, arquitectura con corte de internet simulado, composición del primer año y uso del objetivo en la validación
   - Fondo de luz con seguimiento del cursor: grilla tipo monitor, latido de luz cada 3 s, auroras de marca y brillo en las tarjetas (55 fps sin GPU en Chromium)
   - Recorrido con escenario cuadrado: ya no se recorta en pantallas altas y cada escena coincide con su texto
-  - Verificado en Chromium de 360 a 2560 px, claro y oscuro, movimiento reducido y teclado, sin scroll horizontal ni errores de consola; 41 tests
+  - Verificado en Chromium de 360 a 2560 px, claro y oscuro, movimiento reducido y teclado, sin scroll horizontal ni errores de consola; 42 tests
+  - App del paciente (25/10): las dos páginas aclaran que hoy no hace falta descargar nada (portal cautivo) y que la app está en desarrollo; en Instituciones figura como etapa "En desarrollo" de la hoja de ruta
 - [ ] Landing: reemplazar `SITE.contactEmail`, confirmar el costo de la pulsera y elegir dónde se publica (sitio estático)
+- [ ] App del paciente (APK + PWA, según la tesis): en desarrollo. Se suma al portal cautivo, que sigue siendo la entrada sin descargas
 - [ ] Documentación final y actualización de la tesis (capítulos 12–14, "Diferencias con la tesis")
 - [ ] Video y demo, presentación para la defensa
 
 ## Backlog opcional
 
-- App del paciente en Flutter (APK + PWA), según la tesis
 - RF-D1 notificaciones push · RF-D3 reportes PDF · RNF-D2 i18n (es/en) · RF-D2 mesh
 - Extraer los módulos de la API a libs `libs/api/<dominio>` si la API crece

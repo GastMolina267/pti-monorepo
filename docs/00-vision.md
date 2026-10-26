@@ -51,5 +51,5 @@ Diseñar e implementar un ecosistema que optimice la atención hospitalaria comb
 Se registran acá para actualizar la memoria final:
 
 - **Nombre de marca:** "Vitalia" (la tesis usa "Ecosistema Digital Hospitalario").
-- **App del paciente:** la tesis la plantea en Flutter. Hoy el paciente usa el **portal cautivo en React** (repo `pti-captive-portal`). La app Flutter queda como opcional (ver roadmap).
+- **App del paciente:** la tesis la plantea en Flutter. Hoy el paciente usa el **portal cautivo en React** (repo `pti-captive-portal`). La app del paciente está en desarrollo y se suma al portal, que sigue siendo la entrada sin descargas (ver roadmap).
 - **Cifrado:** se especifica **AES-256-GCM** (modo autenticado) dentro del contenido del mensaje MQTT. La tesis habla de "cifrado en capa de transporte" ([ADR 0006](adr/0006-cifrado-aes-256-gcm.md)).
