@@ -1,0 +1,83 @@
+<div class="calc">
+  <form class="calc__controls" (submit)="$event.preventDefault()" aria-label="Supuestos del escenario">
+    @for (c of controls; track c.key) {
+      <div class="ctrl">
+        <div class="ctrl__head">
+          <label [for]="'ctrl-' + c.key">{{ c.label }}</label>
+          <output [for]="'ctrl-' + c.key">{{ format(c, values()[c.key]) }}</output>
+        </div>
+        <input
+          type="range"
+          [id]="'ctrl-' + c.key"
+          [min]="ranges[c.key].min"
+          [max]="ranges[c.key].max"
+          [step]="ranges[c.key].step"
+          [value]="values()[c.key]"
+          [attr.aria-valuetext]="format(c, values()[c.key])"
+          [style.--fill.%]="
+            ((values()[c.key] - ranges[c.key].min) / (ranges[c.key].max - ranges[c.key].min)) * 100
+          "
+          (input)="update(c.key, $any($event.target).value)"
+        />
+        <p class="ctrl__hint">{{ c.hint }}</p>
+      </div>
+    }
+    <button type="button" class="lp-btn lp-btn--ghost calc__reset" (click)="reset()" [disabled]="isDefault()">
+      <svg lucideRotateCcw [size]="16" aria-hidden="true"></svg>
+      Volver a los supuestos iniciales
+    </button>
+
+    <figure class="mix" aria-label="Composición del ingreso del primer año">
+      <figcaption>Primer año, por fuente</figcaption>
+      <div class="mix__bar">
+        <span class="mix__seg mix__seg--rec" [style.flex-grow]="projection().arr"></span>
+        <span class="mix__seg mix__seg--setup" [style.flex-grow]="projection().setupRevenue"></span>
+      </div>
+      <ul class="mix__legend">
+        <li><i class="mix__dot mix__dot--rec"></i>Abonos {{ usd(projection().arr) }}</li>
+        <li><i class="mix__dot mix__dot--setup"></i>Implementaciones {{ usd(projection().setupRevenue) }}</li>
+      </ul>
+      <p class="mix__note">
+        El hardware de las pulseras ({{ usd(projection().hardwareInvestment) }}) se recupera con
+        {{ projection().hardwarePaybackMonths }}
+        {{ projection().hardwarePaybackMonths === 1 ? 'mes' : 'meses' }} de abono.
+      </p>
+    </figure>
+  </form>
+
+  <div vtSpotlight class="calc__result" aria-live="polite">
+    <div class="result__main">
+      <p class="result__label">Ingreso recurrente anual</p>
+      <p class="result__value">{{ usd(projection().arr) }}</p>
+      <p class="result__sub">
+        {{ usd(projection().mrr) }} por mes con {{ int(projection().activeWearables) }} pulseras activas
+      </p>
+    </div>
+
+    <dl class="result__grid">
+      <div>
+        <dt>Primer año, con implementaciones</dt>
+        <dd>{{ usd(projection().firstYear) }}</dd>
+      </div>
+      <div>
+        <dt>Hardware a fabricar</dt>
+        <dd>{{ usd(projection().hardwareInvestment) }}</dd>
+      </div>
+      <div>
+        <dt>Meses de abono que pagan cada pulsera</dt>
+        <dd>{{ projection().hardwarePaybackMonths }}</dd>
+      </div>
+      <div>
+        <dt>Porción de los establecimientos</dt>
+        <dd>{{ pct(projection().marketShare) }}</dd>
+      </div>
+    </dl>
+
+    <vt-market-field [highlighted]="values().hospitals" />
+
+    <p class="lp-source">
+      Estimación con supuestos editables, no una proyección financiera. No incluye costos de operación,
+      soporte ni impuestos.
+    </p>
+  </div>
+</div>

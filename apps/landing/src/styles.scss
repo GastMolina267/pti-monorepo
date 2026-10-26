@@ -1,0 +1,256 @@
+// Identidad Vitalia (tokens + Angular Material + base). Ver libs/shared/design-tokens.
+@use 'vitalia' as vt;
+
+@include vt.all;
+
+// ─── Landing: escala propia sobre los tokens --vt-* ─────────────────────────
+// Espaciado y tipografía en pasos fijos (skill landing-page-design, B1/B2).
+// Los colores salen siempre de --vt-*: acá no hay hex (regla de oro 4).
+:root {
+  --lp-s-1: 4px;
+  --lp-s-2: 8px;
+  --lp-s-3: 12px;
+  --lp-s-4: 16px;
+  --lp-s-5: 24px;
+  --lp-s-6: 32px;
+  --lp-s-7: 40px;
+  --lp-s-8: 48px;
+  --lp-s-9: 64px;
+  --lp-s-10: 80px;
+  --lp-s-11: 96px;
+
+  --lp-text-xs: 12px;
+  --lp-text-sm: 14px;
+  --lp-text-base: 16px;
+  --lp-text-lg: 18px;
+  --lp-text-xl: 20px;
+  --lp-text-2xl: 24px;
+  --lp-text-3xl: 30px;
+  --lp-text-4xl: 36px;
+  --lp-text-5xl: 48px;
+  --lp-text-6xl: 60px;
+  --lp-text-7xl: 72px;
+
+  --lp-max: 1180px;
+  --lp-measure: 680px;
+  --lp-nav-h: 88px;
+  // Curva con masa (B7): frena largo, como un resorte amortiguado.
+  --lp-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--lp-nav-h) + var(--lp-s-4));
+}
+
+@media (max-width: 560px) {
+  // En móvil la navegación ocupa dos renglones (logo + selector de audiencia).
+  html {
+    scroll-padding-top: 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  font-size: var(--lp-text-base);
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 800;
+  color: var(--vt-ink);
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+// Enlaces: teal profundo en claro (5,2:1) y teal claro en oscuro (7,6:1).
+a {
+  color: var(--vt-primary-deep);
+}
+
+:where(:root[data-theme='dark']) a {
+  color: var(--vt-primary-light);
+}
+
+::selection {
+  background: var(--vt-primary);
+  color: var(--vt-paper);
+}
+
+:focus-visible {
+  outline: 3px solid var(--vt-secondary-light);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.lp-container {
+  width: min(100% - 2 * var(--lp-s-4), var(--lp-max));
+  margin-inline: auto;
+}
+
+.lp-section {
+  padding-block: var(--lp-s-11);
+}
+
+@media (max-width: 720px) {
+  .lp-section {
+    padding-block: var(--lp-s-9);
+  }
+}
+
+.lp-h2 {
+  font-size: var(--lp-text-4xl);
+  line-height: 40px;
+  letter-spacing: -0.025em;
+  max-width: 22ch;
+}
+
+@media (max-width: 720px) {
+  .lp-h2 {
+    font-size: var(--lp-text-3xl);
+    line-height: 36px;
+  }
+}
+
+.lp-lead {
+  font-size: var(--lp-text-lg);
+  line-height: 28px;
+  color: var(--vt-muted);
+  max-width: var(--lp-measure);
+}
+
+.lp-muted {
+  color: var(--vt-muted);
+}
+
+// Botones: un primario por pantalla, sin flechas decorativas.
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lp-s-2);
+  min-height: 48px;
+  padding: var(--lp-s-3) var(--lp-s-5);
+  border-radius: var(--vt-r-button);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: var(--lp-text-base);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 0.5s var(--lp-ease),
+    box-shadow 0.5s var(--lp-ease),
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+
+  &:active {
+    transform: translateY(1px) scale(0.98);
+  }
+}
+
+.lp-btn--primary {
+  // Teal profundo con texto blanco (5,5:1); en oscuro, teal con texto oscuro como en Material.
+  color: var(--vt-paper);
+  background: var(--vt-primary-deep);
+  box-shadow: var(--vt-shadow-cta);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+:root[data-theme='dark'] .lp-btn--primary {
+  color: var(--vt-bg);
+  background: var(--vt-primary);
+}
+
+.lp-btn--ghost {
+  color: var(--vt-ink);
+  background: var(--vt-surface);
+  border-color: var(--vt-stroke-2);
+
+  &:hover {
+    border-color: var(--vt-primary);
+  }
+}
+
+.lp-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// Notas de fuente: cada cifra de mercado lleva la suya al lado.
+.lp-source {
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  color: var(--vt-muted);
+
+  a {
+    color: inherit;
+    text-underline-offset: 2px;
+  }
+}
+
+// ─── Luz que sigue al cursor en tarjetas (directiva vtSpotlight) ───────────
+// Un brillo suave adentro y un borde que se enciende cerca del cursor.
+:where(.vt-spot) {
+  position: relative;
+}
+
+.vt-spot::after,
+.vt-spot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--so, 0);
+  transition: opacity 0.5s var(--lp-ease);
+}
+
+.vt-spot::after {
+  background: radial-gradient(
+    420px circle at var(--sx, 50%) var(--sy, 50%),
+    color-mix(in srgb, var(--vt-primary-light) 10%, transparent),
+    transparent 65%
+  );
+}
+
+.vt-spot::before {
+  padding: 1px;
+  background: radial-gradient(
+    260px circle at var(--sx, 50%) var(--sy, 50%),
+    color-mix(in srgb, var(--vt-primary-light) 75%, transparent),
+    transparent 70%
+  );
+  mask:
+    linear-gradient(black, black) content-box,
+    linear-gradient(black, black);
+  mask-composite: exclude;
+}
+
+:root[data-theme='dark'] .vt-spot::after {
+  background: radial-gradient(
+    420px circle at var(--sx, 50%) var(--sy, 50%),
+    color-mix(in srgb, var(--vt-primary-light) 16%, transparent),
+    transparent 65%
+  );
+}

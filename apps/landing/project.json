@@ -1,0 +1,92 @@
+{
+  "name": "landing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "vt",
+  "sourceRoot": "apps/landing/src",
+  "tags": ["scope:landing", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/landing",
+        "browser": "apps/landing/src/main.ts",
+        "tsConfig": "apps/landing/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/landing/public"
+          },
+          {
+            "glob": "**/*",
+            "input": "libs/shared/design-tokens/src/assets",
+            "output": "brand"
+          }
+        ],
+        "styles": [
+          "node_modules/@fontsource/plus-jakarta-sans/500.css",
+          "node_modules/@fontsource/plus-jakarta-sans/700.css",
+          "node_modules/@fontsource/plus-jakarta-sans/800.css",
+          "apps/landing/src/styles.scss"
+        ],
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/shared/design-tokens/src/styles"]
+        }
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "800kb",
+              "maximumError": "1.5mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "12kb",
+              "maximumError": "20kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "landing:build:production"
+        },
+        "development": {
+          "buildTarget": "landing:build:development"
+        }
+      },
+      "options": {
+        "port": 4400
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "landing:build",
+        "staticFilePath": "dist/apps/landing/browser",
+        "spa": true,
+        "port": 4400
+      }
+    }
+  }
+}

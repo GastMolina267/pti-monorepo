@@ -1,0 +1,92 @@
+<div class="arch" [class.is-offline]="offline()" [class.is-flushing]="!offline() && pending() > 0">
+  <div class="arch__bar">
+    <p class="arch__status" aria-live="polite">
+      @if (offline()) {
+        <span class="pill pill--off"><i></i>Sin internet</span>
+        <span
+          >La sala sigue funcionando · <strong>{{ pending() }}</strong>
+          {{ pending() === 1 ? 'cambio' : 'cambios' }} en espera para la nube</span
+        >
+      } @else if (pending() > 0) {
+        <span class="pill pill--on"><i></i>Internet de vuelta</span>
+        <span
+          >Subiendo a la nube · <strong>{{ pending() }}</strong> pendientes</span
+        >
+      } @else {
+        <span class="pill pill--on"><i></i>Internet conectado</span>
+        <span>Todo al día con la nube</span>
+      }
+    </p>
+    <button
+      type="button"
+      class="lp-btn lp-btn--ghost arch__btn"
+      (click)="toggle()"
+      [attr.aria-pressed]="offline()"
+    >
+      {{ offline() ? 'Volver a conectar' : 'Simular corte de internet' }}
+    </button>
+  </div>
+
+  <ol class="arch__layers">
+    <li vtSpotlight class="layer">
+      <p class="layer__tier">Edge · en la sala</p>
+      <ul class="layer__items">
+        <li><svg lucideWatch [size]="18" aria-hidden="true"></svg>Pulseras ESP32-C3 · cifradas, cada 3 s</li>
+        <li><svg lucideSmartphone [size]="18" aria-hidden="true"></svg>Celulares en el portal cautivo</li>
+        <li><svg lucideTv [size]="18" aria-hidden="true"></svg>TV del llamador</li>
+      </ul>
+    </li>
+
+    <li class="wire" aria-hidden="true">
+      <span class="pkt"></span><span class="pkt"></span><span class="pkt"></span>
+    </li>
+
+    <li vtSpotlight class="layer">
+      <p class="layer__tier">Red · router gestionado</p>
+      <p class="layer__title">
+        <svg lucideRouter [size]="18" aria-hidden="true"></svg>Cuatro redes separadas
+      </p>
+      <ul class="vlans">
+        @for (v of vlans; track v.id) {
+          <li>
+            <b>{{ v.id }}</b
+            >{{ v.name }}
+          </li>
+        }
+      </ul>
+    </li>
+
+    <li class="wire" aria-hidden="true">
+      <span class="pkt"></span><span class="pkt"></span><span class="pkt"></span>
+    </li>
+
+    <li vtSpotlight class="layer layer--fog">
+      <p class="layer__tier">Fog · gateway en el hospital</p>
+      <ul class="layer__items">
+        <li><svg lucideRadio [size]="18" aria-hidden="true"></svg>Broker MQTT · un usuario por pulsera</li>
+        <li><svg lucideServer [size]="18" aria-hidden="true"></svg>API Vitalia · alertas en ms</li>
+        <li><svg lucideDatabase [size]="18" aria-hidden="true"></svg>PostgreSQL · 72 h de lecturas</li>
+        <li><svg lucideMonitor [size]="18" aria-hidden="true"></svg>Consola y llamador</li>
+      </ul>
+    </li>
+
+    <li class="wire wire--cloud" aria-hidden="true">
+      <span class="pkt"></span><span class="pkt"></span><span class="pkt"></span>
+      <span class="wire__cut"></span>
+    </li>
+
+    <li vtSpotlight class="layer layer--cloud">
+      <p class="layer__tier">Nube · opcional</p>
+      <p class="layer__title">
+        @if (offline()) {
+          <svg lucideCloudOff [size]="18" aria-hidden="true"></svg>Esperando conexión
+        } @else {
+          <svg lucideCloud [size]="18" aria-hidden="true"></svg>Réplica por sede
+        }
+      </p>
+      <p class="layer__note">Recibe turnos y alertas sin DNI. Nunca la necesita la sala para funcionar.</p>
+    </li>
+  </ol>
+
+  <p class="arch__foot">Simulación ilustrativa. Arquitectura real del prototipo: ADR 0013, 0014 y 0018.</p>
+</div>

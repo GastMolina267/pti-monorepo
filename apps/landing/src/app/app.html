@@ -1,0 +1,82 @@
+<vt-ambient-light />
+
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<header class="nav">
+  <div class="nav__inner vt-glass">
+    <a routerLink="/" class="nav__brand" aria-label="Vitalia, inicio">
+      <vt-logo [size]="34" [subtitle]="null" />
+    </a>
+
+    <nav class="switch" aria-label="Elegí para quién es la página" [attr.data-active]="audience()">
+      <span class="switch__thumb" aria-hidden="true"></span>
+      <a
+        routerLink="/"
+        class="switch__opt"
+        [class.is-active]="audience() === 'personas'"
+        [attr.aria-current]="audience() === 'personas' ? 'page' : null"
+        >Personas</a
+      >
+      <a
+        routerLink="/instituciones"
+        class="switch__opt"
+        [class.is-active]="audience() === 'instituciones'"
+        [attr.aria-current]="audience() === 'instituciones' ? 'page' : null"
+        >Instituciones</a
+      >
+    </nav>
+
+    <div class="nav__end">
+      <vt-theme-toggle />
+      @if (audience() === 'instituciones') {
+        <a class="lp-btn lp-btn--primary nav__cta" routerLink="/instituciones" fragment="contacto"
+          >Pedir una demo</a
+        >
+      } @else {
+        <a class="lp-btn lp-btn--primary nav__cta" routerLink="/" fragment="recorrido">Ver cómo funciona</a>
+      }
+    </div>
+  </div>
+</header>
+
+<main id="contenido" tabindex="-1">
+  <router-outlet />
+</main>
+
+<footer class="foot">
+  <div class="lp-container foot__grid">
+    <div class="foot__brand">
+      <vt-logo [size]="32" />
+      <p class="lp-muted">
+        Proyecto Tecnológico Integrador de {{ site.career }}, {{ site.university }}, {{ site.year }}.
+        Prototipo académico: no es un dispositivo médico certificado.
+      </p>
+    </div>
+
+    <div>
+      <h2 class="foot__title">Equipo</h2>
+      <ul class="foot__list">
+        @for (m of site.team; track m.name) {
+          <li>
+            <strong>{{ m.name }}</strong>
+            <span class="lp-muted">{{ m.role }}</span>
+          </li>
+        }
+        <li>
+          <strong>{{ site.tutor }}</strong>
+          <span class="lp-muted">Tutor</span>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="foot__title">Sitio</h2>
+      <ul class="foot__list foot__links">
+        <li><a routerLink="/">Para personas</a></li>
+        <li><a routerLink="/instituciones">Para instituciones</a></li>
+        <li><a routerLink="/privacidad">Privacidad</a></li>
+        <li><a [href]="site.repoUrl" rel="noopener" target="_blank">Código en GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
