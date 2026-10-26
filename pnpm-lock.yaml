@@ -85,6 +85,9 @@ importers:
       pg:
         specifier: ^8.23.1
         version: 8.23.1
+      qrcode-generator:
+        specifier: 2.0.4
+        version: 2.0.4
       reflect-metadata:
         specifier: ^0.2.0
         version: 0.2.2
@@ -13047,6 +13050,12 @@ packages:
       }
     engines: { node: '>= 16' }
 
+  qrcode-generator@2.0.4:
+    resolution:
+      {
+        integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==,
+      }
+
   qs@6.16.0:
     resolution:
       {
@@ -24855,6 +24864,8 @@ snapshots:
   qlobber@7.0.1: {}
 
   qlobber@8.0.1: {}
+
+  qrcode-generator@2.0.4: {}
 
   qs@6.16.0:
     dependencies:

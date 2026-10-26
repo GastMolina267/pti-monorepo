@@ -1,6 +1,6 @@
 # AGENTS.md — apps/landing (Vitalia Landing · Angular 22)
 
-Sitio público de Vitalia con **dos audiencias** y un selector en la navegación ([ADR 0019](../../docs/adr/0019-landing-b2c-b2b.md)). No consume la API ni corre en el gateway: se publica como sitio estático. Reglas generales en el [AGENTS.md raíz](../../AGENTS.md).
+Sitio público de Vitalia con **dos audiencias** y un selector en la navegación ([ADR 0020](../../docs/adr/0020-landing-b2c-b2b.md)). No consume la API ni corre en el gateway: se publica como sitio estático. Reglas generales en el [AGENTS.md raíz](../../AGENTS.md).
 
 | Ruta             | Audiencia                                          | Pieza central                                                                                                                                                                                             |
 | ---------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

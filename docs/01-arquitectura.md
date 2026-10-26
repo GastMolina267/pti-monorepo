@@ -18,6 +18,7 @@ flowchart LR
   subgraph CLIENTS["Clientes"]
     BO["Backoffice · Angular<br/>VLAN 30 Staff"]
     TV["Llamador TV · Angular<br/>VLAN 40 Kiosk"]
+    PA["App del paciente · Flutter<br/>VLAN 20 Pacientes"]
     CP["Portal cautivo · React<br/>VLAN 20 Guest"]
   end
 
@@ -29,6 +30,7 @@ flowchart LR
   API -- "WS ticket:called / alert:emergency" --> BO
   API -- "WS ticket:called" --> TV
   CP -- "REST check-in / turno" --> API
+  PA -- "REST /api/patient · WS ticket:called" --> API
   API -- "MQTT cmd (OLED)" --> MQ
   API -. "cola de sync al volver la WAN" .-> CLOUD
   NG --- BO & TV & CP

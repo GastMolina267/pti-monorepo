@@ -69,6 +69,23 @@ pnpm fw:monitor    # monitor serie a 115200
 - **Verificar la telemetría:** `pnpm fw:mqtt-check` se suscribe a Mosquitto, descifra cada sobre y valida la lectura contra el contrato (✔ / ⚠ / ✖ por mensaje).
 - Pinout, gotchas de hardware y el contrato MQTT: [`apps/wearable-firmware-poc/AGENTS.md`](../apps/wearable-firmware-poc/AGENTS.md). Estado de los hitos de hardware: [`ESTADO.md`](../apps/wearable-firmware-poc/ESTADO.md).
 
+## App del paciente (`apps/patient-app`)
+
+Solo hace falta si trabajás con la app. Guía completa en [11-app-paciente.md](11-app-paciente.md).
+
+1. Instalá **Flutter 3.44** (stable): descomprimilo, por ejemplo, en `C:\src\flutter` y agregá `C:\src\flutter\bin` al PATH. También **Android Studio** con el SDK y un AVD (`Pixel_8`). Corré `flutter doctor --android-licenses` y `flutter doctor`.
+2. Desde la raíz:
+
+```powershell
+pnpm app:emulator    # levanta el emulador Pixel_8
+pnpm nx serve api    # en otra terminal (con infra:up, db:migrate y db:seed hechos)
+pnpm app:run         # corre la app en el emulador contra http://10.0.2.2:3000
+pnpm app:test        # flutter analyze + flutter test
+```
+
+- Si cambiás constantes o etiquetas en `libs/shared`, corré `pnpm app:codegen` (la CI lo verifica).
+- Para un teléfono real, bajá el APK de la CI (artefacto `vitalia-paciente-apk`) o generalo con `pnpm app:apk`.
+
 ## Flujo de trabajo
 
 1. Tomá una tarea de [07-roadmap.md](07-roadmap.md).

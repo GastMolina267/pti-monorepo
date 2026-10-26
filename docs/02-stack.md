@@ -45,7 +45,19 @@ Versiones fijadas al crear el monorepo (octubre 2026). Las de Angular y NestJS s
 | Vitest + Analog               | 4.1                                | Tests                                                                             |
 | Playwright + Chromium         | 1.64 (solo desarrollo)             | E2E real sobre el gateway Docker, Backoffice, TV y reconexiones                   |
 | socket.io-client              | 4                                  | Tiempo real (Backoffice: sala `staff` · TV: sala `tv`)                            |
-| anime.js                      | 4.5                                | Animaciones de la landing (scroll, SVG) · [ADR 0019](adr/0019-landing-b2c-b2b.md) |
+| anime.js                      | 4.5                                | Animaciones de la landing (scroll, SVG) · [ADR 0020](adr/0020-landing-b2c-b2b.md) |
+
+## App del paciente (`apps/patient-app`)
+
+| Tecnología                             | Versión     | Uso                                                                   |
+| -------------------------------------- | ----------- | --------------------------------------------------------------------- |
+| Flutter / Dart                         | 3.44 / 3.12 | App Android ([ADR 0019](adr/0019-app-del-paciente-en-flutter.md))     |
+| http · socket_io_client                | 1.x · 3.x   | REST `/api/patient/*` y aviso del llamado (sala `patient:<ticketId>`) |
+| flutter_secure_storage                 | 9.x         | Sesión, visitas, agenda y ficha cifradas (Keystore)                   |
+| flutter_local_notifications + timezone | 19.x · 0.10 | Notificación del llamado y recordatorios de la agenda (sin servidor)  |
+| mobile_scanner                         | 7.x         | Escaneo del QR de vinculación                                         |
+| flutter_lints · flutter_test           | 6 · SDK     | Análisis estático y tests                                             |
+| qrcode-generator (Backoffice)          | 2.0         | QR de vinculación dibujado en SVG, sin red                            |
 
 ## Infraestructura (`docker-compose.yml`, `infra/`)
 

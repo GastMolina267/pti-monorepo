@@ -13,6 +13,7 @@ export default {
         'wearable-firmware-poc',
         'wearable-simulator',
         'landing',
+        'patient-app',
         'contracts',
         'design-tokens',
         'ui',

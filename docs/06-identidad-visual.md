@@ -136,7 +136,7 @@ Ambos son obligatorios en todas las interfaces. El modo se aplica con `data-them
 
 ## 10. Landing
 
-La landing ([`apps/landing`](../apps/landing), [ADR 0019](adr/0019-landing-b2c-b2b.md)) usa los mismos tokens y suma patrones propios de un sitio de marketing:
+La landing ([`apps/landing`](../apps/landing), [ADR 0020](adr/0020-landing-b2c-b2b.md)) usa los mismos tokens y suma patrones propios de un sitio de marketing:
 
 | Patrón                 | Regla                                                                                                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

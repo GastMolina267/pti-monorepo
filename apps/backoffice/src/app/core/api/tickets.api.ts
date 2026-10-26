@@ -5,6 +5,7 @@ import {
   type CallTicketRequest,
   type CheckInRequest,
   type ConsultingRoom,
+  type PairingCode,
   type PublicTicket,
   type ServiceArea,
   type Ticket,
@@ -50,6 +51,11 @@ export class TicketsApi {
   checkIn(req: Omit<CheckInRequest, 'source'>): Observable<PublicTicket> {
     const body: CheckInRequest = { ...req, source: 'RECEPTION' };
     return this.http.post<PublicTicket>(`${BASE}/check-in`, body);
+  }
+
+  /** Código de un solo uso para vincular la app del paciente a este turno (ADR 0019). */
+  pairing(id: string): Observable<PairingCode> {
+    return this.http.post<PairingCode>(`${BASE}/tickets/${id}/pairing`, {});
   }
 
   /** Curva de signos vitales del turno (`minutes` hacia atrás, agrupada por la API). */

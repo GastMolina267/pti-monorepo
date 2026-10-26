@@ -13,17 +13,18 @@ Monorepo **Nx** del Proyecto Tecnológico Integrador (Ingeniería Informática, 
 
 ## Mapa del monorepo
 
-| Proyecto                | Ruta                         | Tipo / tags                      | Stack                                                                                                                 | Puerto dev                         |
-| ----------------------- | ---------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `api`                   | `apps/api`                   | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT                                                                              | 3000 (`/api`, Swagger `/api/docs`) |
-| `backoffice`            | `apps/backoffice`            | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)                                                                     | 4200                               |
-| `tv-display`            | `apps/tv-display`            | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)                                                                          | 4300                               |
-| `wearable-firmware-poc` | `apps/wearable-firmware-poc` | `scope:wearable`, `type:app`     | C++17 · PlatformIO + Arduino en ESP32-C3 (MQTT QoS 1 + AES-256-GCM, caídas en el dispositivo)                         | — (USB, monitor serie 115200)      |
-| `contracts`             | `libs/shared/contracts`      | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas                                                                | —                                  |
-| `design-tokens`         | `libs/shared/design-tokens`  | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material                                                                           | —                                  |
-| `ui`                    | `libs/shared/ui`             | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)                                                                          | —                                  |
-| `landing`               | `apps/landing`               | `scope:landing`, `type:app`      | Angular 22 + anime.js: sitio público B2C (`/`) y B2B (`/instituciones`), [ADR 0019](docs/adr/0019-landing-b2c-b2b.md) | 4400                               |
-| `wearable-simulator`    | `tools/wearable-simulator`   | `scope:tools`, `type:app`        | Node + mqtt: pulseras simuladas con cifrado real (`pnpm sim:wearables`)                                               | —                                  |
+| Proyecto                | Ruta                         | Tipo / tags                      | Stack                                                                                                                 | Puerto dev                                |
+| ----------------------- | ---------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `api`                   | `apps/api`                   | `scope:api`, `type:app`          | NestJS 11 + TypeORM (PostgreSQL 16), JWT                                                                              | 3000 (`/api`, Swagger `/api/docs`)        |
+| `backoffice`            | `apps/backoffice`            | `scope:backoffice`, `type:app`   | Angular 22 + Angular Material (consola de triaje)                                                                     | 4200                                      |
+| `tv-display`            | `apps/tv-display`            | `scope:tv`, `type:app`           | Angular 22 (llamador de turnos, modo kiosco)                                                                          | 4300                                      |
+| `patient-app`           | `apps/patient-app`           | `scope:patient`, `type:app`      | Flutter 3.44 (Android): turnero, signos, agenda y ficha del paciente                                                  | — (emulador `Pixel_8`, API en `10.0.2.2`) |
+| `wearable-firmware-poc` | `apps/wearable-firmware-poc` | `scope:wearable`, `type:app`     | C++17 · PlatformIO + Arduino en ESP32-C3 (MQTT QoS 1 + AES-256-GCM, caídas en el dispositivo)                         | — (USB, monitor serie 115200)             |
+| `contracts`             | `libs/shared/contracts`      | `scope:shared`, `type:contracts` | TS puro: tipos REST, eventos WS, MQTT, reglas clínicas                                                                | —                                         |
+| `design-tokens`         | `libs/shared/design-tokens`  | `scope:shared`, `type:ui`        | SCSS + TS: identidad Vitalia, tema Material                                                                           | —                                         |
+| `ui`                    | `libs/shared/ui`             | `scope:shared`, `type:ui`        | Componentes Angular compartidos (logo, tema)                                                                          | —                                         |
+| `landing`               | `apps/landing`               | `scope:landing`, `type:app`      | Angular 22 + anime.js: sitio público B2C (`/`) y B2B (`/instituciones`), [ADR 0020](docs/adr/0020-landing-b2c-b2b.md) | 4400                                      |
+| `wearable-simulator`    | `tools/wearable-simulator`   | `scope:tools`, `type:app`        | Node + mqtt: pulseras simuladas con cifrado real (`pnpm sim:wearables`)                                               | —                                         |
 
 Fuera de este repo: **portal cautivo** (`pti-captive-portal`, React + Vite, UAM/CHAP con el router RUT956), que consume los contratos documentados en [`docs/04-contratos.md`](docs/04-contratos.md). El firmware del wearable está en `apps/wearable-firmware-poc` ([ADR 0010](docs/adr/0010-firmware-del-wearable-en-el-monorepo.md)). Implementa el contrato MQTT de `@vitalia/contracts` en C++ y no importa TypeScript.
 
@@ -47,6 +48,8 @@ pnpm dev:api | dev:backoffice | dev:tv | dev:landing
 pnpm fw:build | fw:upload | fw:monitor   # firmware del wearable (requiere PlatformIO en el PATH)
 pnpm nx run wearable-firmware-poc:pio-check-docker # tests y compilación del firmware sin placa ni toolchain local
 pnpm sim:wearables        # pulseras simuladas por MQTT (--help para anomalías y carga)
+pnpm app:emulator | app:run | app:test | app:apk   # app Flutter del paciente (requiere Flutter en el PATH)
+pnpm app:codegen          # constantes Dart desde contracts y design-tokens (--check en la CI)
 pnpm nx test <proyecto>   # vitest (front/libs) · jest (api)
 pnpm nx lint <proyecto>
 pnpm affected             # lint + test + build de lo afectado (usar antes de terminar)
@@ -92,20 +95,22 @@ Además están las skills oficiales de Nx (`nx-workspace`, `nx-generate`, `nx-ru
 
 ## Documentación
 
-| Doc                                                              | Contenido                                                    |
-| ---------------------------------------------------------------- | ------------------------------------------------------------ |
-| [`docs/00-vision.md`](docs/00-vision.md)                         | Problema, objetivos, alcance (incluye y excluye)             |
-| [`docs/01-arquitectura.md`](docs/01-arquitectura.md)             | Capas Edge/Fog/Cloud, red y VLANs, flujos, mapa del monorepo |
-| [`docs/02-stack.md`](docs/02-stack.md)                           | Tecnologías y versiones                                      |
-| [`docs/03-dominio.md`](docs/03-dominio.md)                       | Glosario, requerimientos RF/RNF, umbrales clínicos           |
-| [`docs/04-contratos.md`](docs/04-contratos.md)                   | REST, eventos WebSocket, MQTT y cifrado                      |
-| [`docs/05-convenciones.md`](docs/05-convenciones.md)             | Código, estructura, Git, testing                             |
-| [`docs/06-identidad-visual.md`](docs/06-identidad-visual.md)     | Marca Vitalia                                                |
-| [`docs/07-roadmap.md`](docs/07-roadmap.md)                       | Plan por fases e hitos                                       |
-| [`docs/08-modelo-datos.md`](docs/08-modelo-datos.md)             | Diagrama ER, reglas del modelo, migraciones y seed           |
-| [`docs/09-despliegue-gateway.md`](docs/09-despliegue-gateway.md) | Compose de software, configuración, seed y smoke             |
-| [`docs/adr/`](docs/adr/)                                         | Registro de decisiones de arquitectura                       |
-| [`docs/guia-desarrollo.md`](docs/guia-desarrollo.md)             | Setup en Windows, flujo de trabajo con IA                    |
+| Doc                                                              | Contenido                                                      |
+| ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| [`docs/00-vision.md`](docs/00-vision.md)                         | Problema, objetivos, alcance (incluye y excluye)               |
+| [`docs/01-arquitectura.md`](docs/01-arquitectura.md)             | Capas Edge/Fog/Cloud, red y VLANs, flujos, mapa del monorepo   |
+| [`docs/02-stack.md`](docs/02-stack.md)                           | Tecnologías y versiones                                        |
+| [`docs/03-dominio.md`](docs/03-dominio.md)                       | Glosario, requerimientos RF/RNF, umbrales clínicos             |
+| [`docs/04-contratos.md`](docs/04-contratos.md)                   | REST, eventos WebSocket, MQTT y cifrado                        |
+| [`docs/05-convenciones.md`](docs/05-convenciones.md)             | Código, estructura, Git, testing                               |
+| [`docs/06-identidad-visual.md`](docs/06-identidad-visual.md)     | Marca Vitalia                                                  |
+| [`docs/07-roadmap.md`](docs/07-roadmap.md)                       | Plan por fases e hitos                                         |
+| [`docs/08-modelo-datos.md`](docs/08-modelo-datos.md)             | Diagrama ER, reglas del modelo, migraciones y seed             |
+| [`docs/09-despliegue-gateway.md`](docs/09-despliegue-gateway.md) | Compose de software, configuración, seed y smoke               |
+| [`docs/10-validacion.md`](docs/10-validacion.md)                 | Carga, latencias y estrés con números                          |
+| [`docs/11-app-paciente.md`](docs/11-app-paciente.md)             | App Flutter del paciente: inicializar, funcionamiento, pruebas |
+| [`docs/adr/`](docs/adr/)                                         | Registro de decisiones de arquitectura                         |
+| [`docs/guia-desarrollo.md`](docs/guia-desarrollo.md)             | Setup en Windows, flujo de trabajo con IA                      |
 
 ## Equipo
 

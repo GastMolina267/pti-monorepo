@@ -1,0 +1,64 @@
+{
+  "name": "patient-app",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/patient-app/lib",
+  "projectType": "application",
+  "tags": ["scope:patient", "type:app"],
+  "implicitDependencies": ["contracts", "design-tokens"],
+  "// targets": "Requieren Flutter en el PATH (3.44+). Se llaman flutter-* para que `nx affected -t test lint build` no los corra en la CI de Node: la app tiene su propio job.",
+  "targets": {
+    "codegen": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "command": "pnpm app:codegen" }
+    },
+    "flutter-pub-get": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "cwd": "apps/patient-app", "command": "flutter pub get" }
+    },
+    "flutter-analyze": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["flutter-pub-get"],
+      "options": { "cwd": "apps/patient-app", "command": "flutter analyze" }
+    },
+    "flutter-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["flutter-pub-get"],
+      "options": { "cwd": "apps/patient-app", "command": "flutter test" }
+    },
+    "flutter-format": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "cwd": "apps/patient-app", "command": "dart format lib test" }
+    },
+    "emulator": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "command": "flutter emulators --launch Pixel_8" }
+    },
+    "run": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["flutter-pub-get"],
+      "options": {
+        "cwd": "apps/patient-app",
+        "command": "flutter run --dart-define=VITALIA_API_URL={args.api}",
+        "args": "--api=http://10.0.2.2:3000"
+      }
+    },
+    "build-apk": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["flutter-pub-get"],
+      "options": {
+        "cwd": "apps/patient-app",
+        "command": "flutter build apk --release --dart-define=VITALIA_API_URL={args.api}",
+        "args": "--api=http://10.0.20.1:8080"
+      }
+    }
+  }
+}

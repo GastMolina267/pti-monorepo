@@ -15,3 +15,7 @@
 .codex
 .gemini
 .opencode
+
+# App Flutter: salidas de build y caché de pub
+apps/patient-app/build
+apps/patient-app/.dart_tool
