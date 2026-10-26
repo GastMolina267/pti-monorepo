@@ -222,7 +222,8 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 ### 5d · Firmware y pulsera (F)
 
-- [ ] MAX30102: frecuencia cardíaca y SpO₂ reales (RF-O1, Hito 5; hoy los aporta el simulador)
+- [x] MAX30102: frecuencia cardíaca y SpO₂ reales (RF-O1, Hito 5): `sensors::PulseOx` + `lib/ppg` con filtro de calidad. Primera validación en la protoboard el 26/10 contra una smartband: 79–88 lpm contra 82–87 y SpO₂ 99–100 % contra 99 %. Con movimiento o sin dedo se omiten
+- [ ] Afinar BPM/SpO₂ con el sensor en la muñeca, dentro de la pulsera: exactitud contra un oxímetro de dedo y cobertura (hoy ~3 de cada 4 lecturas con el dedo quieto)
 - [ ] Buffer propio para cortes del broker de más de 30 s (el outbox de ESP-MQTT descarta a los 30 s, ADR 0012)
 - [ ] Hardware: pasar el circuito de la protoboard a una protoboard chica o a una placa perforada con pistas soldadas y montarlo en la pulsera impresa. En la protoboard los golpes aflojan el bus I²C (prueba del 21/10)
 - [ ] Con la pulsera, calibrar caídas (`FALL_*` de `config.h`, falsos positivos), volver a medir la latencia de la caída (< 2 s) y ver la prioridad de la caída sobre el llamado en el OLED
