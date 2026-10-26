@@ -175,7 +175,7 @@ pio device list
   ppg/                  // PURA: PulseOxEstimator (BPM y SpO2 desde la señal del MAX30102, filtro de calidad, Hito 5)
   sensors/              // Imu (MPU6050), SkinTemp (MLX90614), PulseOx (MAX30102: FIFO rojo + IR)
   envelope/             // PURA: base64, sobre { v, iv, ct, tag } del contrato, clave hex de secrets.h
-  commands/             // PURA: parser SHOW_TICKET, fragmentos, estado del llamado y texto/scroll del OLED
+  commands/             // PURA: parser de comandos, fragmentos, estado de la pulsera y pantallas del OLED
   net/                  // Wi-Fi, NTP, MqttLink (QoS 1 + comandos por cola FreeRTOS), identidad, arranques NVS
   ui/                   // Oled, StatusLed (a futuro buzzer)
   crypto/               // AES-256-GCM con mbedTLS (AES por hardware) y seal(): IV aleatorio + sobre
@@ -257,19 +257,26 @@ El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes
 - Si el tag no valida, el gateway descarta el mensaje.
 - **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:codegen` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
 
-Comando recibido por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); receptor implementado en 4c):
+Comandos recibidos por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); receptor de 4c, estado completo en [ADR 0021](../../docs/adr/0021-estado-de-la-pulsera-por-comandos.md)):
 
 ```json
+{ "type": "ASSIGN_TICKET", "ticketCode": "A-024" }
 { "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
+{ "type": "CLEAR_TICKET", "ticketCode": "A-024" }
+{ "type": "RELEASE_WEARABLE" }
 ```
 
-- JSON **en claro** (sin cifrar), QoS 1, sin retain. Llega al llamar el turno o al asignar la pulsera a un turno ya llamado.
-- La API lo publica en la `<sala>` de la última lectura que recibió de esa pulsera (`sala1` si nunca publicó).
-- Un `type` desconocido se ignora (a futuro puede haber otros comandos).
+- Cada comando lleva el **estado completo** de la pulsera (asignada, llamada, ya no llamada, libre), así aplicar solo el último siempre deja el estado correcto. Nunca llevan el nombre del paciente.
+- JSON **en claro** (sin cifrar), QoS 1, sin retain. La API los publica al asignar, al llamar, cuando el turno sale de `CALLED` y al liberar la pulsera (a mano o al finalizar/cancelar el turno).
+- La API los publica en la `<sala>` de la última lectura que recibió de esa pulsera (`sala1` si nunca publicó). Si la pulsera vuelve a publicar después de más de 15 s sin lecturas (reinicio, corte), la API le reenvía su estado actual.
+- Un `type` desconocido se ignora. Los tipos llegan generados (`vitalia::CMD_*`); cada uno exige exactamente sus campos.
 - `MqttLink` se suscribe a `hospital/+/wearable/<id propio>/cmd` con QoS 1 en **cada** conexión y expone `commandsReady()` después del SUBACK correspondiente. El comodín de sala cubre `sala1` antes de la primera lectura; nunca acepta otro wearable.
 - `lib/commands` valida JSON, límites generados desde `WEARABLE_COMMAND_LIMITS`, UTF-8 y ausencia de controles. Reensambla fragmentos contiguos con un buffer acotado, descarta retenidos y reinicia la recepción al desconectar.
-- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState`. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
-- OLED: `TE LLAMAN`, código y consultorio; scroll de nombres largos, transliteración de tildes/ñ y `LLAMADO SIN RED` sin broker. Una caída reciente tiene prioridad durante `FALL_DISPLAY_MS`. El último llamado queda en RAM hasta reemplazo o reinicio; no hay limpieza al finalizar un turno ni recuperación de comandos perdidos sin conexión ([ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md)).
+- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState` (turno asignado + llamado activo, en RAM). Un `CLEAR_TICKET` de otro turno no borra el llamado actual, y un llamado vence solo a los `CALL_MAX_DISPLAY_MS` (30 min) por si el `CLEAR_TICKET` se perdió. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
+- OLED, por prioridad:
+  1. Caída reciente (`FALL_DISPLAY_MS`).
+  2. Llamado: `TE LLAMAN`, código y consultorio; scroll de nombres largos, transliteración de tildes/ñ y `LLAMADO SIN RED` sin broker.
+  3. Pantalla del paciente (`homeFrame`): `Turno <código>` (o `Vitalia` libre) con `SIN RED` sin broker, `87 lpm  SpO2 99%` (`--` sin medición válida) y `Temp 36.6 C` (+ `FIEBRE`, indicador local). La IP no se muestra: queda en el monitor serie, `/status` y mDNS.
 
 > El botón de pánico y la batería no están en el contrato todavía. Para mandarlos, primero se agregan los campos a `TelemetryReading` en `@vitalia/contracts`.
 

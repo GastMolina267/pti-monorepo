@@ -9,6 +9,8 @@
 
 **Software 4c (18/10/2026):** recepción de `SHOW_TICKET`, validación y reensamblado acotado, resuscripción MQTT por conexión y cola hacia el `loop()` implementados. El OLED muestra el último llamado, desplaza consultorios largos y conserva la prioridad de caída local. Pruebas sin placa: `pnpm nx run wearable-firmware-poc:pio-check-docker`; alcance y límites en [ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md). Esto no cambia los resultados físicos de los hitos listados abajo: no se flasheó ni calibró hardware con esta entrega.
 
+**Demo completa y estado de la pulsera (26/10/2026):** la pulsera publicó directo al gateway (sin puente) y ahora sabe si está libre, asignada o llamada: el llamado se borra al pasar a atención y, sin llamado, el OLED muestra el turno y los signos del paciente ([ADR 0021](../../docs/adr/0021-estado-de-la-pulsera-por-comandos.md)). Detalle en "Demo completa contra el gateway" abajo.
+
 **Prueba en la placa (21/10/2026):** primera vez que corre en la placa el firmware reestructurado (#4/#5) con MQTT + AES-256-GCM (#7). Pasan los hitos 6b y 7 contra el Mosquitto de desarrollo (`pnpm infra:up`) en la notebook, y el llamado en el OLED (`SHOW_TICKET`). Detalle en "Prueba en la placa del 21/10" abajo. La calibración de caídas queda para cuando el circuito esté soldado en la pulsera (en la protoboard los golpes aflojan los cables).
 
 Validación de hardware por hitos (ver `AGENTS.md` sección 9). Se avanza en orden, sin
@@ -201,6 +203,30 @@ Las 60 lecturas descifraron y validaron contra el contrato. En el OLED se vio `8
 
 ---
 
+## Demo completa contra el gateway y estado de la pulsera (26/10)
+
+**Demo sin puente.** Gateway en Docker con `GATEWAY_MQTT_BIND`/`GATEWAY_HTTP_BIND` en la IP de la notebook (ADR 0018) y `secrets.h` apuntando al broker del gateway (puerto 1884) con las credenciales propias de `wb-01-24d7cc`. La pulsera publicó directo al gateway, con Backoffice y TV publicados en la red local. Recorrido: alta del paciente, asignación de la pulsera, lecturas en vivo en la consola, llamado en la TV y en el OLED.
+
+Se encontraron dos problemas:
+
+1. Al finalizar el turno, el OLED seguía mostrando `TE LLAMAN` (la API solo publicaba `SHOW_TICKET`, consecuencia abierta del ADR 0015).
+2. Sin llamado, el OLED mostraba datos de diagnóstico (IP, aceleración) en vez de algo útil para el paciente que sigue esperando con la pulsera.
+
+**Solución ([ADR 0021](../../docs/adr/0021-estado-de-la-pulsera-por-comandos.md)).** Cuatro comandos con el estado completo (`ASSIGN_TICKET`, `SHOW_TICKET`, `CLEAR_TICKET`, `RELEASE_WEARABLE`), reenvío del estado desde la API cuando la pulsera vuelve después de más de 15 s sin lecturas, vencimiento local del llamado a los 30 min y pantalla del paciente con el código del turno, BPM/SpO2 y temperatura (sin IP, sin nombre).
+
+**En la placa (26/10).** Mismo gateway, un turno de prueba con datos simulados:
+
+| Paso en el Backoffice | Comando recibido   | OLED                              |
+| :-------------------- | :----------------- | :-------------------------------- |
+| Asignar la pulsera    | `ASSIGN_TICKET`    | `Turno B-003` + signos en vivo    |
+| Llamar                | `SHOW_TICKET`      | `TE LLAMAN`, código y consultorio |
+| Pasar a atención      | `CLEAR_TICKET`     | vuelve a `Turno B-003` + signos   |
+| Finalizar             | `RELEASE_WEARABLE` | `Vitalia` + signos                |
+
+Tests: firmware native 62/62, API 120/120 (Node 24, con el recorrido de los cuatro comandos en la integración).
+
+---
+
 ## Gotchas descubiertos esta sesión (ya en AGENTS.md sección 3)
 
 - **Adafruit_SSD1306 sube el bus a 400 kHz** durante cada `display.display()` y lo baja
@@ -230,17 +256,17 @@ Si el puerto está ocupado: cerrar el monitor serie antes de subir. Si la placa 
 aparece: mantener BOOT presionado mientras se conecta el USB.
 
 **El firmware actual** arma una `TelemetryReading` del contrato cada 3 s, la publica cifrada por MQTT
-y la expone por HTTP (acelerómetro, temperatura, OLED, Wi-Fi, NTP). No incluye MAX30102 (Hito 5).
+y la expone por HTTP (acelerómetro, temperatura, MAX30102, OLED, Wi-Fi, NTP). Recibe los comandos de la API (ADR 0021).
 
 Al arrancar, el monitor serie muestra `wearableId: wb-01-24d7cc  arranque: N`, después
 `WiFi OK`, `NTP OK` y `MQTT OK`. Recién con NTP aparecen lecturas.
 
-- OLED: IP (o `WiFi...`), temperatura estimada (o `NTP...` hasta sincronizar) y aceleración + evento.
+- OLED: caída reciente > llamado > pantalla del paciente (`Turno <código>` o `Vitalia`, BPM/SpO2 y temperatura, `SIN RED` sin broker). La IP se ve en el monitor serie, `/status` y `wearable-pti.local`.
 - Servidor HTTP en el puerto 80:
   - `http://<IP>/` → página web con telemetría en vivo (fetch cada 1 s, sin recursos
     externos, funciona sin internet).
   - `http://<IP>/data` → la última `TelemetryReading`, tal cual se va a publicar por MQTT
-    (503 hasta tener hora NTP). Sin `hr`/`spo2` hasta el Hito 5. `seq` crece cada 3 s y salta
+    (503 hasta tener hora NTP). Sin `hr`/`spo2` cuando no hay medición válida. `seq` crece cada 3 s y salta
     de bloque en cada reinicio.
   - `http://<IP>/status` → diagnóstico: sensores, NTP, arranque, RSSI, temperatura de piel.
   - `http://wearable-pti.local/` → lo mismo vía mDNS.
