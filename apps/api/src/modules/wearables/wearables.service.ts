@@ -16,6 +16,7 @@ import {
   type UpdateWearableRequest,
   type ShowTicketCommand,
   type Wearable,
+  type WearableCommand,
 } from '@vitalia/contracts';
 import { In, QueryFailedError, Repository } from 'typeorm';
 import { TelemetryReadingEntity } from '../iomt/entities/telemetry-reading.entity';
@@ -33,9 +34,18 @@ export interface IngestWearable {
   ticketId: string | null;
   ticketCode: string | null;
   patientId: string | null;
+  /** Última lectura antes de esta: un hueco largo indica que la pulsera reinició o se desconectó. */
+  lastSeenAt: Date | null;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+/** Estado de la pulsera para un turno asignado: llamado (con consultorio) o solo asignado. */
+function commandFor(ticket: Pick<TicketEntity, 'code' | 'status' | 'consultingRoom'>): WearableCommand {
+  return ticket.status === 'CALLED' && ticket.consultingRoom
+    ? { type: 'SHOW_TICKET', ticketCode: ticket.code, consultingRoom: ticket.consultingRoom.name }
+    : { type: 'ASSIGN_TICKET', ticketCode: ticket.code };
+}
 
 function isUniqueViolation(err: unknown): boolean {
   return (
@@ -95,7 +105,10 @@ export class WearablesService {
     }
   }
 
-  /** Entrega la pulsera a un paciente con turno abierto. Si ya lo llamaron, el OLED lo muestra. */
+  /**
+   * Entrega la pulsera a un paciente con turno abierto. El OLED muestra el código del turno
+   * (`ASSIGN_TICKET`) o, si ya lo llamaron, el llamado (`SHOW_TICKET`).
+   */
   async assign(id: string, ticketId: string): Promise<Wearable> {
     const wearable = await this.getEntity(id);
     if (wearable.ticketId === ticketId) return this.findOne(id);
@@ -125,12 +138,7 @@ export class WearablesService {
       if (isUniqueViolation(err)) throw new ConflictException(`El turno ${ticket.code} ya tiene una pulsera`);
       throw err;
     }
-    if (ticket.status === 'CALLED' && ticket.consultingRoom) {
-      void this.sendShowTicket(wearable, {
-        ticketCode: ticket.code,
-        consultingRoom: ticket.consultingRoom.name,
-      });
-    }
+    void this.sendCommand(wearable, commandFor(ticket));
     return this.findOne(id);
   }
 
@@ -152,14 +160,55 @@ export class WearablesService {
   }
 
   async release(id: string): Promise<Wearable> {
-    await this.getEntity(id);
+    const wearable = await this.getEntity(id);
     await this.wearables.update(id, { ticketId: null, status: 'AVAILABLE' });
+    void this.sendCommand(wearable, { type: 'RELEASE_WEARABLE' });
     return this.findOne(id);
   }
 
-  /** Al terminar o cancelar un turno, la pulsera queda libre. */
+  /** Al terminar o cancelar un turno, la pulsera queda libre y el OLED vuelve a su pantalla. */
   async releaseByTicket(ticketId: string): Promise<void> {
-    await this.wearables.update({ ticketId }, { ticketId: null, status: 'AVAILABLE' });
+    const wearable = await this.wearables.findOneBy({ ticketId });
+    if (!wearable) return;
+    await this.wearables.update(wearable.id, { ticketId: null, status: 'AVAILABLE' });
+    void this.sendCommand(wearable, { type: 'RELEASE_WEARABLE' });
+  }
+
+  /**
+   * El turno dejó de estar llamado (en atención, de vuelta a la fila, ausente): el OLED deja
+   * de mostrar `TE LLAMAN` y sigue con el código del turno. No lanza.
+   */
+  async clearCall(ticketId: string, ticketCode: string): Promise<boolean> {
+    try {
+      const wearable = await this.wearables.findOneBy({ ticketId });
+      return wearable ? await this.sendCommand(wearable, { type: 'CLEAR_TICKET', ticketCode }) : false;
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo terminar el llamado de ${ticketCode} en el wearable: ${(err as Error).message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Reenvía el estado actual (libre, asignada o llamada) a una pulsera que reinició o estuvo
+   * desconectada: los comandos no se guardan en el broker (sin retain). No lanza.
+   */
+  async syncState(id: string): Promise<boolean> {
+    try {
+      const wearable = await this.wearables.findOne({
+        where: { id },
+        relations: { ticket: { consultingRoom: true } },
+      });
+      if (!wearable) return false;
+      const command: WearableCommand = wearable.ticket
+        ? commandFor(wearable.ticket)
+        : { type: 'RELEASE_WEARABLE' };
+      return await this.sendCommand(wearable, command);
+    } catch (err) {
+      this.logger.warn(`No se pudo sincronizar el wearable ${id}: ${(err as Error).message}`);
+      return false;
+    }
   }
 
   /**
@@ -169,7 +218,7 @@ export class WearablesService {
   async showTicket(ticketId: string, cmd: Omit<ShowTicketCommand, 'type'>): Promise<boolean> {
     try {
       const wearable = await this.wearables.findOneBy({ ticketId });
-      return wearable ? await this.sendShowTicket(wearable, cmd) : false;
+      return wearable ? await this.sendCommand(wearable, { type: 'SHOW_TICKET', ...cmd }) : false;
     } catch (err) {
       this.logger.warn(
         `No se pudo avisar al wearable del turno ${cmd.ticketCode}: ${(err as Error).message}`,
@@ -181,7 +230,13 @@ export class WearablesService {
   /** Búsqueda por código para cada mensaje MQTT (una query con índice único). */
   async findForIngest(code: string): Promise<IngestWearable | null> {
     const w = await this.wearables.findOne({
-      select: { id: true, code: true, ticketId: true, ticket: { id: true, code: true, patientId: true } },
+      select: {
+        id: true,
+        code: true,
+        ticketId: true,
+        lastSeenAt: true,
+        ticket: { id: true, code: true, patientId: true },
+      },
       where: { code },
       relations: { ticket: true },
     });
@@ -192,6 +247,7 @@ export class WearablesService {
       ticketId: w.ticketId,
       ticketCode: w.ticket?.code ?? null,
       patientId: w.ticket?.patientId ?? null,
+      lastSeenAt: w.lastSeenAt ?? null,
     };
   }
 
@@ -200,15 +256,14 @@ export class WearablesService {
     await this.wearables.update(id, { lastSeenAt: seenAt, lastRoom: room });
   }
 
-  private async sendShowTicket(
+  private async sendCommand(
     wearable: Pick<WearableEntity, 'code' | 'lastRoom'>,
-    cmd: Omit<ShowTicketCommand, 'type'>,
+    command: WearableCommand,
   ): Promise<boolean> {
-    const command: ShowTicketCommand = { type: 'SHOW_TICKET', ...cmd };
     const topic = MQTT_TOPICS.wearableCommand(wearable.lastRoom ?? DEFAULT_WEARABLE_ROOM, wearable.code);
     const sent = await this.mqtt.publishJson(topic, command);
     if (!sent && this.mqtt.isEnabled())
-      this.logger.warn(`Sin broker: ${wearable.code} no mostrará ${cmd.ticketCode}`);
+      this.logger.warn(`Sin broker: ${wearable.code} no recibió ${command.type}`);
     return sent;
   }
 

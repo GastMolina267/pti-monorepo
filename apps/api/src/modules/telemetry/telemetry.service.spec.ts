@@ -11,7 +11,7 @@ import type { MqttService } from '../mqtt/mqtt.service';
 import type { RealtimeGateway } from '../realtime/realtime.gateway';
 import type { TicketsService } from '../tickets/tickets.service';
 import type { IngestWearable, WearablesService } from '../wearables/wearables.service';
-import { TelemetryService } from './telemetry.service';
+import { COMMAND_RESYNC_GAP_MS, TelemetryService } from './telemetry.service';
 
 const KEY = randomBytes(32);
 const CODE = 'wb-02-5e0002';
@@ -22,6 +22,7 @@ const WEARABLE: IngestWearable = {
   ticketId: '1a1a1a1a-0000-4000-8000-000000000001',
   ticketCode: 'A-003',
   patientId: '2b2b2b2b-0000-4000-8000-000000000001',
+  lastSeenAt: null,
 };
 
 let seq = 1000;
@@ -37,7 +38,8 @@ const reading = (patch: Partial<TelemetryReading> = {}): TelemetryReading => ({
   ...patch,
 });
 
-function setup(keyHex: string | null = KEY.toString('hex')) {
+/** Por defecto la pulsera publicó hace 3 s (sin hueco): no hay que reenviarle el estado. */
+function setup(keyHex: string | null = KEY.toString('hex'), lastSeenAgoMs: number | null = 3_000) {
   interface Qb {
     insert(): Qb;
     into(): Qb;
@@ -57,8 +59,13 @@ function setup(keyHex: string | null = KEY.toString('hex')) {
     mqtt: { isEnabled: () => true, subscribe: jest.fn() },
     realtime: { emitTelemetryReading: jest.fn() },
     wearables: {
-      findForIngest: jest.fn(async (code: string) => (code === CODE ? WEARABLE : null)),
+      findForIngest: jest.fn(async (code: string) =>
+        code === CODE
+          ? { ...WEARABLE, lastSeenAt: lastSeenAgoMs === null ? null : new Date(Date.now() - lastSeenAgoMs) }
+          : null,
+      ),
       touch: jest.fn().mockResolvedValue(undefined),
+      syncState: jest.fn().mockResolvedValue(true),
     },
     alerts: { raise: jest.fn().mockResolvedValue(undefined) },
     tickets: { escalateTriage: jest.fn().mockResolvedValue(true) },
@@ -189,6 +196,22 @@ describe('TelemetryService.ingest', () => {
     );
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('hr fuera de rango'));
     warn.mockRestore();
+  });
+
+  it('a una pulsera que vuelve después de un hueco le reenvía el estado (reinicio o corte)', async () => {
+    for (const ago of [COMMAND_RESYNC_GAP_MS + 5_000, null]) {
+      const { service, wearables } = setup(KEY.toString('hex'), ago);
+      await service.ingest(TOPIC, sealReading(reading(), KEY));
+      await service.idle();
+      expect(wearables.syncState).toHaveBeenCalledWith(WEARABLE.id);
+    }
+  });
+
+  it('con lecturas seguidas no reenvía el estado', async () => {
+    const { service, wearables } = setup();
+    await service.ingest(TOPIC, sealReading(reading(), KEY));
+    await service.idle();
+    expect(wearables.syncState).not.toHaveBeenCalled();
   });
 
   it('un tipo equivocado sigue descartando el mensaje entero', async () => {

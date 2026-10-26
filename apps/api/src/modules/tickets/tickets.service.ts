@@ -257,7 +257,9 @@ export class TicketsService {
 
     await this.tickets.update(id, changes);
     if (RELEASES_WEARABLE.includes(status)) {
-      await this.wearables.releaseByTicket(id);
+      await this.wearables.releaseByTicket(id); // RELEASE_WEARABLE: también termina el llamado
+    } else if (ticket.status === 'CALLED') {
+      void this.wearables.clearCall(id, ticket.code); // dejó de estar llamado: fuera "TE LLAMAN"
     }
     const updated = await this.getEntity(id);
     this.notifyQueue('STATUS', updated);
