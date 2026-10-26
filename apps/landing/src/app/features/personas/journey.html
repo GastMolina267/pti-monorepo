@@ -1,0 +1,200 @@
+<section class="journey" id="recorrido" aria-labelledby="recorrido-titulo">
+  <div class="lp-container journey__grid">
+    <div class="journey__intro">
+      <h2 id="recorrido-titulo" class="lp-h2">Un turno en el hospital, de la puerta al consultorio</h2>
+      <p class="lp-lead">
+        Scrolleá y seguí la señal: así viaja lo que pasa en la sala de espera hasta quien te atiende.
+      </p>
+    </div>
+
+    <div class="pin" [class.is-live]="active() >= 0">
+      <figure vtSpotlight class="stage" aria-hidden="true">
+        <svg
+          class="stage__svg"
+          [attr.viewBox]="overview"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg"
+          role="presentation"
+        >
+          <defs>
+            <pattern id="vt-world-dots" width="48" height="48" patternUnits="userSpaceOnUse">
+              <circle class="w-grid" cx="24" cy="24" r="2.4" />
+            </pattern>
+          </defs>
+          <rect x="-1200" y="-1200" width="5800" height="3400" fill="url(#vt-world-dots)" />
+
+          <!-- Ambiente: cruces y puntos que flotan entre escenas -->
+          @for (p of particles; track $index) {
+            <g [attr.transform]="'translate(' + p.x + ' ' + p.y + ')'">
+              <g class="w-float" [style.animation-delay]="p.delay">
+                @if (p.kind === 'plus') {
+                  <path class="w-plus" d="M -12 0 H 12 M 0 -12 V 12" />
+                } @else {
+                  <circle class="w-mote" r="7" />
+                }
+              </g>
+            </g>
+          }
+
+          <!-- Señal entre escenas: base tenue y trazo que se dibuja con el scroll -->
+          @for (d of segments; track $index) {
+            <path class="w-track" [attr.d]="d" />
+            <path class="w-signal" [attr.d]="d" />
+            <circle class="w-packet" r="11" />
+          }
+
+          <!-- 1 · Celular con el portal -->
+          <g [attr.transform]="'translate(' + scenes[0].cx + ' ' + scenes[0].cy + ')'">
+            <circle class="w-halo" r="250" />
+            <g class="w-wifi" transform="translate(170 -190)">
+              <path d="M -46 -10 A 66 66 0 0 1 46 -10" />
+              <path d="M -28 8 A 40 40 0 0 1 28 8" />
+              <circle class="w-fill-primary" cx="0" cy="26" r="7" />
+            </g>
+            <rect class="w-device" x="-120" y="-200" width="240" height="400" rx="36" />
+            <rect class="w-screen" x="-102" y="-180" width="204" height="360" rx="24" />
+            <rect class="w-fill-primary" x="-78" y="-154" width="30" height="30" rx="9" />
+            <text class="w-t-sm w-fill-ink" x="-38" y="-130">Vitalia</text>
+            <text class="w-t-xs w-fill-muted" x="-78" y="-76">Tu turno</text>
+            <text class="w-t-xl w-fill-ink" x="-80" y="-26">A-024</text>
+            <text class="w-t-xs w-fill-muted" x="-78" y="8">Guardia · Clínica</text>
+            @for (i of [0, 1, 2, 3, 4]; track i) {
+              <circle
+                [attr.class]="i < 3 ? 'w-fill-sky' : 'w-fill-stroke'"
+                [attr.cx]="-68 + i * 28"
+                cy="52"
+                r="10"
+              />
+            }
+            <text class="w-t-xs w-fill-ink" x="-78" y="94">3 personas antes</text>
+            <rect class="w-fill-primary" x="-78" y="120" width="156" height="38" rx="12" />
+            <text class="w-t-xs w-fill-on-primary" x="0" y="145" text-anchor="middle">Seguí tu turno</text>
+          </g>
+
+          <!-- 2 · Pulsera en la muñeca -->
+          <g [attr.transform]="'translate(' + scenes[1].cx + ' ' + scenes[1].cy + ')'">
+            <circle class="w-halo" r="250" />
+            <g transform="rotate(-14)">
+              <rect class="w-arm" x="-320" y="-74" width="640" height="148" rx="74" />
+              <circle class="w-ring" r="120" />
+              <circle class="w-ring w-ring--far" r="170" />
+              <rect class="w-band" x="-74" y="-104" width="148" height="208" rx="30" />
+              <rect class="w-oled" x="-54" y="-72" width="108" height="144" rx="14" />
+              <text class="w-t-lg w-fill-live" x="-38" y="-20">78</text>
+              <text class="w-t-xs w-fill-oled" x="16" y="-22">lpm</text>
+              <text class="w-t-xs w-fill-oled" x="-38" y="16">SpO₂ 98 %</text>
+              <text class="w-t-xs w-fill-oled" x="-38" y="46">36,6 °C</text>
+            </g>
+          </g>
+
+          <!-- 3 · Gateway dentro del hospital -->
+          <g [attr.transform]="'translate(' + scenes[2].cx + ' ' + scenes[2].cy + ')'">
+            <circle class="w-halo" r="250" />
+            <g class="w-cloud" transform="translate(150 -170)">
+              <path d="M -60 20 a 34 34 0 0 1 8 -66 a 44 44 0 0 1 84 4 a 30 30 0 0 1 6 62 z" />
+              <line x1="-58" y1="-58" x2="58" y2="36" />
+            </g>
+            <text class="w-t-xs w-fill-muted" x="150" y="-110" text-anchor="middle">Sin internet</text>
+            <!-- Router gestionado: separa pacientes, personal, pulseras y TV en 4 VLAN -->
+            <g transform="translate(-110 -178)">
+              <line class="w-link" x1="0" y1="24" x2="0" y2="88" />
+              <line class="w-antenna" x1="-44" y1="-20" x2="-56" y2="-62" />
+              <line class="w-antenna" x1="44" y1="-20" x2="56" y2="-62" />
+              <rect class="w-device" x="-74" y="-24" width="148" height="48" rx="12" />
+              @for (i of [0, 1, 2, 3]; track i) {
+                <circle
+                  class="w-fill-live w-led"
+                  [style.animation-delay]="i * 0.35 + 's'"
+                  [attr.cx]="-46 + i * 22"
+                  cy="0"
+                  r="6"
+                />
+              }
+              <text class="w-t-xs w-fill-muted" x="0" y="-74" text-anchor="middle">4 VLAN</text>
+            </g>
+            <rect class="w-device" x="-170" y="-90" width="340" height="190" rx="24" />
+            @for (row of [0, 1, 2]; track row) {
+              <rect class="w-screen" x="-140" [attr.y]="-64 + row * 52" width="280" height="38" rx="10" />
+              <circle class="w-fill-live" cx="-116" [attr.cy]="-45 + row * 52" r="7" />
+            }
+            <text class="w-t-xs w-fill-ink" x="-96" y="-40">Broker MQTT</text>
+            <text class="w-t-xs w-fill-ink" x="-96" y="12">API Vitalia</text>
+            <text class="w-t-xs w-fill-ink" x="-96" y="64">Base de datos</text>
+            <g transform="translate(140 96)">
+              <circle class="w-fill-primary" r="34" />
+              <rect class="w-fill-on-primary" x="-13" y="-4" width="26" height="20" rx="4" />
+              <path class="w-lock" d="M -8 -4 v -7 a 8 8 0 0 1 16 0 v 7" />
+            </g>
+            <text class="w-t-sm w-fill-ink" x="0" y="150" text-anchor="middle">Gateway en el hospital</text>
+          </g>
+
+          <!-- 4 · Consola de triaje -->
+          <g [attr.transform]="'translate(' + scenes[3].cx + ' ' + scenes[3].cy + ')'">
+            <circle class="w-halo" r="260" />
+            <rect class="w-device" x="-240" y="-170" width="480" height="300" rx="22" />
+            <rect class="w-screen" x="-222" y="-152" width="444" height="264" rx="14" />
+            <rect class="w-stand" x="-30" y="130" width="60" height="44" />
+            <rect class="w-stand" x="-90" y="170" width="180" height="16" rx="8" />
+            <g class="w-alert">
+              <rect class="w-fill-danger" x="-204" y="-136" width="408" height="50" rx="12" />
+              <text class="w-t-sm w-fill-on-danger" x="-184" y="-104">Caída detectada · A-031 · Sala 1</text>
+            </g>
+            @for (r of rows; track r.code; let i = $index) {
+              <rect class="w-row" x="-204" [attr.y]="-70 + i * 44" width="408" height="36" rx="10" />
+              <circle [attr.class]="'w-fill-' + r.tone" cx="-184" [attr.cy]="-52 + i * 44" r="8" />
+              <text class="w-t-xs w-fill-ink" x="-164" [attr.y]="-46 + i * 44">{{ r.code }}</text>
+              <text class="w-t-xs w-fill-muted" x="-90" [attr.y]="-46 + i * 44">{{ r.label }}</text>
+            }
+          </g>
+
+          <!-- 5 · TV de la sala de espera -->
+          <g [attr.transform]="'translate(' + scenes[4].cx + ' ' + scenes[4].cy + ')'">
+            <circle class="w-halo" r="260" />
+            <rect class="w-tv" x="-250" y="-150" width="500" height="290" rx="18" />
+            <text class="w-t-sm w-fill-tv-muted" x="-210" y="-96">Llamado</text>
+            <text class="w-t-2xl w-fill-tv" x="-214" y="0">A-024</text>
+            <text class="w-t-lg w-fill-tv-accent" x="-210" y="60">Consultorio 4</text>
+            <g class="w-chime" transform="translate(180 -90)">
+              <circle r="30" />
+              <path d="M -10 6 v -10 a 10 10 0 0 1 20 0 v 10 l 5 5 h -30 z M -4 14 a 4 4 0 0 0 8 0" />
+            </g>
+            <rect class="w-stand" x="-20" y="140" width="40" height="40" />
+          </g>
+          <!-- Rótulos: qué pieza del sistema es cada escena -->
+          @for (l of labels; track l.text; let i = $index) {
+            <g [attr.transform]="'translate(' + scenes[i].cx + ' ' + (scenes[i].cy + 300) + ')'">
+              <rect class="w-chip" [attr.x]="-l.w / 2" y="-26" [attr.width]="l.w" height="52" rx="26" />
+              <circle class="w-fill-primary" [attr.cx]="-l.w / 2 + 28" cy="0" r="7" />
+              <text class="w-t-xs w-fill-ink" [attr.x]="-l.w / 2 + 46" y="7">{{ l.text }}</text>
+            </g>
+          }
+        </svg>
+      </figure>
+
+      <!-- En móvil, el texto del paso activo va pegado al escenario (la lista queda debajo). -->
+      @if (active() >= 0) {
+        <div class="caption" aria-hidden="true">
+          <span class="step__n">{{ active() + 1 }}</span>
+          <div>
+            <p class="caption__title">{{ steps()[active()].title }}</p>
+            <p class="caption__body">{{ steps()[active()].body }}</p>
+          </div>
+        </div>
+      }
+    </div>
+
+    <ol class="steps" [class.is-live]="active() >= 0">
+      @for (s of steps(); track s.title; let i = $index) {
+        <li
+          class="step"
+          [class.is-active]="active() === i"
+          [class.is-dim]="active() !== -1 && active() !== i"
+        >
+          <span class="step__n" aria-hidden="true">{{ i + 1 }}</span>
+          <h3 class="step__title">{{ s.title }}</h3>
+          <p class="step__body">{{ s.body }}</p>
+        </li>
+      }
+    </ol>
+  </div>
+</section>

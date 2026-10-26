@@ -42,7 +42,7 @@ flowchart LR
 | --------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **Edge**  | Wearables ESP32-C3                        | Leen sensores por I²C, detectan caídas en el dispositivo, cifran (AES-256-GCM) y publican por MQTT. Muestran turno y estado en el OLED |
 | **Fog**   | Router RUT956 + Mini PC/laptop con Docker | Broker MQTT, **backend único** NestJS, PostgreSQL, Nginx. Operación autónoma sin WAN                                                   |
-| **Cloud** | Servicio remoto (a definir)               | Recibe la réplica asíncrona cuando vuelve internet. Failover 4G/LTE del router                                                         |
+| **Cloud** | Servicio remoto (proveedor a definir)     | Recibe la réplica por outbox cuando vuelve internet (`CLOUD_SYNC_URL`, ADR 0018). Failover 4G/LTE del router                           |
 
 ## Red y segmentación (router Teltonika RUT956)
 
@@ -98,6 +98,7 @@ flowchart TB
   api["apps/api<br/>scope:api"] --> contracts
   backoffice["apps/backoffice<br/>scope:backoffice"] --> ui & tokens & contracts
   tv["apps/tv-display<br/>scope:tv"] --> ui & tokens & contracts
+  landing["apps/landing<br/>scope:landing"] --> ui & tokens
   ui["libs/shared/ui<br/>type:ui"] --> tokens
   tokens["libs/shared/design-tokens<br/>type:ui"]
   contracts["libs/shared/contracts<br/>type:contracts"]

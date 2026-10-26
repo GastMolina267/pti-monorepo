@@ -14,7 +14,7 @@
 | 4    | Despliegue e integración del software   | 18 oct        | G      | ✅ Software completo                          |
 | —    | Red, router y portal cautivo            | —             | Eq     | ✅ Proyecto aparte                            |
 | 5    | Software pendiente, carga y validación  | 25 oct–15 nov | Eq     | ✅ Software (5a–5c, 5e app) · ⏳ 24 h WAN, 5d |
-| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | Pendiente                                     |
+| 6    | Landing, memoria y defensa (**Hito 4**) | nov           | Eq     | ⏳ Landing lista (25/10)                      |
 
 ```mermaid
 gantt
@@ -230,7 +230,15 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 ## Fase 6 · Cierre y defensa — Hito 4 (Eq)
 
-- [ ] Landing page de Vitalia (nueva app en el monorepo, con la misma identidad)
+- [x] Landing de Vitalia (`apps/landing`, T, 25/10): B2C para conocer el proyecto y B2B para hospitales e inversores, con un selector entre las dos ([ADR 0020](adr/0020-landing-b2c-b2b.md))
+  - Personas: recorrido con scroll en el que la cámara vuela por 5 escenas SVG (celular, pulsera, gateway, consola y TV) con anime.js; idea de scroll-world sin video generado
+  - Instituciones: mercado con fuentes (REFES 2023, Adecra+Cedim, IoMT LATAM), cuatro fuentes de ingreso, calculadora con supuestos editables sobre los 6.729 establecimientos con internación, validación con los números de 5c, hoja de ruta y formulario de demo
+  - Widgets (25/10): pulsera en vivo y turno que avanza en el hero, llamador tipo TV, una mañana en la guardia, gráficos por cifra de mercado, arquitectura con corte de internet simulado, composición del primer año y uso del objetivo en la validación
+  - Fondo de luz con seguimiento del cursor: grilla tipo monitor, latido de luz cada 3 s, auroras de marca y brillo en las tarjetas (55 fps sin GPU en Chromium)
+  - Recorrido con escenario cuadrado: ya no se recorta en pantallas altas y cada escena coincide con su texto
+  - Verificado en Chromium de 360 a 2560 px, claro y oscuro, movimiento reducido y teclado, sin scroll horizontal ni errores de consola; 42 tests
+  - App del paciente (25/10): las dos páginas aclaran que hoy no hace falta descargar nada (portal cautivo) y que la app Android ([5e](#5e--app-del-paciente-en-flutter-g--completo-2510)) está en desarrollo hasta probarla en un celular real; en Instituciones figura como etapa "En desarrollo" de la hoja de ruta
+- [ ] Landing: reemplazar `SITE.contactEmail`, confirmar el costo de la pulsera y elegir dónde se publica (sitio estático)
 - [ ] Documentación final y actualización de la tesis (capítulos 12–14, "Diferencias con la tesis")
 - [ ] Video y demo, presentación para la defensa
 

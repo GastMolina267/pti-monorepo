@@ -1,0 +1,354 @@
+:host {
+  display: block;
+}
+
+.arch {
+  display: grid;
+  gap: var(--lp-s-6);
+  padding: var(--lp-s-7);
+  border-radius: var(--vt-r-lg);
+  background: var(--vt-surface);
+  border: 1px solid var(--vt-stroke);
+}
+
+// ─── Barra de estado y botón de la simulación ───────────────────────────────
+.arch__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lp-s-4);
+  flex-wrap: wrap;
+}
+
+.arch__status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lp-s-2) var(--lp-s-3);
+  color: var(--vt-muted);
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    color: var(--vt-ink);
+  }
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lp-s-2);
+  padding: var(--lp-s-1) var(--lp-s-3);
+  border-radius: 999px;
+  font-size: var(--lp-text-sm);
+  line-height: 20px;
+  font-weight: 800;
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+}
+
+.pill--on {
+  color: var(--vt-success-deep);
+  background: color-mix(in srgb, var(--vt-success) 14%, transparent);
+}
+
+.pill--off {
+  color: var(--vt-danger-deep);
+  background: color-mix(in srgb, var(--vt-danger) 14%, transparent);
+
+  i {
+    animation: arch-blink 1.2s ease-in-out infinite;
+  }
+}
+
+:host-context([data-theme='dark']) {
+  .pill--on {
+    color: var(--vt-live);
+  }
+  .pill--off {
+    color: var(--vt-danger);
+  }
+}
+
+@keyframes arch-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.arch__btn {
+  min-height: 44px;
+  font-size: var(--lp-text-sm);
+}
+
+.is-offline .arch__btn {
+  border-color: var(--vt-danger);
+}
+
+// ─── Capas y cables ─────────────────────────────────────────────────────────
+.arch__layers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr) 72px minmax(0, 1.15fr) 72px minmax(0, 0.9fr);
+  align-items: stretch;
+}
+
+.layer {
+  display: grid;
+  align-content: start;
+  gap: var(--lp-s-3);
+  padding: var(--lp-s-5);
+  border-radius: var(--vt-r-md);
+  background: var(--vt-paper);
+  border: 1px solid var(--vt-stroke);
+  transition:
+    opacity 0.6s var(--lp-ease),
+    border-color 0.6s var(--lp-ease);
+}
+
+.layer--fog {
+  border: 2px solid var(--vt-primary);
+  box-shadow: var(--vt-shadow-chip);
+}
+
+.is-offline .layer--cloud {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.layer__tier {
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  font-weight: 800;
+  color: var(--vt-primary-deep);
+}
+
+:host-context([data-theme='dark']) .layer__tier {
+  color: var(--vt-primary-light);
+}
+
+.layer__title {
+  display: flex;
+  align-items: center;
+  gap: var(--lp-s-2);
+  font-weight: 800;
+}
+
+.layer__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--lp-s-3);
+  font-size: var(--lp-text-sm);
+  line-height: 20px;
+
+  li {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: var(--lp-s-2);
+    align-items: start;
+  }
+
+  svg {
+    color: var(--vt-primary);
+    margin-top: 1px;
+  }
+}
+
+.layer__title svg {
+  color: var(--vt-primary);
+  flex-shrink: 0;
+}
+
+.layer__note {
+  font-size: var(--lp-text-sm);
+  line-height: 20px;
+  color: var(--vt-muted);
+}
+
+.vlans {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--lp-s-2);
+  font-size: var(--lp-text-sm);
+  line-height: 20px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--lp-s-2);
+  }
+
+  b {
+    display: grid;
+    place-items: center;
+    min-width: 32px;
+    padding: 2px var(--lp-s-1);
+    border-radius: 6px;
+    background: var(--vt-surface-2);
+    border: 1px solid var(--vt-stroke-2);
+    font-size: var(--lp-text-xs);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Cable horizontal con paquetes que viajan hacia la derecha.
+.wire {
+  position: relative;
+  align-self: center;
+  height: 4px;
+  margin-inline: 6px;
+  border-radius: 4px;
+  background: var(--vt-stroke-2);
+}
+
+.pkt {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--vt-primary);
+  animation: arch-x 1.8s linear infinite;
+
+  &:nth-child(2) {
+    animation-delay: -0.6s;
+  }
+  &:nth-child(3) {
+    animation-delay: -1.2s;
+  }
+}
+
+@keyframes arch-x {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.wire--cloud .pkt {
+  background: var(--vt-secondary);
+  animation-duration: 3s;
+}
+
+.is-flushing .wire--cloud .pkt {
+  background: var(--vt-live);
+  animation-duration: 0.6s;
+}
+
+.wire__cut {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--vt-paper);
+  border: 2px solid var(--vt-danger);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 0.4s var(--lp-ease),
+    transform 0.5s var(--lp-ease);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 12px;
+    height: 2px;
+    margin: -1px 0 0 -6px;
+    background: var(--vt-danger);
+    transform: rotate(45deg);
+  }
+
+  &::after {
+    transform: rotate(-45deg);
+  }
+}
+
+.is-offline .wire--cloud {
+  background: repeating-linear-gradient(90deg, var(--vt-stroke-2) 0 6px, transparent 6px 12px);
+
+  .pkt {
+    visibility: hidden;
+  }
+
+  .wire__cut {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.arch__foot {
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  color: var(--vt-muted);
+}
+
+// ─── Pantallas angostas: capas en columna, cables verticales ───────────────
+@media (max-width: 1100px) {
+  .arch {
+    padding: var(--lp-s-5);
+  }
+
+  .arch__layers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wire {
+    justify-self: center;
+    width: 4px;
+    height: 44px;
+    margin: 6px 0;
+  }
+
+  .pkt {
+    top: 0;
+    left: 50%;
+    margin: -5px 0 0 -5px;
+    animation-name: arch-y;
+  }
+
+  .is-offline .wire--cloud {
+    background: repeating-linear-gradient(180deg, var(--vt-stroke-2) 0 6px, transparent 6px 12px);
+  }
+}
+
+@keyframes arch-y {
+  from {
+    top: 0;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    top: 100%;
+    opacity: 0;
+  }
+}

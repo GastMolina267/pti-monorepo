@@ -1,0 +1,361 @@
+:host {
+  display: block;
+}
+
+.lv {
+  position: relative;
+  padding-bottom: 112px;
+}
+
+// ─── Monitor de la pulsera ──────────────────────────────────────────────────
+.lv__monitor {
+  position: relative;
+  display: grid;
+  gap: var(--lp-s-4);
+  padding: var(--lp-s-5);
+  border-radius: var(--vt-r-lg);
+  background: var(--vt-paper);
+  border: 1px solid var(--vt-stroke);
+  box-shadow: var(--vt-shadow-cta);
+}
+
+.lv__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--lp-s-3);
+}
+
+.lv__device {
+  font-weight: 800;
+}
+
+.lv__where {
+  font-size: var(--lp-text-sm);
+  line-height: 20px;
+  color: var(--vt-muted);
+}
+
+.lv__live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lp-s-2);
+  min-height: 32px;
+  padding: var(--lp-s-1) var(--lp-s-3);
+  border-radius: 999px;
+  border: 1px solid var(--vt-stroke-2);
+  background: var(--vt-surface-2);
+  color: var(--vt-primary-deep);
+  font: inherit;
+  font-size: var(--lp-text-xs);
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+
+  &:hover {
+    border-color: var(--vt-primary);
+  }
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--vt-live);
+    animation: lv-blink 1.4s ease-in-out infinite;
+  }
+}
+
+.is-paused .lv__live i {
+  background: var(--vt-muted);
+  animation: none;
+}
+
+:host-context([data-theme='dark']) .lv__live {
+  color: var(--vt-primary-light);
+}
+
+@keyframes lv-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+// Traza de ECG: el grupo se desplaza una vuelta y vuelve a empezar (75 lpm).
+.lv__ecg {
+  height: 96px;
+  border-radius: var(--vt-r-sm);
+  background:
+    linear-gradient(var(--vt-divider) 1px, transparent 1px) 0 0 / 100% 24px,
+    linear-gradient(90deg, var(--vt-divider) 1px, transparent 1px) 0 0 / 24px 100%,
+    var(--vt-bg-2);
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+  overflow: hidden;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  path {
+    fill: none;
+    stroke: var(--vt-primary);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+.lv__trace {
+  animation: lv-scroll 2.4s linear infinite;
+}
+
+.is-paused .lv__trace {
+  animation-play-state: paused;
+}
+
+@keyframes lv-scroll {
+  to {
+    transform: translateX(-600px);
+  }
+}
+
+.lv__vals {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--lp-s-3);
+
+  div {
+    display: grid;
+    gap: 2px;
+  }
+
+  dt {
+    font-size: var(--lp-text-xs);
+    line-height: 16px;
+    font-weight: 700;
+    color: var(--vt-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--lp-text-sm);
+    color: var(--vt-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  strong {
+    font-size: var(--lp-text-3xl);
+    line-height: 36px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--vt-ink);
+  }
+}
+
+// Cada lectura nueva entra desde abajo.
+.lv__num {
+  animation: lv-rise 0.6s var(--lp-ease) both;
+}
+
+@keyframes lv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.lv__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--lp-s-3);
+  padding-top: var(--lp-s-3);
+  border-top: 1px solid var(--vt-divider);
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--vt-muted);
+}
+
+.lv__level {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lp-s-2);
+  color: var(--vt-success-deep);
+
+  &::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--vt-success);
+  }
+}
+
+:host-context([data-theme='dark']) .lv__level {
+  color: var(--vt-live);
+}
+
+.lv__next {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lp-s-2);
+}
+
+.lv__bar {
+  width: 64px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--vt-divider);
+  overflow: hidden;
+
+  i {
+    display: block;
+    height: 100%;
+    background: var(--vt-primary);
+    transform-origin: left;
+    animation: lv-fill 3s linear both;
+  }
+}
+
+.is-paused .lv__bar i {
+  animation-play-state: paused;
+}
+
+@keyframes lv-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+// ─── Ticket del celular ─────────────────────────────────────────────────────
+.lv__ticket {
+  position: absolute;
+  left: calc(-1 * var(--lp-s-7));
+  bottom: 0;
+  width: 236px;
+  display: grid;
+  gap: var(--lp-s-1);
+  padding: var(--lp-s-4) var(--lp-s-5);
+  border-radius: var(--vt-r-md);
+  background: var(--vt-paper);
+  border: 1px solid var(--vt-stroke-2);
+  box-shadow: var(--vt-shadow-chip);
+  transition:
+    border-color 0.5s var(--lp-ease),
+    transform 0.6s var(--lp-ease);
+}
+
+.is-called .lv__ticket {
+  border-color: var(--vt-primary);
+  transform: translateY(-6px);
+}
+
+.lv__tlabel {
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--vt-muted);
+}
+
+.lv__code {
+  font-size: var(--lp-text-3xl);
+  line-height: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.lv__status {
+  font-size: var(--lp-text-sm);
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--vt-muted);
+}
+
+.lv__status--called {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lp-s-2);
+  color: var(--vt-primary-deep);
+
+  svg {
+    animation: lv-ring 0.9s ease-in-out 2;
+    transform-origin: 50% 0;
+  }
+}
+
+:host-context([data-theme='dark']) .lv__status--called {
+  color: var(--vt-primary-light);
+}
+
+@keyframes lv-ring {
+  25% {
+    transform: rotate(14deg);
+  }
+  75% {
+    transform: rotate(-14deg);
+  }
+}
+
+.lv__seats {
+  display: flex;
+  gap: 6px;
+  margin-top: var(--lp-s-2);
+
+  span {
+    width: 22px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--vt-divider);
+    transition: background-color 0.5s var(--lp-ease);
+  }
+
+  .is-on {
+    background: var(--vt-secondary);
+  }
+
+  .is-you {
+    background: var(--vt-primary);
+  }
+}
+
+.lv__note {
+  position: absolute;
+  right: 0;
+  bottom: var(--lp-s-5);
+  font-size: var(--lp-text-xs);
+  line-height: 16px;
+  color: var(--vt-muted);
+}
+
+@media (max-width: 1100px) {
+  .lv__ticket {
+    left: var(--lp-s-4);
+  }
+}
+
+@media (max-width: 560px) {
+  .lv {
+    padding-bottom: 0;
+    display: grid;
+    gap: var(--lp-s-3);
+  }
+
+  .lv__ticket {
+    position: static;
+    width: auto;
+  }
+
+  .lv__note {
+    position: static;
+  }
+
+  .lv__vals strong {
+    font-size: var(--lp-text-2xl);
+    line-height: 32px;
+  }
+}

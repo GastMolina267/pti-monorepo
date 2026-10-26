@@ -1,0 +1,221 @@
+<section class="lp-container hero">
+  <div class="hero__copy">
+    <h1 class="hero__title">Monitoreo de la sala de espera, como servicio.</h1>
+    <p class="hero__sub">
+      Vitalia reúne turnos desde el celular, pulseras que miden signos vitales y una consola de triaje que
+      corre dentro del hospital. Se cobra por pulsera activa y por sede: ingresos recurrentes que crecen con
+      el uso.
+    </p>
+    <div class="hero__actions">
+      <a class="lp-btn lp-btn--primary" routerLink="/instituciones" fragment="contacto">Pedir una demo</a>
+      <a class="hero__link" routerLink="/instituciones" fragment="calculadora">Calcular un escenario</a>
+    </div>
+    <p class="hero__proof">
+      Pensado para los 6.729 establecimientos con internación de la Argentina.
+      <a class="lp-source" [href]="sources.refes.url" target="_blank" rel="noopener">Fuente: REFES 2023</a>
+    </p>
+  </div>
+
+  <aside vtSpotlight class="ledger" aria-labelledby="ledger-titulo">
+    <h2 id="ledger-titulo" class="ledger__title">Así entra el ingreso</h2>
+    <ol class="ledger__list">
+      @for (s of baseStreams; track s.name) {
+        <li class="ledger__row">
+          <span class="ledger__name">{{ s.name }}</span>
+          <span class="ledger__how">{{ s.how }}</span>
+        </li>
+      }
+    </ol>
+    <p class="ledger__note">Más servicios para redes de salud en la hoja de ruta.</p>
+  </aside>
+</section>
+
+<section class="lp-section lp-container market" id="mercado" aria-labelledby="mercado-titulo">
+  <h2 id="mercado-titulo" class="lp-h2">Muchos hospitales, la misma sala de espera saturada</h2>
+  <ul class="facts">
+    @for (f of facts; track f.value) {
+      <li class="fact">
+        <p class="fact__value">{{ f.value }}</p>
+        <div class="fact__text">
+          <p class="fact__label">{{ f.label }}</p>
+          <a class="lp-source" [href]="f.source.url" target="_blank" rel="noopener">{{ f.source.label }}</a>
+        </div>
+        <vt-fact-viz class="fact__viz" [viz]="f.viz" />
+      </li>
+    }
+  </ul>
+</section>
+
+<section class="lp-section lp-container model" id="modelo" aria-labelledby="modelo-titulo">
+  <div class="model__intro">
+    <h2 id="modelo-titulo" class="lp-h2">Cuatro fuentes de ingreso, una sola plataforma</h2>
+    <p class="lp-lead">
+      El hospital recibe el portal de turnos, las pulseras, el gateway y la consola con el llamador. Paga lo
+      que usa.
+    </p>
+  </div>
+
+  <div class="table" role="table" aria-label="Fuentes de ingreso">
+    <div class="table__head" role="row">
+      <span role="columnheader">Fuente</span>
+      <span role="columnheader">Cómo se cobra</span>
+      <span role="columnheader">Qué incluye</span>
+      <span role="columnheader">Referencia de mercado</span>
+    </div>
+    @for (s of streams; track s.name) {
+      <div class="table__row" role="row" [class.is-roadmap]="s.status === 'roadmap'">
+        <span role="cell" class="table__name">
+          {{ s.name }}
+          @if (s.status === 'roadmap') {
+            <span class="tag">Hoja de ruta</span>
+          }
+        </span>
+        <span role="cell" data-label="Cómo se cobra">{{ s.how }}</span>
+        <span role="cell" data-label="Qué incluye" class="lp-muted">{{ s.includes }}</span>
+        <span role="cell" data-label="Referencia" class="lp-muted">{{ s.reference }}</span>
+      </div>
+    }
+  </div>
+  <a class="lp-source" [href]="sources.pricing.url" target="_blank" rel="noopener"
+    >Referencias de precio: {{ sources.pricing.label }}</a
+  >
+</section>
+
+<section class="lp-section lp-container" id="arquitectura" aria-labelledby="arq-titulo">
+  <div class="model__intro">
+    <h2 id="arq-titulo" class="lp-h2">Todo corre dentro del hospital</h2>
+    <p class="lp-lead">
+      La nube es un respaldo, no una dependencia. Cortá internet en la simulación y mirá qué pasa con la sala.
+    </p>
+  </div>
+  <vt-architecture />
+</section>
+
+<section class="lp-section lp-container" id="calculadora" aria-labelledby="calc-titulo">
+  <div class="model__intro">
+    <h2 id="calc-titulo" class="lp-h2">Calculá un escenario</h2>
+    <p class="lp-lead">
+      Mové los supuestos y mirá cuánto representa sobre el país: cada punto es un establecimiento con
+      internación.
+    </p>
+  </div>
+  <vt-revenue-calculator />
+</section>
+
+<vt-tagline-reveal [lines]="tagline" />
+
+<section class="lp-section lp-container" aria-labelledby="sostiene-titulo">
+  <h2 id="sostiene-titulo" class="lp-h2">Por qué el modelo se sostiene</h2>
+  <dl class="pillars">
+    @for (p of sustainability; track p.title) {
+      <div class="pillar">
+        <dt>
+          <span class="vt-tile vt-tile--teal pillar__icon" aria-hidden="true">
+            @switch (p.icon) {
+              @case ('server') {
+                <svg lucideServer [size]="20"></svg>
+              }
+              @case ('layers') {
+                <svg lucideLayers [size]="20"></svg>
+              }
+              @case ('trend') {
+                <svg lucideTrendingUp [size]="20"></svg>
+              }
+              @default {
+                <svg lucideWrench [size]="20"></svg>
+              }
+            }
+          </span>
+          {{ p.title }}
+        </dt>
+        <dd>{{ p.body }}</dd>
+      </div>
+    }
+  </dl>
+</section>
+
+<section class="lp-section lp-container proof" aria-labelledby="proof-titulo">
+  <div class="model__intro">
+    <h2 id="proof-titulo" class="lp-h2">Validado con números, no con promesas</h2>
+    <p class="lp-lead">
+      Pruebas de carga del 25 de octubre de 2026 sobre el software completo, en un equipo de 2 vCPU.
+    </p>
+  </div>
+  <table class="measure">
+    <thead>
+      <tr>
+        <th scope="col">Qué se midió</th>
+        <th scope="col">Objetivo</th>
+        <th scope="col">Resultado</th>
+        <th scope="col" class="measure__budget-h">Uso del objetivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (m of measurements; track m.metric) {
+        <tr>
+          <th scope="row">{{ m.metric }}</th>
+          <td>{{ m.target }}</td>
+          <td class="measure__ok">
+            <svg lucideCheck [size]="16" aria-hidden="true"></svg>
+            {{ m.measured }}
+          </td>
+          <td class="measure__budget">
+            @if (m.budget !== undefined) {
+              <span class="budget" [attr.aria-label]="pctLabel(m.budget) + ' del objetivo'">
+                <i [style.--w.%]="m.budget * 100"></i>
+              </span>
+              <span class="budget__txt">{{ pctLabel(m.budget) }}</span>
+            } @else {
+              <span class="budget__txt">Sin pérdidas</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <a class="lp-source" [href]="sources.validation.url" target="_blank" rel="noopener">{{
+    sources.validation.label
+  }}</a>
+</section>
+
+<section class="lp-section lp-container" aria-labelledby="ruta-titulo">
+  <div class="model__intro">
+    <h2 id="ruta-titulo" class="lp-h2">Qué financia una inversión</h2>
+    <p class="lp-lead">
+      El software del prototipo está hecho y la app del paciente está en desarrollo. Lo que falta para llegar
+      al mercado es llevarlo a una sala real y convertir el prototipo en un producto certificado.
+    </p>
+  </div>
+  <ol class="route">
+    @for (r of roadmap; track r.title; let i = $index) {
+      <li class="route__step" [class.is-done]="r.state === 'done'" [class.is-now]="r.state === 'now'">
+        <span class="route__n" aria-hidden="true">{{ i + 1 }}</span>
+        <h3>
+          {{ r.title }}
+          @if (r.state === 'now') {
+            <span class="tag tag--now">En desarrollo</span>
+          }
+        </h3>
+        <p>{{ r.body }}</p>
+      </li>
+    }
+  </ol>
+</section>
+
+<section class="lp-section lp-container faq-block" aria-labelledby="faq-b2b-titulo">
+  <h2 id="faq-b2b-titulo" class="lp-h2">Preguntas de instituciones</h2>
+  <vt-faq [items]="faq" />
+</section>
+
+<section class="lp-container contact" id="contacto" aria-labelledby="contacto-titulo">
+  <div vtSpotlight class="contact__inner">
+    <div class="contact__intro">
+      <h2 id="contacto-titulo" class="lp-h2">Veamos Vitalia funcionando en tu sala</h2>
+      <p class="lp-muted">
+        Te mostramos el recorrido completo con datos simulados: check-in, una pulsera, una caída, la alerta y
+        el llamado en la TV.
+      </p>
+    </div>
+    <vt-contact-form />
+  </div>
+</section>

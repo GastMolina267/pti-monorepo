@@ -133,3 +133,17 @@ Ambos son obligatorios en todas las interfaces. El modo se aplica con `data-them
 - **MUI (React)**: reutilizar el `createTheme` de `src/themes/ThemeManager.tsx`.
 - **Angular Material**: definir una paleta custom con primario `#0D9488`, acento `#0284C7` y warn `#F43F5E`, y la tipografía Plus Jakarta Sans.
 - **Backoffice / llamador TV**: priorizar el modo oscuro (`#06111D`) para pantallas siempre encendidas; los estados clínicos usan la tabla de semánticos de la sección 3.
+
+## 10. Landing
+
+La landing ([`apps/landing`](../apps/landing), [ADR 0020](adr/0020-landing-b2c-b2b.md)) usa los mismos tokens y suma patrones propios de un sitio de marketing:
+
+| Patrón                 | Regla                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Escala `--lp-*`        | Espaciado y tipografía en pasos fijos sobre los tokens `--vt-*`. Altura de la navegación `--lp-nav-h: 88px`. Curva con masa `cubic-bezier(.32,.72,0,1)`                         |
+| Fondo de luz           | Grilla de puntos tipo monitor, luz teal que sigue al cursor, latido cada 3 s y auroras de marca. Detrás del contenido, más suave en táctiles y estático con movimiento reducido |
+| Brillo en tarjetas     | `vtSpotlight`: halo radial y borde que siguen al mouse. Solo con puntero fino                                                                                                   |
+| Datos simulados        | Todo widget "en vivo" lo dice en pantalla y tiene botón de pausa                                                                                                                |
+| Contraste AA           | Texto chico en `--vt-muted` (no `--vt-muted-2`). Enlaces en `--vt-primary-deep` (claro) y `--vt-primary-light` (oscuro). Botón primario `--vt-primary-deep` con texto blanco    |
+| Modo oscuro en estilos | En estilos de componente, `:host-context([data-theme='dark'])`, no `:root`                                                                                                      |
+| Movimiento             | Un único momento orquestado al cargar cada página. El resto responde al scroll o a una acción. Siempre con anime.js a través de `core/motion.ts`                                |

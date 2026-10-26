@@ -1,0 +1,81 @@
+<form class="form" [formGroup]="form" (ngSubmit)="send()" novalidate>
+  <div class="form__row">
+    <div class="field">
+      <label for="cf-name">Nombre y apellido</label>
+      <input
+        id="cf-name"
+        formControlName="name"
+        autocomplete="name"
+        [attr.aria-invalid]="!!error('name')"
+        aria-describedby="cf-name-err"
+      />
+      @if (error('name'); as e) {
+        <p class="field__err" id="cf-name-err">{{ e }}</p>
+      }
+    </div>
+    <div class="field">
+      <label for="cf-org">Institución o empresa</label>
+      <input
+        id="cf-org"
+        formControlName="organization"
+        autocomplete="organization"
+        [attr.aria-invalid]="!!error('organization')"
+        aria-describedby="cf-org-err"
+      />
+      @if (error('organization'); as e) {
+        <p class="field__err" id="cf-org-err">{{ e }}</p>
+      }
+    </div>
+  </div>
+
+  <div class="form__row">
+    <div class="field">
+      <label for="cf-profile">Te escribimos como</label>
+      <select id="cf-profile" formControlName="profile">
+        @for (p of profiles; track p) {
+          <option [value]="p">{{ p }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="cf-email">Email de trabajo</label>
+      <input
+        id="cf-email"
+        type="email"
+        formControlName="email"
+        autocomplete="email"
+        [attr.aria-invalid]="!!error('email')"
+        aria-describedby="cf-email-err"
+      />
+      @if (error('email'); as e) {
+        <p class="field__err" id="cf-email-err">{{ e }}</p>
+      }
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="cf-msg">¿Qué te interesa ver?</label>
+    <textarea
+      id="cf-msg"
+      rows="5"
+      formControlName="message"
+      [attr.aria-invalid]="!!error('message')"
+      aria-describedby="cf-msg-err"
+      placeholder="Por ejemplo: cuántas pulseras necesitaría una guardia de 30 sillas, o cómo sería el piloto."
+    ></textarea>
+    @if (error('message'); as e) {
+      <p class="field__err" id="cf-msg-err">{{ e }}</p>
+    }
+  </div>
+
+  <div class="form__foot">
+    <button type="submit" class="lp-btn lp-btn--primary">Pedir una demo</button>
+    <p class="lp-source" role="status">
+      @if (opened()) {
+        Abrimos tu programa de correo con el mensaje listo. Si no se abrió, escribinos a {{ to }}.
+      } @else {
+        Se abre tu programa de correo con el mensaje armado para {{ to }}. No guardamos nada.
+      }
+    </p>
+  </div>
+</form>

@@ -1,0 +1,95 @@
+<div class="lv" [class.is-called]="called()" [class.is-paused]="paused()">
+  <article
+    vtSpotlight
+    class="lv__monitor"
+    aria-label="Ejemplo: lectura en vivo de una pulsera (datos simulados)"
+  >
+    <header class="lv__head">
+      <div>
+        <p class="lv__device">Pulsera wb-01</p>
+        <p class="lv__where">Sala de espera 1 · turno A-024</p>
+      </div>
+      <button
+        type="button"
+        class="lv__live"
+        (click)="toggle()"
+        [attr.aria-pressed]="paused()"
+        [attr.aria-label]="paused() ? 'Reanudar el ejemplo en vivo' : 'Pausar el ejemplo en vivo'"
+      >
+        <i aria-hidden="true"></i>
+        {{ paused() ? 'En pausa' : 'En vivo' }}
+        @if (paused()) {
+          <svg lucidePlay [size]="14" aria-hidden="true"></svg>
+        } @else {
+          <svg lucidePause [size]="14" aria-hidden="true"></svg>
+        }
+      </button>
+    </header>
+
+    <div class="lv__ecg" aria-hidden="true">
+      <svg viewBox="0 0 600 120" preserveAspectRatio="none">
+        <g class="lv__trace">
+          <path [attr.d]="trace" />
+        </g>
+      </svg>
+    </div>
+
+    <dl class="lv__vals">
+      <div>
+        <dt>Pulso</dt>
+        @for (v of [reading().hr]; track v) {
+          <dd class="lv__num">
+            <strong>{{ v }}</strong> lpm
+          </dd>
+        }
+      </div>
+      <div>
+        <dt>Oxígeno</dt>
+        @for (v of [reading().spo2]; track v) {
+          <dd class="lv__num">
+            <strong>{{ v }}</strong> %
+          </dd>
+        }
+      </div>
+      <div>
+        <dt>Temperatura</dt>
+        @for (v of [reading().temp]; track v) {
+          <dd class="lv__num">
+            <strong>{{ temp(v) }}</strong> °C
+          </dd>
+        }
+      </div>
+    </dl>
+
+    <footer class="lv__foot">
+      <span class="lv__level">Estable</span>
+      <span class="lv__next">
+        Próxima lectura
+        @for (c of cycle(); track c) {
+          <span class="lv__bar"><i></i></span>
+        }
+      </span>
+    </footer>
+  </article>
+
+  <article vtSpotlight class="lv__ticket" aria-live="polite">
+    <p class="lv__tlabel">Tu turno en el celular</p>
+    <p class="lv__code">A-024</p>
+    @if (called()) {
+      <p class="lv__status lv__status--called">
+        <svg lucideBell [size]="18" aria-hidden="true"></svg>
+        Te llaman: Consultorio 4
+      </p>
+    } @else {
+      <p class="lv__status">{{ ahead() }} {{ ahead() === 1 ? 'persona' : 'personas' }} antes</p>
+    }
+    <div class="lv__seats" aria-hidden="true">
+      @for (s of seats; track s) {
+        <span [class.is-on]="s < ahead()"></span>
+      }
+      <span class="is-you"></span>
+    </div>
+  </article>
+
+  <p class="lv__note">Ejemplo con datos simulados</p>
+</div>

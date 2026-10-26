@@ -1,0 +1,100 @@
+<section class="hero">
+  <div class="lp-container hero__grid">
+    <div class="hero__copy">
+      <h1 class="hero__title">La sala de espera,<br />con pulso.</h1>
+      <p class="hero__sub">
+        Vitalia conecta a quienes esperan con el equipo de salud. Sacás turno desde el celular, una pulsera
+        cuida tus signos vitales y, si algo cambia, el personal se entera en el momento.
+      </p>
+      <div class="hero__actions">
+        <a class="lp-btn lp-btn--primary" routerLink="/" fragment="recorrido">Ver cómo funciona</a>
+      </div>
+      <p class="hero__proof">
+        <span class="hero__live" aria-hidden="true"></span>
+        En la prueba con 50 pulseras, una caída llegó a la consola del personal en 6 ms (p95).
+      </p>
+    </div>
+    <vt-live-vitals class="hero__widget" />
+  </div>
+
+  <svg class="pulse" viewBox="0 0 1440 180" preserveAspectRatio="none" aria-hidden="true">
+    <path
+      class="pulse__line"
+      d="M 0 120 L 860 120 L 900 120 L 930 62 L 972 168 L 1010 34 L 1040 120 L 1110 120 L 1300 120"
+      vector-effect="non-scaling-stroke"
+    />
+  </svg>
+  <svg class="pulse-dot" viewBox="0 0 40 40" aria-hidden="true">
+    <circle class="pulse__ring" cx="20" cy="20" r="8" />
+    <circle class="pulse__dot" cx="20" cy="20" r="8" />
+  </svg>
+</section>
+
+<vt-call-ticker />
+
+<section class="lp-section lp-container problem" aria-labelledby="problema-titulo">
+  <h2 id="problema-titulo" class="lp-h2 problem__title">Esperar en un hospital hoy es esperar a ciegas</h2>
+  <vt-waiting-timeline />
+  <ul class="problem__list">
+    @for (p of problems; track p.title) {
+      <li>
+        <h3>{{ p.title }}</h3>
+        <p>{{ p.body }}</p>
+      </li>
+    }
+  </ul>
+</section>
+
+<vt-journey [steps]="journey" />
+
+<vt-tagline-reveal [lines]="tagline" />
+
+<section class="lp-section lp-container promises" aria-labelledby="cuidamos-titulo">
+  <h2 id="cuidamos-titulo" class="lp-h2">Lo que cuidamos</h2>
+  <dl class="promises__grid">
+    @for (p of promises; track p.title) {
+      <div class="promise">
+        <dt>
+          <span class="vt-tile vt-tile--teal promise__icon" aria-hidden="true">
+            @switch (p.icon) {
+              @case ('shield') {
+                <svg lucideShieldCheck [size]="22"></svg>
+              }
+              @case ('offline') {
+                <svg lucideWifiOff [size]="22"></svg>
+              }
+              @case ('phone') {
+                <svg lucidePhone [size]="22"></svg>
+              }
+              @default {
+                <svg lucideStethoscope [size]="22"></svg>
+              }
+            }
+          </span>
+          <span>
+            {{ p.title }}
+            @if (p.tag) {
+              <span class="promise__tag">{{ p.tag }}</span>
+            }
+          </span>
+        </dt>
+        <dd>{{ p.body }}</dd>
+      </div>
+    }
+  </dl>
+</section>
+
+<section class="lp-section lp-container faq-block" aria-labelledby="faq-titulo">
+  <h2 id="faq-titulo" class="lp-h2">Preguntas frecuentes</h2>
+  <vt-faq [items]="faq" />
+</section>
+
+<section class="lp-container bridge" aria-labelledby="bridge-titulo">
+  <div vtSpotlight class="bridge__inner">
+    <div>
+      <h2 id="bridge-titulo" class="bridge__title">¿Trabajás en un hospital o querés apoyar el proyecto?</h2>
+      <p class="lp-muted">Mirá cómo se implementa, cuánto cuesta operarlo y cómo se sostiene en el tiempo.</p>
+    </div>
+    <a class="lp-btn lp-btn--primary" routerLink="/instituciones">Ver la propuesta para instituciones</a>
+  </div>
+</section>
