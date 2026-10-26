@@ -105,7 +105,8 @@ function validate(topic: string, r: TelemetryReading): string[] {
   const unknown = Object.keys(r).filter((k) => !KNOWN_FIELDS.has(k));
   if (unknown.length > 0) throw new Invalid(`campos fuera del contrato: ${unknown.join(', ')}`);
   if (!Number.isSafeInteger(r.seq) || r.seq < 0) throw new Invalid(`seq=${r.seq} no es entero ≥ 0`);
-  if (typeof r.ts !== 'number' || r.ts < MIN_TS_MS) {
+  // Entero, igual que la API (`z.number().int()`): un ts con decimales descarta el mensaje.
+  if (!Number.isSafeInteger(r.ts) || r.ts < MIN_TS_MS) {
     throw new Invalid(`ts=${r.ts}: no es epoch en ms (¿segundos? ¿reloj sin NTP?)`);
   }
   if (Math.abs(Date.now() - r.ts) > MAX_SKEW_MS) {
