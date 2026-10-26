@@ -233,7 +233,7 @@ Si `pg_restore` falla, la transacción revierte: mantené API/web detenidos y re
 - **No hay pulsera disponible:** detené emisores, recuperá la corrida pendiente y revisá asignaciones/alertas desde Backoffice. Evitá ejecutar demos en paralelo.
 - **Respaldo inválido:** conservá el directorio para diagnóstico y generá otro; no edites hashes para hacer pasar el check.
 
-CI ejecuta `gateway:verify`, `gateway:operations` y smoke final sobre una instalación nueva. Los respaldos, configuración, diarios y capturas permanecen locales al job; no se publican como artifacts. La prueba de 24 h sin WAN, carga, latencias, sincronización Cloud y hardware siguen pendientes en sus fases correspondientes.
+CI ejecuta `gateway:verify`, `gateway:operations` y smoke final sobre una instalación nueva. Los respaldos, configuración, diarios y capturas permanecen locales al job; no se publican como artifacts. Carga, latencias y estrés se midieron en la Fase 5c ([10-validacion.md](10-validacion.md)) y la réplica a la nube se implementó en la 5b (más abajo). Quedan pendientes la prueba de 24 h sin WAN, con su procedimiento en 10-validacion, y la validación con hardware.
 
 ## Operación de largo plazo y red (5b)
 

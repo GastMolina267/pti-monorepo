@@ -54,9 +54,9 @@ El firmware compensa la temperatura de la piel de la muñeca (31–34 °C) para 
 | RNF-D1 | Firmware preparado para deep sleep y batería | Firmware                                                                                                                                                                                                                                                                 |
 | RNF-D2 | App de turnos en español e inglés            | Portal / i18n (opcional)                                                                                                                                                                                                                                                 |
 
-## Reglas de negocio (a refinar en la Fase 1)
+## Reglas de negocio
 
 - La fila se ordena por **nivel de triaje** (crítico primero) y después por **hora de check-in**.
 - Una alerta crítica queda activa hasta que un miembro del personal la **reconoce** (`alert:acknowledged`).
 - Un wearable se asigna a **un** turno activo a la vez y se libera cuando el turno pasa a `DONE` o `NO_SHOW`.
-- Los datos de telemetría tienen una retención limitada (a definir) y se anonimizan para estadísticas.
+- Las lecturas de telemetría se borran pasadas 72 h (`TELEMETRY_RETENTION_HOURS`, [ADR 0018](adr/0018-operacion-de-largo-plazo-y-red-del-gateway.md)). A la nube solo viajan turnos y alertas minimizados, sin DNI.
