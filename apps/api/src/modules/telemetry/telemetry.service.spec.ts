@@ -1,4 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { MQTT_TOPICS, type TelemetryReading } from '@vitalia/contracts';
 import { randomBytes } from 'node:crypto';
 import type { Repository } from 'typeorm';
@@ -171,9 +172,29 @@ describe('TelemetryService.ingest', () => {
     expect(realtime.emitTelemetryReading).not.toHaveBeenCalled();
   });
 
-  it('descarta lecturas fuera de rango sin lanzar', async () => {
+  it('un campo fuera de rango se descarta solo: la caída de esa lectura llega igual', async () => {
+    const { service, realtime, alerts } = setup();
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const r = reading({ hr: 999, fall: true, accPeakG: 3.4 });
+    const outcome = await service.ingest(TOPIC, sealReading(r, KEY));
+    expect(outcome).toEqual({ status: 'accepted', level: 'CRITICAL', alerts: 1 });
+    const { hr: _dropped, ...withoutHr } = r;
+    expect(realtime.emitTelemetryReading).toHaveBeenCalledWith(
+      expect.objectContaining({ reading: withoutHr }),
+    );
+    expect(alerts.raise).toHaveBeenCalledWith(
+      expect.anything(),
+      [{ level: 'CRITICAL', kind: 'FALL', reason: 'Caída detectada' }],
+      expect.any(Date),
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('hr fuera de rango'));
+    warn.mockRestore();
+  });
+
+  it('un tipo equivocado sigue descartando el mensaje entero', async () => {
     const { service } = setup();
-    const outcome = await service.ingest(TOPIC, sealReading(reading({ hr: 999 }), KEY));
+    const bad = { ...reading(), hr: '78' } as unknown as TelemetryReading;
+    const outcome = await service.ingest(TOPIC, sealReading(bad, KEY));
     expect(outcome).toMatchObject({ status: 'rejected', reason: expect.stringContaining('hr') });
   });
 

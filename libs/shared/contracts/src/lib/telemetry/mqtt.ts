@@ -69,8 +69,9 @@ export interface TelemetryReading {
 }
 
 /**
- * Rangos físicamente posibles de cada medición (no clínicos: eso es `assessVitals`). La API
- * descarta la lectura entera si un campo se sale, así que el wearable no los manda fuera:
+ * Rangos físicamente posibles de cada medición (no clínicos: eso es `assessVitals`). Un valor
+ * afuera es un sensor sin poner o roto: la API descarta **solo ese campo** y conserva el resto
+ * de la lectura, `fall` incluido ({@link dropOutOfRangeFields}). El wearable igual no los manda:
  * - `hr`, `spo2`, `temp`: se omiten. Un `temp` < 25 °C es la pulsera sin poner (mide el aire).
  * - `accPeakG`: se satura en `max`. En un golpe fuerte la magnitud de los tres ejes puede
  *   pasar los 16 g aunque cada eje sature ahí, y esa lectura es justo la que lleva `fall`.
@@ -84,3 +85,28 @@ export const TELEMETRY_READING_LIMITS = {
   keyof Pick<TelemetryReading, 'hr' | 'spo2' | 'temp' | 'accPeakG'>,
   { min: number; max: number }
 >;
+
+/** Mediciones con rango físico en {@link TELEMETRY_READING_LIMITS}. */
+export type LimitedReadingField = keyof typeof TELEMETRY_READING_LIMITS;
+
+/**
+ * Saca de la lectura las mediciones fuera de {@link TELEMETRY_READING_LIMITS} (límites
+ * inclusivos) y devuelve cuáles sacó. No valida tipos: eso lo hace quien parsea el mensaje.
+ */
+export function dropOutOfRangeFields(reading: TelemetryReading): {
+  reading: TelemetryReading;
+  dropped: LimitedReadingField[];
+} {
+  const kept: TelemetryReading = { ...reading };
+  const dropped: LimitedReadingField[] = [];
+  for (const field of Object.keys(TELEMETRY_READING_LIMITS) as LimitedReadingField[]) {
+    const value = kept[field];
+    if (value === undefined) continue;
+    const { min, max } = TELEMETRY_READING_LIMITS[field];
+    if (!(value >= min && value <= max)) {
+      delete kept[field];
+      dropped.push(field);
+    }
+  }
+  return { reading: kept, dropped };
+}

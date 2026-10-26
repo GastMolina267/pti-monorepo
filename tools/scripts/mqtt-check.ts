@@ -15,7 +15,9 @@ import {
   MQTT_TOPICS,
   TELEMETRY_CIPHER,
   TELEMETRY_READING_LIMITS,
+  dropOutOfRangeFields,
   type EncryptedEnvelope,
+  type LimitedReadingField,
   type TelemetryReading,
 } from '../../libs/shared/contracts/src/lib/telemetry/mqtt';
 import { splitSeq } from '../../libs/shared/contracts/src/lib/telemetry/seq';
@@ -78,11 +80,17 @@ function decrypt(raw: Buffer): TelemetryReading {
   }
 }
 
-function inRange(r: TelemetryReading, field: keyof typeof TELEMETRY_READING_LIMITS) {
-  const { min, max } = TELEMETRY_READING_LIMITS[field];
-  const v = r[field];
-  if (v === undefined) return;
-  if (typeof v !== 'number' || v < min || v > max) throw new Invalid(`${field}=${v} fuera de ${min}–${max}`);
+// Como la API: un tipo equivocado descarta el mensaje; un valor fuera de rango, solo ese campo.
+function checkMeasurements(r: TelemetryReading, warnings: string[]) {
+  for (const field of Object.keys(TELEMETRY_READING_LIMITS) as LimitedReadingField[]) {
+    const v = r[field];
+    if (v !== undefined && typeof v !== 'number')
+      throw new Invalid(`${field}=${JSON.stringify(v)} no es número`);
+  }
+  for (const field of dropOutOfRangeFields(r).dropped) {
+    const { min, max } = TELEMETRY_READING_LIMITS[field];
+    warnings.push(`${field}=${r[field]} fuera de ${min}–${max}: la API descarta solo ese campo`);
+  }
 }
 
 function validate(topic: string, r: TelemetryReading): string[] {
@@ -103,7 +111,7 @@ function validate(topic: string, r: TelemetryReading): string[] {
   if (Math.abs(Date.now() - r.ts) > MAX_SKEW_MS) {
     warnings.push(`ts desfasado ${Math.round((Date.now() - r.ts) / 1000)} s`);
   }
-  for (const field of ['hr', 'spo2', 'temp', 'accPeakG'] as const) inRange(r, field);
+  checkMeasurements(r, warnings);
   if (r.fall !== undefined && typeof r.fall !== 'boolean') throw new Invalid('fall no es boolean');
 
   const prev = lastSeq.get(r.wearableId);
