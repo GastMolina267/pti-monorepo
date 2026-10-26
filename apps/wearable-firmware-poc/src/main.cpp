@@ -29,6 +29,8 @@
 #include "mqtt_link.h"
 #include "oled.h"
 #include "peak_tracker.h"
+#include "pulse_ox.h"
+#include "pulse_ox_estimator.h"
 #include "reading.h"
 #include "secrets.h"  // WEARABLE_NUMBER, Wi-Fi, NTP_SERVER… (no versionado)
 #include "skin_temp.h"
@@ -64,8 +66,20 @@ static fall_detection::FallParams fallParams() {
   return p;
 }
 
+static ppg::PulseOxParams ppgParams() {
+  ppg::PulseOxParams p;
+  p.fingerIrMin = PPG_FINGER_IR_MIN;
+  p.sampleRateHz = PPG_SAMPLE_RATE / PPG_SAMPLE_AVERAGE;
+  p.perfusionMin = PPG_PERFUSION_MIN;
+  p.perfusionMax = PPG_PERFUSION_MAX;
+  p.holdMs = PPG_HOLD_MS;
+  return p;
+}
+
 sensors::Imu imu;
 sensors::SkinTemp skinTemp;
+sensors::PulseOx pulseOx;
+ppg::PulseOxEstimator vitals(ppgParams());
 net::WifiLink wifi;
 ui::Oled oled(Wire, I2C_CLOCK_HZ);
 ui::StatusLed led(PIN_LED);
@@ -127,8 +141,13 @@ static void buildReading() {
   // (abajo). Si no hay hora, el JSON no entra o el outbox está lleno, sale en la próxima.
   r.fall = fall.pending();
   if (skinTemp.isHealthy()) r.temp = skinTemp.coreEstC();
-  // hr / spo2: vacíos hasta el Hito 5 (MAX30102).
-  telemetry::applyReadingLimits(r);  // fuera de rango la API descarta la lectura entera
+  // Vacíos sin dedo, con movimiento o sin latidos regulares por más de PPG_HOLD_MS: la lectura
+  // los omite. Con el sensor sin muestras (PPG_STALE_MS) tampoco van.
+  if (pulseOx.isHealthy()) {
+    r.hr = vitals.hr();
+    r.spo2 = vitals.spo2();
+  }
+  telemetry::applyReadingLimits(r);  // la API descartaría el campo: mejor no mandarlo
 
   size_t n = telemetry::serializeReading(r, lastReadingJson, sizeof(lastReadingJson));
   hasReading = n > 0;
@@ -143,11 +162,14 @@ static void buildReading() {
 }
 
 // ---------------- HTTP (demo) ----------------
+// Sin login ni TLS: los signos vitales solo con HTTP_LAB_VITALS (config.h).
 static bool provideData(String& out) {
   if (!hasReading) return false;
   out = lastReadingJson;
   return true;
 }
+
+static void addLabStatus(JsonDocument& doc, uint32_t now);
 
 static bool provideStatus(String& out) {
   JsonDocument doc;
@@ -161,14 +183,13 @@ static bool provideStatus(String& out) {
   doc["sensors"]["mpu6050"] = imu.isHealthy();
   doc["sensors"]["mlx90614"] = skinTemp.isHealthy();
   doc["sensors"]["oled"] = oled.isHealthy();
-  if (!isnan(imu.magnitudeG())) doc["accel_g"] = roundf(imu.magnitudeG() * 100) / 100.0;
-  if (skinTemp.isHealthy()) {
-    doc["temp_skin_c"] = roundf(skinTemp.skinC() * 10) / 10.0;
-    doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
+  doc["sensors"]["max30102"] = pulseOx.isHealthy();
+  if (pulseOx.isHealthy()) {
+    JsonObject p = doc["ppg"].to<JsonObject>();
+    p["finger"] = pulseOx.fingerPresent();
+    p["samples"] = pulseOx.totalSamples();
   }
-  doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
-  doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
-  doc["fall_state"] = fall_detection::stateName(fall.state());
+  if (HTTP_LAB_VITALS) addLabStatus(doc, now);
   JsonObject m = doc["mqtt"].to<JsonObject>();
   m["topic"] = dataTopic;
   m["connected"] = mqtt.connected();
@@ -184,33 +205,49 @@ static bool provideStatus(String& out) {
   return true;
 }
 
+// Signos vitales, PPG crudo, temperatura y caídas: solo en modo laboratorio.
+static void addLabStatus(JsonDocument& doc, uint32_t now) {
+  if (!isnan(imu.magnitudeG())) doc["accel_g"] = roundf(imu.magnitudeG() * 100) / 100.0;
+  if (skinTemp.isHealthy()) {
+    doc["temp_skin_c"] = roundf(skinTemp.skinC() * 10) / 10.0;
+    doc["temp_ambient_c"] = roundf(skinTemp.ambientC() * 10) / 10.0;
+  }
+  if (pulseOx.isHealthy()) {
+    JsonObject p = doc["ppg"].as<JsonObject>();  // ya creado en provideStatus
+    p["ir"] = pulseOx.lastIr();
+    p["red"] = pulseOx.lastRed();
+    p["perfusion_pct"] = roundf(vitals.perfusion() * 10000) / 100.0;
+    p["ratio"] = roundf(vitals.ratio() * 1000) / 1000.0;
+    if (vitals.hr()) p["hr"] = *vitals.hr();
+    if (vitals.spo2()) p["spo2"] = *vitals.spo2();
+  }
+  doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
+  doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
+  doc["fall_state"] = fall_detection::stateName(fall.state());
+}
+
 // ---------------- OLED ----------------
+// Prioridad: caída reciente > llamado > pantalla del paciente (ADR 0021). La IP y el estado de
+// los sensores ya no van al OLED: están en el monitor serie, /status y wearable-pti.local.
 static void renderOled(uint32_t now) {
-  // Una caída reciente conserva prioridad local; después vuelve el último llamado.
-  if (callState.active() && !fall.recentFall(now, FALL_DISPLAY_MS)) {
+  const bool fallRecent = fall.recentFall(now, FALL_DISPLAY_MS);
+  if (callState.active() && !fallRecent) {
     const auto frame = callState.frame(now, mqtt.connected(), CALL_SCROLL_MS);
     oled.show(frame.title, frame.ticket, frame.room);
     return;
   }
-  char line0[24], line1[24], line2[24];
-
-  if (wifi.connected()) snprintf(line0, sizeof(line0), "%s", WiFi.localIP().toString().c_str());
-  else snprintf(line0, sizeof(line0), "WiFi...");
-
-  if (!net::timeValid()) {
-    snprintf(line1, sizeof(line1), "NTP...");
-  } else if (skinTemp.isHealthy()) {
-    float core = skinTemp.coreEstC();
-    snprintf(line1, sizeof(line1), "T %.1fC%s", core, core > FEVER_DISPLAY_THRESHOLD_C ? " FIEBRE" : "");
-  } else {
-    snprintf(line1, sizeof(line1), "T --");
+  commands::HomeInput in;
+  in.assignedCode = callState.assignedCode();
+  in.hr = vitals.hr();
+  in.spo2 = vitals.spo2();
+  if (skinTemp.isHealthy()) {
+    in.tempC = skinTemp.coreEstC();
+    in.fever = *in.tempC > FEVER_DISPLAY_THRESHOLD_C;
   }
-
-  const char* event = fall.recentFall(now, FALL_DISPLAY_MS) ? "CAIDA" : "ok";
-  if (imu.isHealthy()) snprintf(line2, sizeof(line2), "a %.2fg  %s", imu.magnitudeG(), event);
-  else snprintf(line2, sizeof(line2), "a --");
-
-  oled.show(line0, line1, line2);
+  in.connected = mqtt.connected();
+  in.fallRecent = fallRecent;
+  const auto frame = commands::homeFrame(in);
+  oled.show(frame.header, frame.vitals, frame.temp);
 }
 
 // ---------------- setup / loop ----------------
@@ -229,8 +266,10 @@ void setup() {
   bool oledOk = oled.begin(OLED_I2C_ADDR);
   bool imuOk = imu.begin(Wire, MPU6050_I2C_ADDR);
   bool mlxOk = skinTemp.begin(Wire, MLX90614_I2C_ADDR, SKIN_TO_CORE_OFFSET_C);
-  Serial.printf(" OLED:%s  MPU6050:%s  MLX90614:%s\n", oledOk ? "OK" : "--", imuOk ? "OK" : "--",
-                mlxOk ? "OK" : "--");
+  bool ppgOk = pulseOx.begin(Wire, {PPG_LED_AMPLITUDE, PPG_SAMPLE_AVERAGE, PPG_SAMPLE_RATE,
+                                    PPG_PULSE_WIDTH_US, PPG_ADC_RANGE, PPG_FINGER_IR_MIN, PPG_STALE_MS});
+  Serial.printf(" OLED:%s  MPU6050:%s  MLX90614:%s  MAX30102:%s\n", oledOk ? "OK" : "--",
+                imuOk ? "OK" : "--", mlxOk ? "OK" : "--", ppgOk ? "OK" : "--");
 
   bootCount = net::nextBootCount();
   net::deviceCode(deviceId, sizeof(deviceId), WEARABLE_NUMBER);  // rango validado por static_assert
@@ -252,12 +291,12 @@ void setup() {
                 MQTT_DEBUG_PLAINTEXT ? "  (+ /plain EN CLARO, solo desarrollo)" : "");
 
   wifi.begin(WIFI_SSID, WIFI_PASS, WIFI_TX_POWER_QDBM);
-  http_demo::begin(provideData, provideStatus);
+  http_demo::begin(HTTP_LAB_VITALS ? provideData : nullptr, provideStatus);
   Serial.println(F(" HTTP en el puerto 80 (/, /data, /status)"));
 }
 
 void loop() {
-  static uint32_t lastImu = 0, lastTemp = 0, lastOled = 0, lastReading = 0;
+  static uint32_t lastImu = 0, lastTemp = 0, lastPpg = 0, lastOled = 0, lastReading = 0;
   static bool mdnsUp = false, ntpLogged = false;
   uint32_t now = millis();
 
@@ -288,8 +327,9 @@ void loop() {
   }
 
   http_demo::loop();
-  commands::ShowTicket command;
-  const bool callUpdated = mqtt.takeCommand(command) && callState.apply(command, now);
+  commands::Command command;
+  bool callUpdated = mqtt.takeCommand(command) && callState.apply(command, now);
+  callUpdated = callState.expire(now, CALL_MAX_DISPLAY_MS) || callUpdated;
 
   // --- Sensores ---
   if (now - lastImu >= IMU_PERIOD_MS) {
@@ -312,6 +352,26 @@ void loop() {
         buildReading();
       }
     }
+  }
+  if (now - lastPpg >= PPG_POLL_MS) {
+    lastPpg = now;
+    pulseOx.read(now, [now](uint32_t ir, uint32_t red) {
+      vitals.push(ir, red);
+      if (PPG_LOG_RAW) Serial.printf("ppg,%lu,%lu,%lu\n", static_cast<unsigned long>(now),
+                                     static_cast<unsigned long>(ir), static_cast<unsigned long>(red));
+    });
+    // El estimador cuenta el tiempo en muestras: sin muestras, sus valores no vencen solos.
+    if (!pulseOx.isHealthy() && vitals.fingerPresent()) vitals.reset();
+    // RNF-O1: al entrar en rango crítico no se espera hasta 3 s al próximo ciclo (como una
+    // caída). Solo en el flanco: mientras siga crítico, sale con el período normal.
+    static bool vitalsCritical = false;
+    const bool critical = telemetry::criticalVitals(vitals.hr(), vitals.spo2());
+    if (critical && !vitalsCritical) {
+      Serial.println(F("Signos críticos: se publica la lectura ahora"));
+      lastReading = now;
+      buildReading();
+    }
+    vitalsCritical = critical;
   }
   if (now - lastTemp >= TEMP_PERIOD_MS) {
     lastTemp = now;

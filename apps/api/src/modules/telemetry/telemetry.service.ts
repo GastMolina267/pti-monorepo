@@ -31,6 +31,11 @@ export type IngestOutcome =
 /** Un mismo motivo de descarte se loguea como mucho una vez por ventana (tormentas de basura). */
 const WARN_WINDOW_MS = 30_000;
 const MAX_CLOCK_SKEW_MS = 5 * 60_000;
+/**
+ * Lecturas cada 3 s: un hueco más largo es una pulsera que reinició o se desconectó, y pudo
+ * perder comandos (van sin retain). Se le reenvía el estado (ADR 0021).
+ */
+export const COMMAND_RESYNC_GAP_MS = 15_000;
 
 /**
  * Ingesta de telemetría (`hospital/+/wearable/+/data`, QoS 1):
@@ -83,7 +88,7 @@ export class TelemetryService implements OnModuleInit {
       const target = parseDataTopic(topic);
       if (!target) throw new TelemetryRejection('tópico fuera del contrato');
 
-      const reading = parseReading(openEnvelope(payload, this.key));
+      const { reading, dropped } = parseReading(openEnvelope(payload, this.key));
       // Sin AAD y con clave compartida: un sobre válido reinyectado en el tópico de otra
       // pulsera tiene que descartarse (revisión del PR #3, docs/04-contratos.md).
       if (reading.wearableId !== target.wearableId) {
@@ -102,6 +107,12 @@ export class TelemetryService implements OnModuleInit {
 
       if (Math.abs(receivedAt.getTime() - reading.ts) > MAX_CLOCK_SKEW_MS) {
         this.warnOnce(`skew:${wearable.code}`, `${wearable.code}: el reloj difiere más de 5 min (¿NTP?)`);
+      }
+      for (const field of dropped) {
+        this.warnOnce(
+          `range:${wearable.code}:${field}`,
+          `${wearable.code}: ${field} fuera de rango, se descarta solo ese campo`,
+        );
       }
 
       const findings = vitalsFindings(reading);
@@ -138,6 +149,10 @@ export class TelemetryService implements OnModuleInit {
           this.persist(wearable, reading, target.room, assessment.level, receivedAt),
         ]),
       );
+      const lastSeen = wearable.lastSeenAt?.getTime();
+      if (lastSeen === undefined || receivedAt.getTime() - lastSeen > COMMAND_RESYNC_GAP_MS) {
+        this.track(this.wearables.syncState(wearable.id));
+      }
       return { status: 'accepted', level: assessment.level, alerts: critical.length };
     } catch (err) {
       if (!(err instanceof TelemetryRejection)) {

@@ -10,9 +10,9 @@ void setUp() {}
 void tearDown() {}
 
 void test_valid_command_and_non_terminated_input() {
-  commands::ShowTicket out;
+  commands::Command out;
   std::string data = std::string(valid) + "basura";
-  TEST_ASSERT_TRUE(commands::parseShowTicket(data.data(), strlen(valid), out));
+  TEST_ASSERT_TRUE(commands::parseCommand(data.data(), strlen(valid), out));
   TEST_ASSERT_EQUAL_STRING("A-024", out.ticketCode);
   TEST_ASSERT_EQUAL_STRING("Consultorio 4", out.consultingRoom);
 }
@@ -29,49 +29,49 @@ void test_rejects_invalid_json_shape_and_strings_without_changing_output() {
     "{\"type\":\"SHOW_TICKET\",\"ticketCode\":\"A-024\",\"consultingRoom\":\"C\\n4\"}",
     "{\"type\":\"SHOW_TICKET\",\"ticketCode\":\"A-024\",\"consultingRoom\":\"C4\",\"extra\":1}",
     "{\"type\":\"SHOW_TICKET\",\"ticketCode\":\"A-024\"}"};
-  commands::ShowTicket out;
+  commands::Command out;
   strcpy(out.ticketCode, "ORIGINAL");
   for (const char* payload : invalid) {
-    TEST_ASSERT_FALSE_MESSAGE(commands::parseShowTicket(payload, strlen(payload), out), payload);
+    TEST_ASSERT_FALSE_MESSAGE(commands::parseCommand(payload, strlen(payload), out), payload);
     TEST_ASSERT_EQUAL_STRING("ORIGINAL", out.ticketCode);
   }
   std::string trailing = std::string(valid) + " no";
-  TEST_ASSERT_FALSE(commands::parseShowTicket(trailing.data(), trailing.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(trailing.data(), trailing.size(), out));
   trailing = std::string(valid) + "X";
-  TEST_ASSERT_FALSE(commands::parseShowTicket(trailing.data(), trailing.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(trailing.data(), trailing.size(), out));
   trailing = std::string(valid) + "}";
-  TEST_ASSERT_FALSE(commands::parseShowTicket(trailing.data(), trailing.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(trailing.data(), trailing.size(), out));
   trailing = std::string(valid) + "\r\n \t";
-  TEST_ASSERT_TRUE(commands::parseShowTicket(trailing.data(), trailing.size(), out));
+  TEST_ASSERT_TRUE(commands::parseCommand(trailing.data(), trailing.size(), out));
 }
 
 void test_contract_limits_and_utf8() {
   auto payload = [](const std::string& code, const std::string& room) {
     return "{\"type\":\"SHOW_TICKET\",\"ticketCode\":\"" + code + "\",\"consultingRoom\":\"" + room + "\"}";
   };
-  commands::ShowTicket out;
+  commands::Command out;
   std::string data = payload(std::string(vitalia::COMMAND_TICKET_CODE_BYTES, 'A'), std::string(vitalia::COMMAND_CONSULTING_ROOM_BYTES, 'B'));
-  TEST_ASSERT_TRUE(commands::parseShowTicket(data.data(), data.size(), out));
+  TEST_ASSERT_TRUE(commands::parseCommand(data.data(), data.size(), out));
   data = payload(std::string(vitalia::COMMAND_TICKET_CODE_BYTES + 1, 'A'), "C4");
-  TEST_ASSERT_FALSE(commands::parseShowTicket(data.data(), data.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(data.data(), data.size(), out));
   data = payload("A-024", std::string(vitalia::COMMAND_CONSULTING_ROOM_BYTES + 1, 'B'));
-  TEST_ASSERT_FALSE(commands::parseShowTicket(data.data(), data.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(data.data(), data.size(), out));
   data = payload("A-024", "Clínica del Niño");
-  TEST_ASSERT_TRUE(commands::parseShowTicket(data.data(), data.size(), out));
+  TEST_ASSERT_TRUE(commands::parseCommand(data.data(), data.size(), out));
   TEST_ASSERT_EQUAL_STRING("Clínica del Niño", out.consultingRoom);
   data = payload("A-024", std::string("\xc0\xaf", 2)); // UTF-8 overlong
-  TEST_ASSERT_FALSE(commands::parseShowTicket(data.data(), data.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(data.data(), data.size(), out));
   data = payload("A-024", std::string("\xed\xa0\x80", 3)); // surrogate
-  TEST_ASSERT_FALSE(commands::parseShowTicket(data.data(), data.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(data.data(), data.size(), out));
   data = std::string(vitalia::COMMAND_PAYLOAD_BYTES + 1, ' ');
-  TEST_ASSERT_FALSE(commands::parseShowTicket(data.data(), data.size(), out));
-  TEST_ASSERT_FALSE(commands::parseShowTicket(nullptr, 1, out));
+  TEST_ASSERT_FALSE(commands::parseCommand(data.data(), data.size(), out));
+  TEST_ASSERT_FALSE(commands::parseCommand(nullptr, 1, out));
 }
 
 void test_fragments_and_foreign_topics() {
   commands::CommandInbox inbox;
   TEST_ASSERT_TRUE(inbox.configure(filter));
-  commands::ShowTicket out;
+  commands::Command out;
   const size_t length = strlen(valid), split = length / 2;
   TEST_ASSERT_FALSE(inbox.receive(topic, strlen(topic), valid, split, length, 0, false, out));
   TEST_ASSERT_TRUE(inbox.receive(nullptr, 0, valid + split, length - split, length, split, false, out));
@@ -85,7 +85,7 @@ void test_fragments_and_foreign_topics() {
 void test_retained_oversized_and_incomplete_messages_never_apply() {
   commands::CommandInbox inbox;
   inbox.configure(filter);
-  commands::ShowTicket out;
+  commands::Command out;
   const size_t n = strlen(valid), split = n / 2;
   TEST_ASSERT_FALSE(inbox.receive(topic, strlen(topic), valid, n, n, 0, true, out));
   TEST_ASSERT_FALSE(inbox.receive(topic, strlen(topic), valid, n, vitalia::COMMAND_PAYLOAD_BYTES + 1, 0, false, out));
@@ -102,8 +102,8 @@ void test_call_replacement_duplicates_and_disconnect_preserve_state() {
   commands::CallState state;
   TEST_ASSERT_FALSE(state.active());
   TEST_ASSERT_EQUAL_STRING("", state.frame(0, true, 500).title);
-  commands::ShowTicket command;
-  TEST_ASSERT_TRUE(commands::parseShowTicket(valid, strlen(valid), command));
+  commands::Command command;
+  TEST_ASSERT_TRUE(commands::parseCommand(valid, strlen(valid), command));
   TEST_ASSERT_TRUE(state.apply(command, 100));
   TEST_ASSERT_TRUE(state.active());
   TEST_ASSERT_EQUAL_STRING("TE LLAMAN", state.frame(100, true, 500).title);
@@ -116,7 +116,7 @@ void test_call_replacement_duplicates_and_disconnect_preserve_state() {
 }
 
 void test_oled_transliterates_and_scrolls_without_splitting_utf8() {
-  commands::ShowTicket command;
+  commands::Command command;
   strcpy(command.ticketCode, "A-024");
   strcpy(command.consultingRoom, "Clínica del Niño");
   commands::CallState state;
@@ -130,8 +130,140 @@ void test_oled_transliterates_and_scrolls_without_splitting_utf8() {
   TEST_ASSERT_EQUAL_STRING("onsultorio de Clinica", state.frame(0, true, 500).room);
 }
 
+// --- Estado de la pulsera (ADR 0021) ---
+static commands::Command parsed(const char* json) {
+  commands::Command c;
+  TEST_ASSERT_TRUE_MESSAGE(commands::parseCommand(json, strlen(json), c), json);
+  return c;
+}
+
+void test_parses_the_four_command_types_with_exact_fields() {
+  commands::Command c = parsed("{\"type\":\"ASSIGN_TICKET\",\"ticketCode\":\"A-024\"}");
+  TEST_ASSERT_TRUE(c.kind == commands::CommandKind::AssignTicket);
+  TEST_ASSERT_EQUAL_STRING("A-024", c.ticketCode);
+  c = parsed("{\"type\":\"CLEAR_TICKET\",\"ticketCode\":\"A-024\"}");
+  TEST_ASSERT_TRUE(c.kind == commands::CommandKind::ClearTicket);
+  c = parsed("{\"type\":\"RELEASE_WEARABLE\"}");
+  TEST_ASSERT_TRUE(c.kind == commands::CommandKind::ReleaseWearable);
+  TEST_ASSERT_EQUAL_STRING("", c.ticketCode);
+  c = parsed(valid);
+  TEST_ASSERT_TRUE(c.kind == commands::CommandKind::ShowTicket);
+
+  const char* invalid[] = {
+    "{\"type\":\"ASSIGN_TICKET\"}",                                              // falta el código
+    "{\"type\":\"ASSIGN_TICKET\",\"ticketCode\":\"A-024\",\"consultingRoom\":\"C4\"}",  // campo de más
+    "{\"type\":\"CLEAR_TICKET\",\"ticketCode\":\"\"}",
+    "{\"type\":\"RELEASE_WEARABLE\",\"ticketCode\":\"A-024\"}",
+    "{\"type\":\"RELEASE_WEARABLES\"}",                                          // tipo desconocido
+  };
+  commands::Command out;
+  strcpy(out.ticketCode, "ORIGINAL");
+  for (const char* payload : invalid) {
+    TEST_ASSERT_FALSE_MESSAGE(commands::parseCommand(payload, strlen(payload), out), payload);
+    TEST_ASSERT_EQUAL_STRING("ORIGINAL", out.ticketCode);
+  }
+}
+
+void test_band_state_assign_call_clear_release() {
+  commands::CallState s;
+  TEST_ASSERT_EQUAL_STRING("", s.assignedCode());
+  TEST_ASSERT_TRUE(s.apply(parsed("{\"type\":\"ASSIGN_TICKET\",\"ticketCode\":\"A-024\"}"), 0));
+  TEST_ASSERT_EQUAL_STRING("A-024", s.assignedCode());
+  TEST_ASSERT_FALSE(s.active());
+  TEST_ASSERT_FALSE(s.apply(parsed("{\"type\":\"ASSIGN_TICKET\",\"ticketCode\":\"A-024\"}"), 10));  // repetido
+
+  TEST_ASSERT_TRUE(s.apply(parsed(valid), 100));
+  TEST_ASSERT_TRUE(s.active());
+  // Un CLEAR de otro turno (viejo o desordenado) no borra el llamado actual.
+  TEST_ASSERT_FALSE(s.apply(parsed("{\"type\":\"CLEAR_TICKET\",\"ticketCode\":\"B-001\"}"), 200));
+  TEST_ASSERT_TRUE(s.active());
+  // Pasó a atención: termina el llamado y la pulsera sigue con el turno.
+  TEST_ASSERT_TRUE(s.apply(parsed("{\"type\":\"CLEAR_TICKET\",\"ticketCode\":\"A-024\"}"), 300));
+  TEST_ASSERT_FALSE(s.active());
+  TEST_ASSERT_EQUAL_STRING("A-024", s.assignedCode());
+
+  TEST_ASSERT_TRUE(s.apply(parsed("{\"type\":\"RELEASE_WEARABLE\"}"), 400));
+  TEST_ASSERT_EQUAL_STRING("", s.assignedCode());
+  TEST_ASSERT_FALSE(s.apply(parsed("{\"type\":\"RELEASE_WEARABLE\"}"), 500));
+}
+
+void test_stale_clear_never_restores_an_old_ticket() {
+  const char* clearA = "{\"type\":\"CLEAR_TICKET\",\"ticketCode\":\"A-024\"}";
+  commands::CallState s;
+  s.apply(parsed(valid), 100);  // llamado A-024
+  s.apply(parsed("{\"type\":\"RELEASE_WEARABLE\"}"), 200);
+  // CLEAR viejo que llega después de liberar: la pulsera sigue libre.
+  TEST_ASSERT_FALSE(s.apply(parsed(clearA), 300));
+  TEST_ASSERT_EQUAL_STRING("", s.assignedCode());
+
+  // Ya reasignada a otro turno: un CLEAR viejo tampoco la cambia.
+  s.apply(parsed("{\"type\":\"ASSIGN_TICKET\",\"ticketCode\":\"B-003\"}"), 400);
+  TEST_ASSERT_FALSE(s.apply(parsed(clearA), 500));
+  TEST_ASSERT_EQUAL_STRING("B-003", s.assignedCode());
+  TEST_ASSERT_FALSE(s.active());
+}
+
+void test_release_ends_an_active_call_and_old_calls_expire() {
+  commands::CallState s;
+  s.apply(parsed(valid), 1000);
+  TEST_ASSERT_TRUE(s.apply(parsed("{\"type\":\"RELEASE_WEARABLE\"}"), 2000));
+  TEST_ASSERT_FALSE(s.active());
+
+  s.apply(parsed(valid), UINT32_MAX - 1000);  // también a través del desborde de millis()
+  TEST_ASSERT_FALSE(s.expire(UINT32_MAX, 30u * 60 * 1000));
+  TEST_ASSERT_TRUE(s.active());
+  TEST_ASSERT_TRUE(s.expire(30u * 60 * 1000, 30u * 60 * 1000));
+  TEST_ASSERT_FALSE(s.active());
+  TEST_ASSERT_EQUAL_STRING("A-024", s.assignedCode());  // vence el llamado, no la asignación
+}
+
+void test_home_screen_shows_the_patient_view() {
+  commands::HomeInput in;
+  in.assignedCode = "A-024";
+  in.hr = 87;
+  in.spo2 = 99;
+  in.tempC = 36.6f;
+  commands::HomeFrame f = commands::homeFrame(in);
+  TEST_ASSERT_EQUAL_STRING("Turno A-024", f.header);
+  TEST_ASSERT_EQUAL_STRING("87 lpm  SpO2 99%", f.vitals);
+  TEST_ASSERT_EQUAL_STRING("Temp 36.6 C", f.temp);
+
+  in.connected = false;
+  in.fever = true;
+  in.tempC = 38.4f;
+  f = commands::homeFrame(in);
+  TEST_ASSERT_EQUAL_STRING("Turno A-024   SIN RED", f.header);
+  TEST_ASSERT_EQUAL_UINT(commands::DISPLAY_COLUMNS, strlen(f.header));
+  TEST_ASSERT_EQUAL_STRING("Temp 38.4 C  FIEBRE", f.temp);
+
+  in.fallRecent = true;
+  TEST_ASSERT_EQUAL_STRING("CAIDA DETECTADA", commands::homeFrame(in).vitals);
+}
+
+void test_home_screen_without_ticket_values_or_worn_band() {
+  commands::HomeInput in;  // libre, sin dedo, sin temperatura
+  commands::HomeFrame f = commands::homeFrame(in);
+  TEST_ASSERT_EQUAL_STRING("Vitalia", f.header);
+  TEST_ASSERT_EQUAL_STRING("-- lpm  SpO2 --%", f.vitals);
+  TEST_ASSERT_EQUAL_STRING("Temp --", f.temp);
+  in.tempC = 23.3f;  // pulsera sin poner: mide el aire, no se muestra
+  TEST_ASSERT_EQUAL_STRING("Temp --", commands::homeFrame(in).temp);
+
+  in.assignedCode = "ABCDEFGHIJKLMNOP";  // código largo: se recorta sin pasarse de la pantalla
+  in.connected = false;
+  f = commands::homeFrame(in);
+  TEST_ASSERT_EQUAL_UINT(commands::DISPLAY_COLUMNS, strlen(f.header));
+  TEST_ASSERT_EQUAL_STRING("Turno ABCDEFG SIN RED", f.header);
+}
+
 int main() {
   UNITY_BEGIN();
+  RUN_TEST(test_parses_the_four_command_types_with_exact_fields);
+  RUN_TEST(test_band_state_assign_call_clear_release);
+  RUN_TEST(test_stale_clear_never_restores_an_old_ticket);
+  RUN_TEST(test_release_ends_an_active_call_and_old_calls_expire);
+  RUN_TEST(test_home_screen_shows_the_patient_view);
+  RUN_TEST(test_home_screen_without_ticket_values_or_worn_band);
   RUN_TEST(test_valid_command_and_non_terminated_input);
   RUN_TEST(test_rejects_invalid_json_shape_and_strings_without_changing_output);
   RUN_TEST(test_contract_limits_and_utf8);

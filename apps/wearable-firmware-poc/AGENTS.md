@@ -167,14 +167,15 @@ pio device list
 /src
   main.cpp              // setup() + loop(): solo orquestación
   config.h              // pines, direcciones I²C, tiempos (sin secretos ni nada del contrato)
-  http_demo.{h,cpp}     // demo HTTP: /, /data (TelemetryReading), /status (diagnóstico)
+  http_demo.{h,cpp}     // demo HTTP: /, /data (TelemetryReading, solo HTTP_LAB_VITALS), /status (diagnóstico)
   secrets.h             // por pulsera: número, Wi-Fi, NTP, MQTT, clave AES — NO versionar
 /lib
   telemetry/            // PURA: Reading + JSON del contrato, composeSeq, wb-NN-mac, PeakTracker
   fall_detection/       // PURA: FallDetector (caída libre → impacto > 2,8 g → inmovilidad, Hito 8)
-  sensors/              // Imu (MPU6050), SkinTemp (MLX90614); a futuro MAX30102
+  ppg/                  // PURA: PulseOxEstimator (BPM y SpO2 desde la señal del MAX30102, filtro de calidad, Hito 5)
+  sensors/              // Imu (MPU6050), SkinTemp (MLX90614), PulseOx (MAX30102: FIFO rojo + IR)
   envelope/             // PURA: base64, sobre { v, iv, ct, tag } del contrato, clave hex de secrets.h
-  commands/             // PURA: parser SHOW_TICKET, fragmentos, estado del llamado y texto/scroll del OLED
+  commands/             // PURA: parser de comandos, fragmentos, estado de la pulsera y pantallas del OLED
   net/                  // Wi-Fi, NTP, MqttLink (QoS 1 + comandos por cola FreeRTOS), identidad, arranques NVS
   ui/                   // Oled, StatusLed (a futuro buzzer)
   crypto/               // AES-256-GCM con mbedTLS (AES por hardware) y seal(): IV aleatorio + sobre
@@ -222,17 +223,17 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 }
 ```
 
-| Campo      | Unidad   | Notas                                                                                    |
-| ---------- | -------- | ---------------------------------------------------------------------------------------- |
-| `seq`      | —        | `arranque << 24 \| contador` (`composeSeq`): crece también después de reiniciar          |
-| `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo |
-| `hr`       | BPM      | Opcional: se omite hasta que el MAX30102 dé una lectura válida (no mandar `null` ni `0`) |
-| `spo2`     | %        | Ídem                                                                                     |
-| `temp`     | °C       | **Ya compensada** a temperatura clínica estimada (§7), nunca la cruda de piel            |
-| `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                             |
-| `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                  |
+| Campo      | Unidad   | Notas                                                                                                                                                                               |
+| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seq`      | —        | `arranque << 24 \| contador` (`composeSeq`): crece también después de reiniciar                                                                                                     |
+| `ts`       | ms epoch | Hora del wearable por NTP (`configTime` con `NTP_SERVER` de `secrets.h`), ver nota abajo                                                                                            |
+| `hr`       | BPM      | Opcional: se omite sin dedo, con movimiento o sin muestras del sensor (`lib/ppg`). Con latidos irregulares se conserva el último valor hasta `PPG_HOLD_MS` (5 s) y después se omite |
+| `spo2`     | %        | Ídem; además se omite si el canal rojo no sirve (R no finito), aunque haya `hr`. Nunca `null` ni `0`                                                                                |
+| `temp`     | °C       | **Ya compensada** a temperatura clínica estimada (§7), nunca la cruda de piel                                                                                                       |
+| `accPeakG` | g        | Pico de magnitud de aceleración del intervalo de publicación                                                                                                                        |
+| `fall`     | bool     | `true` si el firmware detectó una caída (impacto > 2,8 g + inmovilidad)                                                                                                             |
 
-> **Rangos físicos** (`TELEMETRY_READING_LIMITS` → `vitalia::READING_*`): la API descarta la lectura entera si un campo se sale, `fall` incluido. `telemetry::applyReadingLimits()` corre antes de serializar: omite `hr`/`spo2`/`temp` fuera de rango (pulsera sin poner ≈ 23 °C) y satura `accPeakG` en 16 g (la magnitud de 3 ejes pasa ese valor en un golpe).
+> **Rangos físicos** (`TELEMETRY_READING_LIMITS` → `vitalia::READING_*`): si un campo se sale, la API descarta solo ese campo y lo registra en el log (#19; antes descartaba la lectura entera, `fall` incluido). El firmware igual no los manda: `telemetry::applyReadingLimits()` corre antes de serializar: omite `hr`/`spo2`/`temp` fuera de rango (pulsera sin poner ≈ 23 °C) y satura `accPeakG` en 16 g (la magnitud de 3 ejes pasa ese valor en un golpe).
 >
 > **`seq`:** la API deduplica por `(wearableId, seq)` (QoS 1 puede repetir mensajes). Si el contador arrancara en 0 en cada boot, las lecturas nuevas se descartarían como duplicadas. Por eso el firmware guarda un **contador de arranques en NVS** (`net::nextBootCount()`, una escritura por boot) y arma `seq = arranque << 24 | contador`. Después de reiniciar, `seq` salta al bloque siguiente. `splitSeq()` de contracts lo descompone para diagnosticar.
 >
@@ -242,7 +243,8 @@ Lectura en claro (`TelemetryReading`), antes de cifrar:
 
 - **Sin clave válida no publica nada:** si `TELEMETRY_AES_KEY_HEX` está vacía o no son 64 hex, el monitor serie lo avisa y no sale nada por MQTT (nunca en claro por accidente).
 - **`MQTT_DEBUG_PLAINTEXT 1`** (solo desarrollo) publica además la lectura en claro en `<tópico>/plain`, con QoS 0. La API no lo escucha (`hospital/+/wearable/+/data` no matchea `/data/plain`). Son datos biométricos: nunca en 1 fuera del laboratorio.
-- La misma lectura sigue en `http://<IP>/data` (demo), y `http://<IP>/status` suma el estado de MQTT: conexión, publicadas, confirmadas (PUBACK), descartadas y outbox.
+- `http://<IP>/status` suma el estado de MQTT: conexión, publicadas, confirmadas (PUBACK), descartadas y outbox. El servidor HTTP no tiene login ni TLS: la lectura en `http://<IP>/data` y los signos vitales, PPG crudo, temperatura y caídas de `/status` solo se sirven con `HTTP_LAB_VITALS = true` (`config.h`, apagado por defecto). Sin eso, `/data` responde 404. Solo para calibrar, nunca con pacientes reales.
+- Una caída confirmada o la entrada de BPM/SpO₂ en el rango crítico del contrato (`criticalVitals()`: hr < 40 o > 130, spo2 < 90) publican la lectura en el momento, sin esperar el ciclo de 3 s (RNF-O1). La clasificación la sigue haciendo la API.
 - Para validar de punta a punta sin la API: `pnpm fw:mqtt-check` en la notebook (misma `TELEMETRY_AES_KEY` en el `.env`).
 
 El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes-256-gcm.md)) y se publica como sobre `EncryptedEnvelope`:
@@ -256,19 +258,26 @@ El JSON se cifra con **AES-256-GCM** ([ADR 0006](../../docs/adr/0006-cifrado-aes
 - Si el tag no valida, el gateway descarta el mensaje.
 - **Vectores de prueba compartidos con la API:** [`test/fixtures/gcm_vectors.h`](test/fixtures/gcm_vectors.h). Se **genera** con `pnpm fw:codegen` desde `GCM_TEST_VECTORS` de contracts, así que no se edita a mano (la CI verifica que esté al día). Incluye el NIST TC15, una lectura Vitalia y un tag alterado que tiene que fallar. El test Unity de `lib/crypto` (Hito 7) tiene que pasar los tres.
 
-Comando recibido por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); receptor implementado en 4c):
+Comandos recibidos por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`](../../libs/shared/contracts/src/lib/telemetry/commands.ts); receptor de 4c, estado completo en [ADR 0021](../../docs/adr/0021-estado-de-la-pulsera-por-comandos.md)):
 
 ```json
+{ "type": "ASSIGN_TICKET", "ticketCode": "A-024" }
 { "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
+{ "type": "CLEAR_TICKET", "ticketCode": "A-024" }
+{ "type": "RELEASE_WEARABLE" }
 ```
 
-- JSON **en claro** (sin cifrar), QoS 1, sin retain. Llega al llamar el turno o al asignar la pulsera a un turno ya llamado.
-- La API lo publica en la `<sala>` de la última lectura que recibió de esa pulsera (`sala1` si nunca publicó).
-- Un `type` desconocido se ignora (a futuro puede haber otros comandos).
+- Cada comando lleva el **estado completo** de la pulsera (asignada, llamada, ya no llamada, libre), así aplicar solo el último siempre deja el estado correcto. Nunca llevan el nombre del paciente.
+- JSON **en claro** (sin cifrar), QoS 1, sin retain. La API los publica al asignar, al llamar, cuando el turno sale de `CALLED` y al liberar la pulsera (a mano o al finalizar/cancelar el turno).
+- La API los publica en la `<sala>` de la última lectura que recibió de esa pulsera (`sala1` si nunca publicó). Si la pulsera vuelve a publicar después de más de 15 s sin lecturas (reinicio, corte), la API le reenvía su estado actual.
+- Un `type` desconocido se ignora. Los tipos llegan generados (`vitalia::CMD_*`); cada uno exige exactamente sus campos.
 - `MqttLink` se suscribe a `hospital/+/wearable/<id propio>/cmd` con QoS 1 en **cada** conexión y expone `commandsReady()` después del SUBACK correspondiente. El comodín de sala cubre `sala1` antes de la primera lectura; nunca acepta otro wearable.
 - `lib/commands` valida JSON, límites generados desde `WEARABLE_COMMAND_LIMITS`, UTF-8 y ausencia de controles. Reensambla fragmentos contiguos con un buffer acotado, descarta retenidos y reinicia la recepción al desconectar.
-- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState`. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
-- OLED: `TE LLAMAN`, código y consultorio; scroll de nombres largos, transliteración de tildes/ñ y `LLAMADO SIN RED` sin broker. Una caída reciente tiene prioridad durante `FALL_DISPLAY_MS`. El último llamado queda en RAM hasta reemplazo o reinicio; no hay limpieza al finalizar un turno ni recuperación de comandos perdidos sin conexión ([ADR 0015](../../docs/adr/0015-recibir-comandos-en-el-firmware.md)).
+- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState` (turno asignado + llamado activo, en RAM). Un `CLEAR_TICKET` solo termina el llamado activo de ese mismo turno: sin llamado, o de otro turno (viejo o desordenado), se ignora y no toca el turno asignado. Un llamado vence solo a los `CALL_MAX_DISPLAY_MS` (30 min) por si el `CLEAR_TICKET` se perdió. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
+- OLED, por prioridad:
+  1. Caída reciente (`FALL_DISPLAY_MS`).
+  2. Llamado: `TE LLAMAN`, código y consultorio; scroll de nombres largos, transliteración de tildes/ñ y `LLAMADO SIN RED` sin broker.
+  3. Pantalla del paciente (`homeFrame`): `Turno <código>` (o `Vitalia` libre) con `SIN RED` sin broker, `87 lpm  SpO2 99%` (`--` sin medición válida) y `Temp 36.6 C` (+ `FIEBRE`, indicador local). La IP no se muestra: queda en el monitor serie, `/status` y mDNS.
 
 > El botón de pánico y la batería no están en el contrato todavía. Para mandarlos, primero se agregan los campos a `TelemetryReading` en `@vitalia/contracts`.
 
@@ -280,22 +289,26 @@ Los **umbrales clínicos** de la plataforma están en [`libs/shared/contracts/sr
 
 Lo propio del dispositivo (pines, tiempos, offset de temperatura, indicador local de fiebre) va en `src/config.h`, no disperso por el código:
 
-| Parámetro                              | Valor     | Origen                                  |
-| :------------------------------------- | :-------- | :-------------------------------------- |
-| Umbral de impacto (caída)              | **2.8 g** | `vitalia::FALL_IMPACT_G` (contracts)    |
-| Umbral de caída libre previa           | 0.4 g     | `FALL_FREE_FALL_G` · a calibrar         |
-| Duración mínima de la caída libre      | 60 ms     | `FALL_FREE_FALL_MIN_MS` · a calibrar    |
-| Ventana caída libre → impacto          | 1000 ms   | `FALL_IMPACT_WINDOW_MS` · a calibrar    |
-| Rebotes ignorados después del impacto  | 500 ms    | `FALL_SETTLE_MS` · a calibrar           |
-| Ventana de inmovilidad post-impacto    | 2000 ms   | `FALL_STILL_MS` · a calibrar            |
-| Tolerancia de inmovilidad              | ±0.3 g    | `FALL_STILL_TOLERANCE_G` · a calibrar   |
-| Frecuencia de muestreo IMU             | 50 Hz     | —                                       |
-| Intervalo de publicación de telemetría | 3 s       | docs/03-dominio y prueba de carga F5    |
-| SpO2 crítico                           | < 90 %    | Marco teórico                           |
-| Rango normal BPM                       | 60–100    | Marco teórico                           |
-| Temperatura de fiebre (alerta)         | > 37.5 °C | `CLINICAL_THRESHOLDS`, la decide la API |
-| Indicador local de fiebre (OLED/LED)   | > 38.0 °C | Provisional, ver nota de calibración    |
-| Latencia máxima de alerta              | 2.0 s     | RNF-O1                                  |
+| Parámetro                              | Valor     | Origen                                                 |
+| :------------------------------------- | :-------- | :----------------------------------------------------- |
+| Umbral de impacto (caída)              | **2.8 g** | `vitalia::FALL_IMPACT_G` (contracts)                   |
+| Umbral de caída libre previa           | 0.4 g     | `FALL_FREE_FALL_G` · a calibrar                        |
+| Duración mínima de la caída libre      | 60 ms     | `FALL_FREE_FALL_MIN_MS` · a calibrar                   |
+| Ventana caída libre → impacto          | 1000 ms   | `FALL_IMPACT_WINDOW_MS` · a calibrar                   |
+| Rebotes ignorados después del impacto  | 500 ms    | `FALL_SETTLE_MS` · a calibrar                          |
+| Ventana de inmovilidad post-impacto    | 2000 ms   | `FALL_STILL_MS` · a calibrar                           |
+| Tolerancia de inmovilidad              | ±0.3 g    | `FALL_STILL_TOLERANCE_G` · a calibrar                  |
+| Frecuencia de muestreo IMU             | 50 Hz     | —                                                      |
+| Intervalo de publicación de telemetría | 3 s       | docs/03-dominio y prueba de carga F5                   |
+| Muestras del MAX30102                  | 25/s      | `PPG_SAMPLE_RATE` / `PPG_SAMPLE_AVERAGE`               |
+| Dedo apoyado (IR)                      | ≥ 50 000  | `PPG_FINGER_IR_MIN` (~110 000 con dedo, ~540 sin dedo) |
+| Perfusión válida (RMS/DC del IR)       | 0,1–2 %   | `PPG_PERFUSION_MIN/MAX`: arriba es movimiento          |
+| Retención del último BPM/SpO2 válido   | 5 s       | `PPG_HOLD_MS`                                          |
+| SpO2 crítico                           | < 90 %    | Marco teórico                                          |
+| Rango normal BPM                       | 60–100    | Marco teórico                                          |
+| Temperatura de fiebre (alerta)         | > 37.5 °C | `CLINICAL_THRESHOLDS`, la decide la API                |
+| Indicador local de fiebre (OLED/LED)   | > 38.0 °C | Provisional, ver nota de calibración                   |
+| Latencia máxima de alerta              | 2.0 s     | RNF-O1                                                 |
 
 La temperatura del MLX90614 es **superficial de muñeca**, no central. Antes de comparar contra el umbral de fiebre hay que aplicar la curva de compensación. No publicar el valor crudo como si fuera temperatura clínica.
 

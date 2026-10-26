@@ -44,6 +44,11 @@ size_t serializeReading(const Reading& reading, char* out, size_t outLen) {
   return serializeJson(doc, out, outLen);
 }
 
+bool criticalVitals(std::optional<uint16_t> hr, std::optional<uint8_t> spo2) {
+  if (hr && (*hr < vitalia::HEART_RATE_CRITICAL_MIN || *hr > vitalia::HEART_RATE_CRITICAL_MAX)) return true;
+  return spo2 && *spo2 < vitalia::SPO2_CRITICAL_BELOW;
+}
+
 void applyReadingLimits(Reading& reading) {
   omitOutOfRange(reading.hr, vitalia::READING_HR_MIN, vitalia::READING_HR_MAX);
   omitOutOfRange(reading.spo2, vitalia::READING_SPO2_MIN, vitalia::READING_SPO2_MAX);

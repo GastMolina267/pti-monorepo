@@ -8,7 +8,7 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 ## Contrato (en `@vitalia/contracts`)
 
 - Tópico de datos: `MQTT_TOPICS.wearableData(room, id)` → `hospital/<sala>/wearable/<id>/data`. Suscripción: `MQTT_TOPICS.allWearableData`.
-- Comandos al wearable (OLED): `MQTT_TOPICS.wearableCommand(room, id)` → `.../cmd`, payload `WearableCommand` (hoy `SHOW_TICKET { ticketCode, consultingRoom }`), JSON en claro, QoS 1, sin retain. Sala = `wearables.last_room` o `DEFAULT_WEARABLE_ROOM`.
+- Comandos al wearable (OLED): `MQTT_TOPICS.wearableCommand(room, id)` → `.../cmd`, payload `WearableCommand`, JSON en claro, QoS 1, sin retain. Sala = `wearables.last_room` o `DEFAULT_WEARABLE_ROOM`. Cuatro comandos con el estado completo de la pulsera (ADR 0021): `ASSIGN_TICKET { ticketCode }` al asignar, `SHOW_TICKET { ticketCode, consultingRoom }` al llamar, `CLEAR_TICKET { ticketCode }` cuando el turno sale de `CALLED` y `RELEASE_WEARABLE {}` al liberar o finalizar/cancelar. Si una pulsera vuelve a publicar después de más de `COMMAND_RESYNC_GAP_MS` (15 s) sin lecturas, la ingesta llama a `syncState()` y le reenvía su estado. Nunca mandar el nombre del paciente (van en claro).
 - QoS: `MQTT_QOS = 1`.
 - Payload publicado: `EncryptedEnvelope { v: 1, iv, ct, tag }` (base64). Descifrado: `TelemetryReading { wearableId, seq, ts, hr?, spo2?, temp?, accPeakG?, fall? }`.
 - `seq = arranque × 2^24 + contador` (`composeSeq`/`splitSeq`): salta de bloque cuando el wearable reinicia. Deduplicá por `(wearableId, seq)` y usá `splitSeq` para distinguir un reinicio de una pérdida. El simulador arma `seq` igual.
@@ -40,11 +40,11 @@ description: Ingesta de telemetría IoMT por MQTT en la API - conexión a Mosqui
 | `mqtt/` (global) | `mqtt.service.ts`, `topic-match.ts` | Cliente único: `subscribe(filtro, handler)` (se rehace en cada reconexión), `publishJson()` (devuelve `false` sin broker, nunca lanza), `status()` para el health. Sin `MQTT_URL` queda deshabilitado. |
 | `telemetry/` | `envelope.ts` (`openEnvelope`, `decryptGcm`), `reading.schema.ts` (zod estricto), `data-topic.ts`, `seq-deduper.ts`, `telemetry.service.ts` | Pipeline de ingesta (abajo). Sin `TELEMETRY_AES_KEY` no se suscribe. |
 | `alerts/` | `alerts.service.ts`, controller, mapper | `raise()`: una alerta por hallazgo CRÍTICO, sin repetir la `ACTIVE` del mismo `kind` y pulsera (set en memoria); emite **antes** de insertar (id con `randomUUID()`). `GET /api/alerts`, `POST /api/alerts/:id/ack`. |
-| `wearables/` | `wearables.service.ts`, controller, mapper | Alta (formato + número sin repetir), asignar/liberar, última lectura (`DISTINCT ON`), `findForIngest()`, `touch()` (`last_seen_at`, `last_room`), `showTicket()` → `SHOW_TICKET`. |
+| `wearables/` | `wearables.service.ts`, controller, mapper | Alta (formato + número sin repetir), asignar/liberar, última lectura (`DISTINCT ON`), `findForIngest()`, `touch()` (`last_seen_at`, `last_room`), `syncState(id)`: cola por pulsera que publica el estado leído de la base al publicar (`commandFor()`: `RELEASE`/`SHOW`/`CLEAR`/`ASSIGN`), nunca lanza. La llaman `assign()`, `release()`, `releaseByTicket()`, `syncByTicket()` (llamar, dejar de estar llamado) y el reenvío de la ingesta. No publicar comandos armados en el momento del evento: se cruzan. |
 
 Pipeline de `TelemetryService.ingest(topic, payload)` (nunca lanza, devuelve `IngestOutcome`):
 
-1. `parseDataTopic` → `openEnvelope` (base64 estricto, largos de IV/tag, GCM) → `parseReading` (zod) → `wearableId` = tópico.
+1. `parseDataTopic` → `openEnvelope` (base64 estricto, largos de IV/tag, GCM) → `parseReading` (zod: forma estricta; después `dropOutOfRangeFields` saca solo las mediciones fuera de `TELEMETRY_READING_LIMITS`) → `wearableId` = tópico.
 2. `findForIngest(code)`: si no existe en `wearables`, se descarta. `SeqDeduper` (últimos 64 seq por pulsera) descarta reenvíos.
 3. `vitalsFindings()` (contracts) → hallazgos con `kind`; el nivel y los motivos salen de ahí (misma regla que `assessVitals()`).
 4. **Emisión primero:** `telemetry:reading` a `staff` y `AlertsService.raise()` con los hallazgos CRÍTICOS.

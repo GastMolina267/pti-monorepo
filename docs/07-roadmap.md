@@ -78,6 +78,7 @@ gantt
 - [x] `pnpm fw:mqtt-check`: descifra y valida la telemetría contra el contrato (referencia para el módulo `telemetry`) (F)
 - [x] Firmware: sobre AES-256-GCM `{ v, iv, ct, tag }` en `lib/crypto` + test Unity que pase los vectores de `test/fixtures/gcm_vectors.h` (Hito 7) — 3/3 en la placa el 21/10 (F)
 - [x] Rangos físicos de la lectura en contracts (`TELEMETRY_READING_LIMITS`), compartidos por API, `fw:mqtt-check` y firmware: el wearable omite `temp`/`hr`/`spo2` fuera de rango y satura `accPeakG` en 16 g, para que la API no descarte la lectura entera (hallazgo de la prueba en la placa del 21/10) (F)
+- [x] La API descarta solo la medición fuera de rango y conserva el resto de la lectura, `fall` incluido (`dropOutOfRangeFields()` en contracts, también en `fw:mqtt-check`). Un tipo equivocado o un campo fuera del contrato siguen descartando el mensaje ([ADR 0023](adr/0023-descartar-solo-la-medicion-fuera-de-rango.md), 26/10) (G; F)
 - [x] Firmware: suscripción a `.../cmd` y `SHOW_TICKET` en el OLED — software completado en 4c; probado en la placa el 21/10 (llamado, reemplazo, scroll y tildes/ñ), falta ver la prioridad de una caída local (G; F: placa)
 - [x] Firmware: detección de caídas en tres fases (caída libre → impacto > 2,8 g → inmovilidad) en `lib/fall_detection`, con tests native; la caída confirmada se publica sin esperar el ciclo de 3 s (Hito 8) — lógica validada en la protoboard el 21/10; la calibración espera la pulsera con el circuito soldado (F)
 - [x] Firmware: `contracts.h` generado (como `include/vitalia_contracts.h`, `pnpm fw:codegen`) desde `@vitalia/contracts` (tópicos y umbrales) con un check en CI de que no quedó desactualizado; hoy `implicitDependencies` solo recompila, no detecta divergencias (F)
@@ -223,7 +224,9 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
 
 ### 5d · Firmware y pulsera (F)
 
-- [ ] MAX30102: frecuencia cardíaca y SpO₂ reales (RF-O1, Hito 5; hoy los aporta el simulador)
+- [x] MAX30102: frecuencia cardíaca y SpO₂ reales (RF-O1, Hito 5): `sensors::PulseOx` + `lib/ppg` con filtro de calidad. Primera validación en la protoboard el 26/10 contra una smartband: 79–88 lpm contra 82–87 y SpO₂ 99–100 % contra 99 %. Con movimiento o sin dedo se omiten
+- [x] Estado de la pulsera por comandos y pantalla del paciente en el OLED ([ADR 0021](adr/0021-estado-de-la-pulsera-por-comandos.md)): `ASSIGN_TICKET`, `SHOW_TICKET`, `CLEAR_TICKET` y `RELEASE_WEARABLE`, reenvío del estado después de un corte de más de 15 s y vencimiento local del llamado a los 30 min. Sin llamado, el OLED muestra el código del turno, BPM/SpO₂ y temperatura (sin IP ni nombre). Validado en la placa contra el gateway el 26/10: el llamado se borra al pasar a atención y la pulsera vuelve a `Vitalia` al finalizar
+- [ ] Afinar BPM/SpO₂ con el sensor en la muñeca, dentro de la pulsera: exactitud contra un oxímetro de dedo y cobertura (hoy ~3 de cada 4 lecturas con el dedo quieto)
 - [ ] Buffer propio para cortes del broker de más de 30 s (el outbox de ESP-MQTT descarta a los 30 s, ADR 0012)
 - [ ] Hardware: pasar el circuito de la protoboard a una protoboard chica o a una placa perforada con pistas soldadas y montarlo en la pulsera impresa. En la protoboard los golpes aflojan el bus I²C (prueba del 21/10)
 - [ ] Con la pulsera, calibrar caídas (`FALL_*` de `config.h`, falsos positivos), volver a medir la latencia de la caída (< 2 s) y ver la prioridad de la caída sobre el llamado en el OLED

@@ -16,6 +16,7 @@ constexpr uint32_t I2C_CLOCK_HZ = 100000;
 constexpr uint8_t MPU6050_I2C_ADDR = 0x68;
 constexpr uint8_t MLX90614_I2C_ADDR = 0x5A;
 constexpr uint8_t OLED_I2C_ADDR = 0x3C;
+constexpr uint8_t MAX30102_I2C_ADDR = 0x57;  // fija en la librería (MAX30105_ADDRESS)
 
 // --- Temperatura (AGENTS.md §7) ---
 constexpr float SKIN_TO_CORE_OFFSET_C = 1.2f;  // PROVISIONAL hasta tener la carcasa
@@ -27,6 +28,7 @@ constexpr float FEVER_DISPLAY_THRESHOLD_C = 38.0f;
 constexpr uint32_t IMU_PERIOD_MS = 20;          // 50 Hz
 constexpr uint32_t TEMP_PERIOD_MS = 500;        // 2 Hz
 constexpr uint32_t OLED_PERIOD_MS = 500;
+constexpr uint32_t PPG_POLL_MS = 20;            // la FIFO (32 muestras) se llena en ~1,3 s
 constexpr uint32_t TELEMETRY_PERIOD_MS = 3000;  // una lectura cada 3 s (docs/03-dominio)
 constexpr uint32_t WIFI_RETRY_MS = 3000;            // espera después de un intento fallido
 constexpr uint32_t WIFI_ATTEMPT_TIMEOUT_MS = 15000;  // intento sin respuesta: se reinicia
@@ -35,6 +37,8 @@ constexpr uint32_t WIFI_ATTEMPT_TIMEOUT_MS = 15000;  // intento sin respuesta: s
 constexpr int8_t WIFI_TX_POWER_QDBM = 34;  // 8,5 dBm
 constexpr uint32_t FALL_DISPLAY_MS = 5000;      // cuánto muestra la UI una caída
 constexpr uint32_t CALL_SCROLL_MS = 500;       // avance del consultorio largo, sin delay()
+// El llamado termina con CLEAR_TICKET; si se perdió (sin conexión), vence solo (ADR 0021).
+constexpr uint32_t CALL_MAX_DISPLAY_MS = 30u * 60 * 1000;
 
 // --- Detección de caídas (Hito 8, lib/fall_detection) ---
 // Punto de partida del marco teórico: se calibran con caídas controladas (AGENTS.md §9).
@@ -50,6 +54,33 @@ constexpr float FALL_STILL_TOLERANCE_G = 0.3f;
 constexpr bool FALL_REQUIRE_FREE_FALL = true;
 // Imprime por serie cada cambio de fase (para calibrar). Apagar cuando esté calibrado.
 constexpr bool FALL_LOG_TRANSITIONS = true;
+
+// --- MAX30102 (Hito 5, lib/sensors/pulse_ox) ---
+// Punto de partida de los ejemplos de SparkFun para SpO2: 100 muestras/s promediadas de a 4
+// = 25 muestras/s, pulso de 411 µs (18 bits). Se ajusta mirando la señal cruda.
+constexpr uint8_t PPG_LED_AMPLITUDE = 0x1F;  // ≈ 6,4 mA
+constexpr uint8_t PPG_SAMPLE_AVERAGE = 4;
+constexpr uint16_t PPG_SAMPLE_RATE = 100;
+constexpr uint16_t PPG_PULSE_WIDTH_US = 411;
+constexpr uint16_t PPG_ADC_RANGE = 4096;
+constexpr uint32_t PPG_FINGER_IR_MIN = 50000;  // en la placa: ~110 000 con dedo, ~540 sin dedo
+// Imprime cada muestra por serie (`ppg,<ms>,<ir>,<red>`) para analizar la señal. Apagado:
+// es mucho texto y son datos biométricos (AGENTS.md §8).
+constexpr bool PPG_LOG_RAW = false;
+// BPM y SpO2 (lib/ppg). Con el dedo quieto la perfusión dio 0,2–0,5 % y el movimiento 1,7–9 %:
+// arriba de PPG_PERFUSION_MAX no se mide (la lectura omite hr/spo2).
+constexpr float PPG_PERFUSION_MIN = 0.001f;  // 0,1 %
+constexpr float PPG_PERFUSION_MAX = 0.02f;   // 2 %
+constexpr uint32_t PPG_HOLD_MS = 5000;       // con latidos irregulares se conserva el último valor
+// Sin muestras de la FIFO por más de esto (bus I²C, sensor colgado), se descartan BPM/SpO2.
+constexpr uint32_t PPG_STALE_MS = 2000;
+
+// --- HTTP de laboratorio (src/http_demo) ---
+// El servidor del puerto 80 no tiene login ni TLS. Con false, /data responde 404 y /status
+// solo trae diagnóstico (sensores, dedo sí/no, muestras, Wi-Fi, MQTT), sin signos vitales,
+// PPG crudo, temperatura ni caídas. Encenderlo solo para calibrar, nunca con pacientes
+// reales (Ley 25.326, AGENTS.md §8).
+constexpr bool HTTP_LAB_VITALS = false;
 
 // --- Red ---
 constexpr const char* MDNS_HOST = "wearable-pti";

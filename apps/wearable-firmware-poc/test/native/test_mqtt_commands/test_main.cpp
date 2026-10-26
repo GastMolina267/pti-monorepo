@@ -89,7 +89,7 @@ void test_fragmented_commands_cross_to_loop_only_when_complete() {
   net::MqttLink link; link.begin("broker", 1883, "device", "", "", filter);
   emit(MQTT_EVENT_CONNECTED);
   const size_t length = strlen(payload), split = length / 2;
-  commands::ShowTicket out;
+  commands::Command out;
   deliver(payload, split, length, 0);
   TEST_ASSERT_FALSE(link.takeCommand(out));
   deliver(payload + split, length - split, length, split);
@@ -102,7 +102,7 @@ void test_disconnect_discards_partial_message_and_retained_cannot_replace_call()
   net::MqttLink link; link.begin("broker", 1883, "device", "", "", filter);
   emit(MQTT_EVENT_CONNECTED);
   const size_t length = strlen(payload), split = length / 2;
-  commands::ShowTicket out;
+  commands::Command out;
   deliver(payload, split, length, 0);
   emit(MQTT_EVENT_DISCONNECTED); emit(MQTT_EVENT_CONNECTED);
   deliver(payload + split, length - split, length, split);
@@ -117,7 +117,7 @@ void test_disconnect_discards_partial_message_and_retained_cannot_replace_call()
 
 void test_queue_keeps_latest_call_and_failed_init_is_safe() {
   net::MqttLink link;
-  commands::ShowTicket out;
+  commands::Command out;
   TEST_ASSERT_FALSE(link.takeCommand(out));
   initFails = true;
   TEST_ASSERT_FALSE(link.begin("broker", 1883, "device", "", "", filter));

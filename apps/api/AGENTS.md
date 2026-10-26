@@ -31,7 +31,7 @@ src/
     telemetry/               # ingesta: sobre AES-GCM → zod → dedupe → WS → persistencia    ✅ F2
                              # + retención (borrado por tandas) y curva GET /tickets/:id/readings ✅ F5
     alerts/                  # alertas CRÍTICAS, GET /alerts, POST /alerts/:id/ack          ✅ F2
-    wearables/               # alta, asignar/liberar, mantenimiento (PATCH), SHOW_TICKET a .../cmd ✅ F2–F5
+    wearables/               # alta, asignar/liberar, mantenimiento (PATCH), estado de la pulsera a .../cmd (cola por pulsera, ADR 0021) ✅ F2–F5
     sync/                    # outbox → nube (RF-O6): enqueue fire-and-forget, flush con backoff, /sync/status ✅ F5
     iomt/entities/           # Wearable, TelemetryReading, Alert (compartidas por los módulos IoMT)
   testing/                   # helpers SOLO para specs (sobres cifrados de prueba)
