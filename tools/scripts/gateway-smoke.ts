@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { io } from 'socket.io-client';
 import { REALTIME_READY_EVENT, REALTIME_ROOMS, type HealthResponse } from '@vitalia/contracts';
+import { gatewayHost } from '../wearable-simulator/src/lib/gateway-host';
 import { readGatewaySettings } from './gateway-init.mjs';
 
 const settings = readGatewaySettings();
 const origins = [settings.GATEWAY_HTTP_PORT, settings.GATEWAY_TV_PORT].map(
-  (port) => `http://localhost:${port}`,
+  (port) => `http://${gatewayHost(settings.GATEWAY_HTTP_BIND)}:${port}`,
 );
 
 async function request(origin: string, path: string) {

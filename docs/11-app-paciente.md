@@ -51,7 +51,7 @@ Si tenés el emulador abierto y querés la app en otro dispositivo, `flutter dev
 
 ### Contra el gateway Docker
 
-1. En `.gateway/.env`, publicá la web en la interfaz de la red de los pacientes: `GATEWAY_HTTP_BIND=10.0.20.1` (o `0.0.0.0` para probar). Después, `pnpm gateway:up`. Nginx sirve `/api` y `/socket.io` en `GATEWAY_HTTP_PORT` (8080).
+1. `pnpm gateway:up`. La web se publica en todas las interfaces ([ADR 0022](adr/0022-gateway-expuesto-por-defecto.md)); para limitarla a la red de los pacientes, `GATEWAY_HTTP_BIND=10.0.20.1` en `.gateway/.env`. Nginx sirve `/api` y `/socket.io` en `GATEWAY_HTTP_PORT` (8080).
 2. Desde el emulador, en la misma PC: `pnpm nx run patient-app:run --api=http://10.0.2.2:8080`.
 3. En un teléfono, ver la sección siguiente.
 
@@ -177,16 +177,16 @@ pnpm nx run patient-app:flutter-format   # dart format lib test (ancho 120)
 
 ## Problemas frecuentes
 
-| Síntoma                                                         | Causa y solución                                                                                                                                                 |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| «No hay conexión con el hospital»                               | La dirección del servidor no es alcanzable. En el emulador usá `10.0.2.2`; en un teléfono, la IP del gateway en esa red (Ajustes → Probar).                      |
-| La API responde en el navegador de la PC pero no en el teléfono | El gateway escucha solo en loopback: configurá `GATEWAY_HTTP_BIND` (ver [09-despliegue-gateway.md](09-despliegue-gateway.md#operación-de-largo-plazo-y-red-5b)). |
-| «El código no es válido o venció»                               | Pasaron 10 min, ya se usó o se reinició la API: generá otro en el Backoffice.                                                                                    |
-| «Ya tenés el turno …» al sacar turno                            | Ese DNI tenía un turno abierto hoy: vincularlo con el QR o código del personal.                                                                                  |
-| No llegan notificaciones                                        | Permiso negado o ahorro de batería agresivo: Ajustes de la app → Permitir notificaciones, y quitar la optimización de batería de Vitalia.                        |
-| La primera compilación tarda varios minutos                     | Gradle baja dependencias y plataformas del SDK (34/35/36). Las siguientes son incrementales.                                                                     |
-| Error de rutas largas o Gradle lento en Windows                 | Mové el repo fuera de OneDrive (ej. `C:\dev\pti-monorepo`).                                                                                                      |
-| `flutter` no se reconoce en la terminal                         | Agregá `C:\src\flutter\bin` (o donde lo instalaste) al PATH y reabrí la terminal.                                                                                |
+| Síntoma                                                         | Causa y solución                                                                                                                                                                                                                                               |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| «No hay conexión con el hospital»                               | La dirección del servidor no es alcanzable. En el emulador usá `10.0.2.2`; en un teléfono, la IP del gateway en esa red (Ajustes → Probar).                                                                                                                    |
+| La API responde en el navegador de la PC pero no en el teléfono | Revisá que `GATEWAY_HTTP_BIND` no esté en `127.0.0.1` u otra interfaz, que el teléfono esté en la misma red y que el firewall de la PC deje pasar el puerto 8080 (ver [09-despliegue-gateway.md](09-despliegue-gateway.md#operación-de-largo-plazo-y-red-5b)). |
+| «El código no es válido o venció»                               | Pasaron 10 min, ya se usó o se reinició la API: generá otro en el Backoffice.                                                                                                                                                                                  |
+| «Ya tenés el turno …» al sacar turno                            | Ese DNI tenía un turno abierto hoy: vincularlo con el QR o código del personal.                                                                                                                                                                                |
+| No llegan notificaciones                                        | Permiso negado o ahorro de batería agresivo: Ajustes de la app → Permitir notificaciones, y quitar la optimización de batería de Vitalia.                                                                                                                      |
+| La primera compilación tarda varios minutos                     | Gradle baja dependencias y plataformas del SDK (34/35/36). Las siguientes son incrementales.                                                                                                                                                                   |
+| Error de rutas largas o Gradle lento en Windows                 | Mové el repo fuera de OneDrive (ej. `C:\dev\pti-monorepo`).                                                                                                                                                                                                    |
+| `flutter` no se reconoce en la terminal                         | Agregá `C:\src\flutter\bin` (o donde lo instalaste) al PATH y reabrí la terminal.                                                                                                                                                                              |
 
 ## Límites conocidos y trabajo futuro
 

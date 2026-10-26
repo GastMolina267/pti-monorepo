@@ -15,12 +15,12 @@ pnpm gateway:smoke
 
 `gateway:up` también ejecuta el inicializador y prepara los usuarios MQTT. Recrea los contenedores para aplicar cambios de credenciales y ACL: hay una interrupción breve, pero los volúmenes se conservan. La primera construcción necesita internet para bajar imágenes y dependencias; el sistema desplegado usa fuentes y recursos locales. Esto no acredita todavía la prueba de 24 h sin WAN de la Fase 5.
 
-- Backoffice: <http://localhost:8080>.
+- Backoffice: <http://localhost:8080> (desde otro dispositivo, `http://<IP del gateway>:8080`).
 - TV: <http://localhost:8081>.
 - Health a través de ambos proxies: `/api/health`.
-- Broker para simuladores locales: `mqtt://localhost:1884`.
+- Broker para pulseras y simuladores: `mqtt://<IP del gateway>:1884` (`mqtt://localhost:1884` desde la misma máquina).
 
-Los puertos se publican solo en loopback. PostgreSQL y la API no publican puertos al host; se accede a la API mediante Nginx. El `docker-compose.yml` de desarrollo sigue disponible sin cambios, con volúmenes y nombres separados.
+Los puertos se publican en todas las interfaces de la máquina ([ADR 0022](adr/0022-gateway-expuesto-por-defecto.md)): el gateway corre en una red privada propia y las pulseras, la TV y la consola llegan sin configurar nada. En una red compartida, restringilos con `GATEWAY_MQTT_BIND`/`GATEWAY_HTTP_BIND` (más abajo). PostgreSQL y la API no publican puertos al host; se accede a la API mediante Nginx. El `docker-compose.yml` de desarrollo sigue disponible sin cambios, con volúmenes y nombres separados.
 
 ## Configuración y credenciales
 
@@ -56,7 +56,7 @@ Para revocar una pulsera, eliminá su entrada de `devices.json` y ejecutá `gate
 
 El simulador se ejecuta mediante Nx. Para su ayuda usá `pnpm sim:wearables --args=--help`; para opciones que Nx reserva, pasá todo junto, por ejemplo `pnpm sim:wearables --args="--gateway --count=2 --duration=10 --verbose"`.
 
-`gateway:mqtt-check` necesita las pulseras simuladas 02 y 03 aprovisionadas. Comprueba CONNACK de rechazo a anónimos/contraseña incorrecta, entregas permitidas, aislamiento real incluso con una suscripción `hospital/#` y PUBACK `0x87` ante escrituras prohibidas. Usa una sala aleatoria, comandos de prueba y sobres inválidos que la API descarta sin persistir. La ejecución no requiere hardware. MQTT sigue usando TCP local, sin TLS: para salir de loopback o desplegar en una red compartida hay que definir transporte y protección de las credenciales. Esta fase no acredita ese despliegue de red.
+`gateway:mqtt-check` necesita las pulseras simuladas 02 y 03 aprovisionadas. Comprueba CONNACK de rechazo a anónimos/contraseña incorrecta, entregas permitidas, aislamiento real incluso con una suscripción `hospital/#` y PUBACK `0x87` ante escrituras prohibidas. Usa una sala aleatoria, comandos de prueba y sobres inválidos que la API descarta sin persistir. La ejecución no requiere hardware. MQTT sigue usando TCP sin TLS: la barrera son las credenciales y la ACL por pulsera. Publicado en la red, el gateway supone una red privada propia (ADR 0022); para una red compartida hay que restringir el bind y definir transporte y protección de las credenciales. Esta fase no acredita ese despliegue de red.
 
 ## Migraciones y datos simulados
 
@@ -239,18 +239,18 @@ CI ejecuta `gateway:verify`, `gateway:operations` y smoke final sobre una instal
 
 Decisiones en [ADR 0018](adr/0018-operacion-de-largo-plazo-y-red-del-gateway.md). Todas las variables van en `.gateway/.env` y se aplican con `pnpm gateway:up`.
 
-| Variable                              | Por defecto     | Para qué                                                                                                       |
-| ------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
-| `GATEWAY_MQTT_BIND`                   | `127.0.0.1`     | Interfaz donde escucha Mosquitto. En el hospital, la IP del gateway en la VLAN de wearables (ej. `10.0.20.1`). |
-| `GATEWAY_HTTP_BIND`                   | `127.0.0.1`     | Interfaz de Backoffice y TV (VLAN del personal / de las pantallas). `0.0.0.0` las publica en todas.            |
-| `GATEWAY_EXTRA_CORS_ORIGINS`          | —               | Orígenes extra separados por coma, ej. `http://10.0.30.1:8080,http://10.0.30.1:8081`.                          |
-| `TELEMETRY_RETENTION_HOURS`           | `72`            | Antigüedad máxima de las lecturas. El borrado corre cada hora, en tandas de 5.000.                             |
-| `GATEWAY_ID`                          | `gateway-local` | Nombre del gateway en la nube (la nube deduplica por `GATEWAY_ID` + id del cambio).                            |
-| `CLOUD_SYNC_URL` / `CLOUD_SYNC_TOKEN` | —               | Réplica a la nube (RF-O6). Vacío = apagada. Con valor, turnos y alertas se encolan y se envían con backoff.    |
+| Variable                              | Por defecto     | Para qué                                                                                                                                                |
+| ------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GATEWAY_MQTT_BIND`                   | `0.0.0.0`       | Interfaz donde escucha Mosquitto. Para restringirlo, la IP del gateway en la VLAN de wearables (ej. `10.0.20.1`).                                       |
+| `GATEWAY_HTTP_BIND`                   | `0.0.0.0`       | Interfaz de Backoffice y TV. Para restringirlas, la IP de la VLAN del personal / de las pantallas; `127.0.0.1` solo esta máquina.                       |
+| `GATEWAY_EXTRA_CORS_ORIGINS`          | —               | Orígenes extra separados por coma. Backoffice y TV llaman a la API en su mismo origen, así que solo hace falta para un cliente servido desde otro lado. |
+| `TELEMETRY_RETENTION_HOURS`           | `72`            | Antigüedad máxima de las lecturas. El borrado corre cada hora, en tandas de 5.000.                                                                      |
+| `GATEWAY_ID`                          | `gateway-local` | Nombre del gateway en la nube (la nube deduplica por `GATEWAY_ID` + id del cambio).                                                                     |
+| `CLOUD_SYNC_URL` / `CLOUD_SYNC_TOKEN` | —               | Réplica a la nube (RF-O6). Vacío = apagada. Con valor, turnos y alertas se encolan y se envían con backoff.                                             |
 
 La API corre con `TRUST_PROXY=1` (fijo en el compose), así el rate limit cuenta por cliente y no por Nginx. No publiques el puerto de la API sin Nginx delante.
 
-Con la pulsera real conectada a la VLAN de wearables, `GATEWAY_MQTT_BIND` reemplaza el puente temporal de la prueba del 21/10. La ACL por pulsera (4b) sigue exigiendo usuario y contraseña propios.
+La pulsera real se conecta directo al broker publicado (demo del 26/10), sin el puente temporal de la prueba del 21/10. Las herramientas (`gateway:smoke`, `gateway:recover`, `gateway:e2e`, `sim:wearables --gateway`) usan la IP del bind cuando es puntual, y `localhost` si no. La ACL por pulsera (4b) sigue exigiendo usuario y contraseña propios.
 
 ### Réplica a la nube y cortes de WAN
 

@@ -25,4 +25,5 @@ Formato y proceso: skill `vitalia-docs`. Un ADR aceptado no se edita: se reempla
 | [0019](0019-app-del-paciente-en-flutter.md)                | App del paciente en Flutter con sesión de turno           | Aceptado           |
 | [0020](0020-landing-b2c-b2b.md)                            | Landing con dos audiencias (B2C y B2B)                    | Aceptado           |
 | [0021](0021-estado-de-la-pulsera-por-comandos.md)          | Estado de la pulsera por comandos y pantalla del paciente | Aceptado           |
+| [0022](0022-gateway-expuesto-por-defecto.md)               | Gateway publicado en la red por defecto                   | Aceptado           |
 | [0023](0023-descartar-solo-la-medicion-fuera-de-rango.md)  | Descartar solo la medición fuera de rango                 | Aceptado           |

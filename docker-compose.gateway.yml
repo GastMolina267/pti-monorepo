@@ -31,10 +31,10 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     restart: unless-stopped
-    # Por defecto solo loopback (simuladores). En el gateway real, GATEWAY_MQTT_BIND = IP de la
-    # interfaz de la VLAN de las pulseras (red aislada; MQTT va sin TLS, ADR 0018).
+    # Por defecto en todas las interfaces: el gateway corre en una red privada propia (ADR 0022).
+    # En una red compartida, GATEWAY_MQTT_BIND = IP de la interfaz de las pulseras (MQTT va sin TLS).
     ports:
-      - '${GATEWAY_MQTT_BIND:-127.0.0.1}:${GATEWAY_MQTT_PORT:-1884}:1883'
+      - '${GATEWAY_MQTT_BIND:-0.0.0.0}:${GATEWAY_MQTT_PORT:-1884}:1883'
     volumes:
       - ./infra/gateway/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mqtt-auth:/mosquitto/auth:ro
@@ -95,10 +95,11 @@ services:
       dockerfile: apps/api/Dockerfile
       target: web
     restart: unless-stopped
-    # Backoffice (8080) y TV (8081). En el gateway real, GATEWAY_HTTP_BIND = IP de la LAN.
+    # Backoffice (8080) y TV (8081), en todas las interfaces por defecto (ADR 0022). GATEWAY_HTTP_BIND
+    # los restringe a una interfaz. Llaman a /api en su mismo origen: una IP de la LAN no necesita CORS.
     ports:
-      - '${GATEWAY_HTTP_BIND:-127.0.0.1}:${GATEWAY_HTTP_PORT:-8080}:8080'
-      - '${GATEWAY_HTTP_BIND:-127.0.0.1}:${GATEWAY_TV_PORT:-8081}:8081'
+      - '${GATEWAY_HTTP_BIND:-0.0.0.0}:${GATEWAY_HTTP_PORT:-8080}:8080'
+      - '${GATEWAY_HTTP_BIND:-0.0.0.0}:${GATEWAY_TV_PORT:-8081}:8081'
     depends_on:
       api:
         condition: service_healthy

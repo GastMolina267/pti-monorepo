@@ -3,13 +3,14 @@ import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 import { parseWearableMqttPasswords, type WearableMqttPasswords } from '@vitalia/contracts';
 import { UsageError } from './cli';
+import { gatewayHost } from './gateway-host';
 
 /** El gateway usa su propia clave y archivo de dispositivos; nunca las credenciales de la API. */
 export function gatewayEnvironment(directory = '.gateway'): Record<string, string> {
   try {
     const settings = parseEnv(readFileSync(resolve(directory, '.env'), 'utf8'));
     return {
-      MQTT_URL: `mqtt://localhost:${settings.GATEWAY_MQTT_PORT ?? '1884'}`,
+      MQTT_URL: `mqtt://${gatewayHost(settings.GATEWAY_MQTT_BIND)}:${settings.GATEWAY_MQTT_PORT ?? '1884'}`,
       TELEMETRY_AES_KEY: settings.TELEMETRY_AES_KEY ?? '',
       MQTT_CREDENTIALS_FILE: resolve(directory, 'mqtt/devices.json'),
       MQTT_USERNAME: '',

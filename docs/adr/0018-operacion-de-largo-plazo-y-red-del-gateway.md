@@ -1,6 +1,6 @@
 # 0018. Operación de largo plazo: retención, réplica a la nube por outbox y red del gateway
 
-- Estado: Aceptado
+- Estado: Aceptado — el bind por defecto lo reemplaza [0022](0022-gateway-expuesto-por-defecto.md)
 - Fecha: 2026-10-25
 - Autores: Gastón Molina
 

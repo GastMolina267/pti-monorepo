@@ -27,14 +27,16 @@ import {
   gatewayEnvironment,
   loadDevicePasswords,
 } from '../wearable-simulator/src/lib/credentials';
+import { gatewayHost } from '../wearable-simulator/src/lib/gateway-host';
 import { parseKey, sealReading } from '../wearable-simulator/src/lib/envelope';
 import { BootStore } from '../wearable-simulator/src/lib/boot-store';
 import { nextBoot } from '../wearable-simulator/src/lib/wearable';
 import { cleanupFixtures, FixtureJournal, runMarker } from '../scripts/gateway-fixtures';
 
 export const settings = parseEnv(readFileSync('.gateway/.env', 'utf8'));
-export const backofficeOrigin = `http://localhost:${settings.GATEWAY_HTTP_PORT}`;
-export const tvOrigin = `http://localhost:${settings.GATEWAY_TV_PORT}`;
+const httpHost = gatewayHost(settings.GATEWAY_HTTP_BIND);
+export const backofficeOrigin = `http://${httpHost}:${settings.GATEWAY_HTTP_PORT}`;
+export const tvOrigin = `http://${httpHost}:${settings.GATEWAY_TV_PORT}`;
 
 /** REST real a través de Nginx; los errores no imprimen tokens, credenciales ni bodies. */
 export class GatewayApi {
