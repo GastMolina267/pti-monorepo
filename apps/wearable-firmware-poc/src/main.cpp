@@ -30,6 +30,7 @@
 #include "oled.h"
 #include "peak_tracker.h"
 #include "pulse_ox.h"
+#include "pulse_ox_estimator.h"
 #include "reading.h"
 #include "secrets.h"  // WEARABLE_NUMBER, Wi-Fi, NTP_SERVER… (no versionado)
 #include "skin_temp.h"
@@ -65,9 +66,20 @@ static fall_detection::FallParams fallParams() {
   return p;
 }
 
+static ppg::PulseOxParams ppgParams() {
+  ppg::PulseOxParams p;
+  p.fingerIrMin = PPG_FINGER_IR_MIN;
+  p.sampleRateHz = PPG_SAMPLE_RATE / PPG_SAMPLE_AVERAGE;
+  p.perfusionMin = PPG_PERFUSION_MIN;
+  p.perfusionMax = PPG_PERFUSION_MAX;
+  p.holdMs = PPG_HOLD_MS;
+  return p;
+}
+
 sensors::Imu imu;
 sensors::SkinTemp skinTemp;
 sensors::PulseOx pulseOx;
+ppg::PulseOxEstimator vitals(ppgParams());
 net::WifiLink wifi;
 ui::Oled oled(Wire, I2C_CLOCK_HZ);
 ui::StatusLed led(PIN_LED);
@@ -129,7 +141,9 @@ static void buildReading() {
   // (abajo). Si no hay hora, el JSON no entra o el outbox está lleno, sale en la próxima.
   r.fall = fall.pending();
   if (skinTemp.isHealthy()) r.temp = skinTemp.coreEstC();
-  // hr / spo2: vacíos hasta el Hito 5 (MAX30102).
+  // Vacíos sin dedo, con movimiento o con latidos irregulares: la lectura los omite.
+  r.hr = vitals.hr();
+  r.spo2 = vitals.spo2();
   telemetry::applyReadingLimits(r);  // fuera de rango la API descarta la lectura entera
 
   size_t n = telemetry::serializeReading(r, lastReadingJson, sizeof(lastReadingJson));
@@ -175,6 +189,10 @@ static bool provideStatus(String& out) {
     p["red"] = pulseOx.lastRed();
     p["finger"] = pulseOx.fingerPresent();
     p["samples"] = pulseOx.totalSamples();
+    p["perfusion_pct"] = roundf(vitals.perfusion() * 10000) / 100.0;
+    p["ratio"] = roundf(vitals.ratio() * 1000) / 1000.0;
+    if (vitals.hr()) p["hr"] = *vitals.hr();
+    if (vitals.spo2()) p["spo2"] = *vitals.spo2();
   }
   doc["fall_recent"] = fall.recentFall(now, FALL_DISPLAY_MS);
   doc["impact_recent"] = fall.recentImpact(now, FALL_DISPLAY_MS);  // con o sin caída: para calibrar
@@ -217,7 +235,9 @@ static void renderOled(uint32_t now) {
   }
 
   const char* event = fall.recentFall(now, FALL_DISPLAY_MS) ? "CAIDA" : "ok";
-  if (imu.isHealthy()) snprintf(line2, sizeof(line2), "a %.2fg  %s", imu.magnitudeG(), event);
+  if (imu.isHealthy() && vitals.hr() && vitals.spo2() && !fall.recentFall(now, FALL_DISPLAY_MS))
+    snprintf(line2, sizeof(line2), "%ulpm %u%% a%.2fg", *vitals.hr(), *vitals.spo2(), imu.magnitudeG());
+  else if (imu.isHealthy()) snprintf(line2, sizeof(line2), "a %.2fg  %s", imu.magnitudeG(), event);
   else snprintf(line2, sizeof(line2), "a --");
 
   oled.show(line0, line1, line2);
@@ -328,6 +348,7 @@ void loop() {
   if (now - lastPpg >= PPG_POLL_MS) {
     lastPpg = now;
     pulseOx.read([now](uint32_t ir, uint32_t red) {
+      vitals.push(ir, red);
       if (PPG_LOG_RAW) Serial.printf("ppg,%lu,%lu,%lu\n", static_cast<unsigned long>(now),
                                      static_cast<unsigned long>(ir), static_cast<unsigned long>(red));
     });

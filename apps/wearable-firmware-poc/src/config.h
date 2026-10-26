@@ -61,10 +61,15 @@ constexpr uint8_t PPG_SAMPLE_AVERAGE = 4;
 constexpr uint16_t PPG_SAMPLE_RATE = 100;
 constexpr uint16_t PPG_PULSE_WIDTH_US = 411;
 constexpr uint16_t PPG_ADC_RANGE = 4096;
-constexpr uint32_t PPG_FINGER_IR_MIN = 50000;  // provisional: se ajusta con la señal real
+constexpr uint32_t PPG_FINGER_IR_MIN = 50000;  // en la placa: ~110 000 con dedo, ~540 sin dedo
 // Imprime cada muestra por serie (`ppg,<ms>,<ir>,<red>`) para analizar la señal. Apagado:
 // es mucho texto y son datos biométricos (AGENTS.md §8).
 constexpr bool PPG_LOG_RAW = false;
+// BPM y SpO2 (lib/ppg). Con el dedo quieto la perfusión dio 0,2–0,5 % y el movimiento 1,7–9 %:
+// arriba de PPG_PERFUSION_MAX no se mide (la lectura omite hr/spo2).
+constexpr float PPG_PERFUSION_MIN = 0.001f;  // 0,1 %
+constexpr float PPG_PERFUSION_MAX = 0.02f;   // 2 %
+constexpr uint32_t PPG_HOLD_MS = 5000;       // un latido irregular no borra el último valor
 
 // --- Red ---
 constexpr const char* MDNS_HOST = "wearable-pti";
