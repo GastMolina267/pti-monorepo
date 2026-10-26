@@ -26,6 +26,11 @@ describe('credenciales MQTT por pulsera', () => {
     });
   });
 
+  it('con el broker publicado en una IP puntual se conecta a esa IP', () => {
+    writeFileSync(join(directory, '.env'), 'GATEWAY_MQTT_BIND=192.168.100.17\nGATEWAY_MQTT_PORT=1884\n');
+    expect(gatewayEnvironment(directory).MQTT_URL).toBe('mqtt://192.168.100.17:1884');
+  });
+
   it('un gateway sin inicializar falla con una indicación de arranque', () => {
     expect(() => gatewayEnvironment(directory)).toThrow(/gateway:up/);
   });

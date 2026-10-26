@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { cleanupFixtures, FixtureJournal, runMarker, type ApiCall } from './gateway-fixtures';
 import { gatewayComposeInvocation } from './gateway-compose.mjs';
+import { gatewayHost } from '../wearable-simulator/src/lib/gateway-host';
 import { readGatewaySettings } from './gateway-init.mjs';
 import { acquireGatewayLock } from './gateway-lock.mjs';
 
@@ -32,7 +33,7 @@ export async function recoverRun(id: string): Promise<void> {
   if (result.status !== 0) throw new Error('No se pudieron localizar los turnos de la corrida en PostgreSQL');
   const discovered = result.stdout.trim().split(/\s+/).filter(Boolean);
   const settings = readGatewaySettings();
-  const origin = `http://localhost:${settings.GATEWAY_HTTP_PORT}/api`;
+  const origin = `http://${gatewayHost(settings.GATEWAY_HTTP_BIND)}:${settings.GATEWAY_HTTP_PORT}/api`;
   let token: string | undefined;
   const call: ApiCall = async <T>(method: string, path: string, data?: unknown): Promise<T> => {
     const response = await fetch(`${origin}${path}`, {
