@@ -236,18 +236,19 @@ Lo que el firmware necesita del contrato (tópicos, `MQTT_QOS`, `ENVELOPE_VERSIO
 
 Cada comando lleva el estado completo de la pulsera ([ADR 0021](adr/0021-estado-de-la-pulsera-por-comandos.md)):
 
-| `type`             | Campos                         | Cuándo lo publica la API                                           | OLED                                       |
-| ------------------ | ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------ |
-| `ASSIGN_TICKET`    | `ticketCode`                   | Al asignar la pulsera a un turno no llamado                        | `Turno <código>` y los signos del paciente |
-| `SHOW_TICKET`      | `ticketCode`, `consultingRoom` | Al llamar el turno, o al asignar la pulsera a un turno ya llamado  | `TE LLAMAN`, código y consultorio          |
-| `CLEAR_TICKET`     | `ticketCode`                   | Cuando el turno sale de `CALLED` (en atención, a la fila, ausente) | Termina el llamado (solo si es ese turno)  |
-| `RELEASE_WEARABLE` | —                              | Al liberar la pulsera (a mano, o al finalizar o cancelar)          | `Vitalia`, sin turno                       |
+| `type`             | Campos                         | Cuándo lo publica la API                                           | OLED                                                     |
+| ------------------ | ------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------- |
+| `ASSIGN_TICKET`    | `ticketCode`                   | Al asignar la pulsera a un turno no llamado                        | `Turno <código>` y los signos del paciente               |
+| `SHOW_TICKET`      | `ticketCode`, `consultingRoom` | Al llamar el turno, o al asignar la pulsera a un turno ya llamado  | `TE LLAMAN`, código y consultorio                        |
+| `CLEAR_TICKET`     | `ticketCode`                   | Cuando el turno sale de `CALLED` (en atención, a la fila, ausente) | Termina el llamado activo de ese turno; si no, se ignora |
+| `RELEASE_WEARABLE` | —                              | Al liberar la pulsera (a mano, o al finalizar o cancelar)          | `Vitalia`, sin turno                                     |
 
 ```json
 { "type": "SHOW_TICKET", "ticketCode": "A-024", "consultingRoom": "Consultorio 4" }
 ```
 
 - Si una pulsera vuelve a publicar después de más de 15 s sin lecturas (reinicio o corte), la API le reenvía su estado actual: los comandos van sin retain.
+- **Orden:** la API no publica el comando del momento del evento. Cada cambio pide sincronizar la pulsera, y el comando sale del estado guardado en la base al momento de publicar, en una cola por pulsera. Aunque los cambios se crucen (llamar y finalizar enseguida), el último comando es siempre el estado actual. `CLEAR_TICKET` sale cuando lo último que recibió la pulsera fue el llamado de ese turno; si no, `ASSIGN_TICKET`.
 - La API los publica en `hospital/<sala>/wearable/<id>/cmd` con QoS 1 y sin retain.
 - `<sala>` es la de la última lectura recibida (`wearables.last_room`). Si nunca publicó, se usa `DEFAULT_WEARABLE_ROOM` (`sala1`).
 - Va **en claro**: no lleva signos vitales ni datos personales (nunca el nombre del paciente), solo lo que ya muestra la TV. Desde 4b la ACL del gateway reserva la publicación en `cmd` a la API.

@@ -273,7 +273,7 @@ Comandos recibidos por `.../cmd` (`WearableCommand` en [`telemetry/commands.ts`]
 - Un `type` desconocido se ignora. Los tipos llegan generados (`vitalia::CMD_*`); cada uno exige exactamente sus campos.
 - `MqttLink` se suscribe a `hospital/+/wearable/<id propio>/cmd` con QoS 1 en **cada** conexión y expone `commandsReady()` después del SUBACK correspondiente. El comodín de sala cubre `sala1` antes de la primera lectura; nunca acepta otro wearable.
 - `lib/commands` valida JSON, límites generados desde `WEARABLE_COMMAND_LIMITS`, UTF-8 y ausencia de controles. Reensambla fragmentos contiguos con un buffer acotado, descarta retenidos y reinicia la recepción al desconectar.
-- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState` (turno asignado + llamado activo, en RAM). Un `CLEAR_TICKET` de otro turno no borra el llamado actual, y un llamado vence solo a los `CALL_MAX_DISPLAY_MS` (30 min) por si el `CLEAR_TICKET` se perdió. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
+- El callback MQTT solo entrega una copia por cola FreeRTOS (último comando válido gana); el `loop()` consume y modifica `CallState` (turno asignado + llamado activo, en RAM). Un `CLEAR_TICKET` solo termina el llamado activo de ese mismo turno: sin llamado, o de otro turno (viejo o desordenado), se ignora y no toca el turno asignado. Un llamado vence solo a los `CALL_MAX_DISPLAY_MS` (30 min) por si el `CLEAR_TICKET` se perdió. **Nunca** tocar OLED/Wire/sensores desde la tarea MQTT.
 - OLED, por prioridad:
   1. Caída reciente (`FALL_DISPLAY_MS`).
   2. Llamado: `TE LLAMAN`, código y consultorio; scroll de nombres largos, transliteración de tildes/ñ y `LLAMADO SIN RED` sin broker.
