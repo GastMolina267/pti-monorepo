@@ -42,6 +42,7 @@ pnpm gateway:verify       # tests operativos, typecheck, smoke, ACL y E2E secuen
 pnpm gateway:demo         # recorrido visible con pausas; gateway:recover --run=<UUID> para interrupciones
 pnpm gateway:operations   # reinicios reales + persistencia + recuperación + restauración aislada
 pnpm gateway:backup       # base + configuración; gateway:backup-check --backup=RUTA restaura en PostgreSQL aislado
+pnpm gateway:tunnel       # landing + túneles de Cloudflare (URLs públicas); gateway:tunnel-urls · gateway:tunnel-down
 pnpm db:migrate           # migraciones TypeORM · db:generate --name=X · db:revert · db:seed · db:reset
 pnpm dev                  # api + backoffice + tv-display
 pnpm dev:api | dev:backoffice | dev:tv | dev:landing

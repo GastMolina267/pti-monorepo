@@ -27,3 +27,4 @@ Formato y proceso: skill `vitalia-docs`. Un ADR aceptado no se edita: se reempla
 | [0021](0021-estado-de-la-pulsera-por-comandos.md)          | Estado de la pulsera por comandos y pantalla del paciente | Aceptado           |
 | [0022](0022-gateway-expuesto-por-defecto.md)               | Gateway publicado en la red por defecto                   | Aceptado           |
 | [0023](0023-descartar-solo-la-medicion-fuera-de-rango.md)  | Descartar solo la medición fuera de rango                 | Aceptado           |
+| [0024](0024-exposicion-publica-con-cloudflare-tunnel.md)   | Exposición pública del gateway con Cloudflare Tunnel      | Aceptado           |

@@ -203,7 +203,25 @@
     "gateway-down": {
       "cache": false,
       "executor": "nx:run-commands",
-      "options": { "command": "node tools/scripts/gateway-compose.mjs down" }
+      "options": {
+        "command": "node tools/scripts/gateway-compose.mjs --profile landing --profile tunnel --profile tunnel-named down"
+      }
+    },
+    "gateway-tunnel": {
+      "cache": false,
+      "dependsOn": ["gateway-mqtt-config"],
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-tunnel.mjs up" }
+    },
+    "gateway-tunnel-urls": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-tunnel.mjs urls" }
+    },
+    "gateway-tunnel-down": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": { "command": "node tools/scripts/gateway-tunnel.mjs down" }
     },
     "gateway-seed": {
       "cache": false,
@@ -228,7 +246,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "node --test tools/scripts/gateway-init.spec.mjs tools/scripts/gateway-compose.spec.mjs tools/scripts/gateway-backup.spec.mjs tools/scripts/gateway-lock.spec.mjs",
+          "node --test tools/scripts/gateway-init.spec.mjs tools/scripts/gateway-compose.spec.mjs tools/scripts/gateway-backup.spec.mjs tools/scripts/gateway-lock.spec.mjs tools/scripts/gateway-tunnel.spec.mjs",
           "tsx --tsconfig tsconfig.base.json --test tools/scripts/gateway-mqtt-config.spec.ts tools/scripts/gateway-fixtures.spec.ts tools/scripts/perf-lib.spec.ts"
         ],
         "parallel": false
