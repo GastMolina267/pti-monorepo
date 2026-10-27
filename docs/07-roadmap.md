@@ -242,6 +242,7 @@ El job CI del gateway incluye instalación de Chromium y E2E; su ejecución remo
   - Recorrido con escenario cuadrado: ya no se recorta en pantallas altas y cada escena coincide con su texto
   - Verificado en Chromium de 360 a 2560 px, claro y oscuro, movimiento reducido y teclado, sin scroll horizontal ni errores de consola; 42 tests
   - App del paciente (25/10): las dos páginas aclaran que hoy no hace falta descargar nada (portal cautivo) y que la app Android ([5e](#5e--app-del-paciente-en-flutter-g--completo-2510)) está en desarrollo hasta probarla en un celular real; en Instituciones figura como etapa "En desarrollo" de la hoja de ruta
+- [x] Exposición pública para demos (G, 27/10): la landing entra al compose del gateway (perfil `landing`, :8082) y `pnpm gateway:tunnel` publica Backoffice + API, TV y landing con Cloudflare Tunnel (rápido o con nombre); el README documenta cómo levantar y exponer cada servicio ([ADR 0024](adr/0024-exposicion-publica-con-cloudflare-tunnel.md))
 - [ ] Landing: reemplazar `SITE.contactEmail`, confirmar el costo de la pulsera y elegir dónde se publica (sitio estático)
 - [ ] Documentación final y actualización de la tesis (capítulos 12–14, "Diferencias con la tesis")
 - [ ] Video y demo, presentación para la defensa

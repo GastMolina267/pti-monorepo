@@ -22,6 +22,10 @@ pnpm gateway:smoke
 
 Los puertos se publican en todas las interfaces de la máquina ([ADR 0022](adr/0022-gateway-expuesto-por-defecto.md)): el gateway corre en una red privada propia y las pulseras, la TV y la consola llegan sin configurar nada. En una red compartida, restringilos con `GATEWAY_MQTT_BIND`/`GATEWAY_HTTP_BIND` (más abajo). PostgreSQL y la API no publican puertos al host; se accede a la API mediante Nginx. El `docker-compose.yml` de desarrollo sigue disponible sin cambios, con volúmenes y nombres separados.
 
+## Landing y exposición pública (Cloudflare Tunnel)
+
+La landing tiene su imagen Nginx (target `landing`, puerto 8082) en el perfil `landing` del compose. `pnpm gateway:tunnel` la levanta junto con un túnel de Cloudflare por origen (Backoffice, TV y landing), imprime las URLs `https://*.trycloudflare.com` y las verifica. Con `CLOUDFLARE_TUNNEL_TOKEN` en `.gateway/.env` usa el túnel con nombre del equipo. `pnpm gateway:tunnel-down` baja solo la landing y los túneles. MQTT y PostgreSQL no se exponen. Paso a paso, variables y alternativas: [README](../README.md#exponer-a-internet-con-cloudflare-tunnel) y [ADR 0024](adr/0024-exposicion-publica-con-cloudflare-tunnel.md).
+
 ## Configuración y credenciales
 
 `pnpm gateway:init` genera `.gateway/.env`, ignorado por Git y por el contexto Docker. Contiene contraseñas aleatorias de PostgreSQL y del seed, secreto JWT, clave AES y puertos. No imprime los secretos ni sobrescribe un archivo existente.
