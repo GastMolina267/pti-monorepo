@@ -1,4 +1,4 @@
-# Contexto: raíz del monorepo. Targets: api (por defecto) y web.
+# Contexto: raíz del monorepo. Targets: api (por defecto), web y landing.
 FROM node:24-bookworm-slim AS workspace
 WORKDIR /workspace
 ENV CI=true NX_DAEMON=false HUSKY=0
@@ -22,6 +22,17 @@ COPY --from=build-web /workspace/dist/apps/tv-display/browser /usr/share/nginx/t
 EXPOSE 8080 8081
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
   CMD wget -q -O /dev/null http://127.0.0.1:8080/gateway-health && wget -q -O /dev/null http://127.0.0.1:8081/gateway-health || exit 1
+
+FROM workspace AS build-landing
+RUN pnpm nx build landing
+
+# Landing pública (perfil `landing` del compose): no habla con la API.
+FROM nginx:1.28-alpine AS landing
+COPY infra/gateway/landing.conf /etc/nginx/conf.d/default.conf
+COPY --from=build-landing /workspace/dist/apps/landing/browser /usr/share/nginx/landing
+EXPOSE 8082
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8082/gateway-health || exit 1
 
 FROM node:24-bookworm-slim AS api
 WORKDIR /app

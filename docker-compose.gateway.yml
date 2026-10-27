@@ -68,12 +68,14 @@ services:
       API_PORT: 3000
       DATABASE_URL: postgresql://vitalia:${POSTGRES_PASSWORD:?Ejecutá pnpm gateway:init}@postgres:5432/vitalia
       DB_RUN_MIGRATIONS: 'true'
-      SWAGGER_ENABLED: 'false'
+      # Swagger en /api/docs: apagado salvo GATEWAY_SWAGGER=true (por ejemplo, para mostrarlo por el túnel).
+      SWAGGER_ENABLED: ${GATEWAY_SWAGGER:-false}
       JWT_SECRET: ${JWT_SECRET:?Ejecutá pnpm gateway:init}
       TELEMETRY_AES_KEY: ${TELEMETRY_AES_KEY:?Ejecutá pnpm gateway:init}
       CORS_ORIGINS: http://localhost:${GATEWAY_HTTP_PORT:-8080},http://localhost:${GATEWAY_TV_PORT:-8081},http://127.0.0.1:${GATEWAY_HTTP_PORT:-8080},http://127.0.0.1:${GATEWAY_TV_PORT:-8081}${GATEWAY_EXTRA_CORS_ORIGINS:+,${GATEWAY_EXTRA_CORS_ORIGINS}}
       # Nginx es un salto: la IP real sale de X-Forwarded-For (rate limit por cliente, no global).
-      TRUST_PROXY: '1'
+      # Detrás de un túnel (cloudflared → Nginx) son dos saltos: pnpm gateway:tunnel lo pone en 2.
+      TRUST_PROXY: ${GATEWAY_TRUST_PROXY:-1}
       TELEMETRY_RETENTION_HOURS: ${TELEMETRY_RETENTION_HOURS:-72}
       GATEWAY_ID: ${GATEWAY_ID:-gateway-local}
       CLOUD_SYNC_URL: ${CLOUD_SYNC_URL:-}
@@ -102,6 +104,62 @@ services:
       - '${GATEWAY_HTTP_BIND:-0.0.0.0}:${GATEWAY_TV_PORT:-8081}:8081'
     depends_on:
       api:
+        condition: service_healthy
+
+  # Landing pública (ADR 0020). Opcional: perfil `landing`, y también la levantan los túneles.
+  landing:
+    image: vitalia-landing:local
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: landing
+    profiles: [landing, tunnel, tunnel-named]
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_HTTP_BIND:-0.0.0.0}:${GATEWAY_LANDING_PORT:-8082}:8082'
+
+  # Túneles rápidos de Cloudflare (pnpm gateway:tunnel): una URL https://*.trycloudflare.com por
+  # servicio, sin cuenta ni puertos abiertos en el router. La URL cambia cada vez que se crea el contenedor.
+  tunnel-backoffice:
+    image: &cloudflared cloudflare/cloudflared:${CLOUDFLARED_VERSION:-2026.10.0}
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://web:8080
+    depends_on:
+      web:
+        condition: service_healthy
+
+  tunnel-tv:
+    image: *cloudflared
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://web:8081
+    depends_on:
+      web:
+        condition: service_healthy
+
+  tunnel-landing:
+    image: *cloudflared
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://landing:8082
+    depends_on:
+      landing:
+        condition: service_healthy
+
+  # Túnel con nombre (dominio propio y URLs fijas): CLOUDFLARE_TUNNEL_TOKEN en .gateway/.env. Los
+  # hostnames se configuran en Cloudflare apuntando a http://web:8080, http://web:8081 y http://landing:8082.
+  tunnel:
+    image: *cloudflared
+    profiles: [tunnel-named]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      web:
+        condition: service_healthy
+      landing:
         condition: service_healthy
 
 volumes:
